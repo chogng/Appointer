@@ -43,11 +43,11 @@ app.post('/api/auth/login', (req, res) => {
     try {
         const { username, password } = req.body;
         const user = db.queryOne('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
-        
+
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
-        
+
         if (user.status !== 'ACTIVE') {
             return res.status(403).json({ error: 'Account is not active' });
         }
@@ -76,7 +76,7 @@ app.get('/api/users', (req, res) => {
 app.post('/api/users', (req, res) => {
     try {
         const { username, password, name, email, expiryDate } = req.body;
-        
+
         const existing = db.queryOne('SELECT id FROM users WHERE username = ?', [username]);
         if (existing) {
             return res.status(400).json({ error: 'Username already exists' });
@@ -99,10 +99,10 @@ app.post('/api/users', (req, res) => {
         );
 
         const { password: _, ...userWithoutPassword } = newUser;
-        
+
         // 广播新用户创建
         broadcast('user:created', userWithoutPassword);
-        
+
         res.status(201).json(userWithoutPassword);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -113,7 +113,7 @@ app.patch('/api/users/:id', (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        
+
         const user = db.queryOne('SELECT * FROM users WHERE id = ?', [id]);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -121,14 +121,14 @@ app.patch('/api/users/:id', (req, res) => {
 
         const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
         const values = [...Object.values(updates), id];
-        
+
         db.execute(`UPDATE users SET ${fields} WHERE id = ?`, values);
-        
+
         const updated = db.queryOne('SELECT id, username, role, status, name, email, expiryDate FROM users WHERE id = ?', [id]);
-        
+
         // 广播用户更新
         broadcast('user:updated', updated);
-        
+
         res.json(updated);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -144,7 +144,9 @@ app.get('/api/devices', (req, res) => {
             ...d,
             isEnabled: Boolean(d.isEnabled),
             openDays: JSON.parse(d.openDays),
-            timeSlots: JSON.parse(d.timeSlots)
+            timeSlots: JSON.parse(d.timeSlots),
+            granularity: d.granularity || 60,
+            openTime: d.openTime ? JSON.parse(d.openTime) : { start: '09:00', end: '18:00' }
         }));
         res.json(parsed);
     } catch (error) {
@@ -162,7 +164,9 @@ app.get('/api/devices/:id', (req, res) => {
             ...device,
             isEnabled: Boolean(device.isEnabled),
             openDays: JSON.parse(device.openDays),
-            timeSlots: JSON.parse(device.timeSlots)
+            timeSlots: JSON.parse(device.timeSlots),
+            granularity: device.granularity || 60,
+            openTime: device.openTime ? JSON.parse(device.openTime) : { start: '09:00', end: '18:00' }
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -171,20 +175,21 @@ app.get('/api/devices/:id', (req, res) => {
 
 app.post('/api/devices', (req, res) => {
     try {
-        const { name, description, openDays, timeSlots } = req.body;
-        
+        const { name, description, openDays, timeSlots, granularity = 60 } = req.body;
+
         const newDevice = {
             id: 'dev_' + Date.now(),
             name,
             description,
             isEnabled: 1,
             openDays: JSON.stringify(openDays),
-            timeSlots: JSON.stringify(timeSlots)
+            timeSlots: JSON.stringify(timeSlots),
+            granularity
         };
 
         db.execute(
-            'INSERT INTO devices (id, name, description, isEnabled, openDays, timeSlots) VALUES (?, ?, ?, ?, ?, ?)',
-            [newDevice.id, newDevice.name, newDevice.description, newDevice.isEnabled, newDevice.openDays, newDevice.timeSlots]
+            'INSERT INTO devices (id, name, description, isEnabled, openDays, timeSlots, granularity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [newDevice.id, newDevice.name, newDevice.description, newDevice.isEnabled, newDevice.openDays, newDevice.timeSlots, newDevice.granularity]
         );
 
         const result = {
@@ -207,7 +212,7 @@ app.patch('/api/devices/:id', (req, res) => {
     try {
         const { id } = req.params;
         const updates = { ...req.body };
-        
+
         const device = db.queryOne('SELECT * FROM devices WHERE id = ?', [id]);
         if (!device) {
             return res.status(404).json({ error: 'Device not found' });
@@ -222,24 +227,49 @@ app.patch('/api/devices/:id', (req, res) => {
         if (updates.timeSlots) {
             updates.timeSlots = JSON.stringify(updates.timeSlots);
         }
+        if (updates.openTime) {
+            updates.openTime = JSON.stringify(updates.openTime);
+        }
 
         const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
         const values = [...Object.values(updates), id];
-        
+
         db.execute(`UPDATE devices SET ${fields} WHERE id = ?`, values);
-        
+
         const updated = db.queryOne('SELECT * FROM devices WHERE id = ?', [id]);
         const result = {
             ...updated,
             isEnabled: Boolean(updated.isEnabled),
             openDays: JSON.parse(updated.openDays),
-            timeSlots: JSON.parse(updated.timeSlots)
+            timeSlots: JSON.parse(updated.timeSlots),
+            granularity: updated.granularity || 60,
+            openTime: updated.openTime ? JSON.parse(updated.openTime) : { start: '09:00', end: '18:00' }
         };
 
         // 广播设备更新（重要：启用/停用状态）
         broadcast('device:updated', result);
 
         res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/devices/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const device = db.queryOne('SELECT * FROM devices WHERE id = ?', [id]);
+        if (!device) {
+            return res.status(404).json({ error: 'Device not found' });
+        }
+
+        db.execute('DELETE FROM devices WHERE id = ?', [id]);
+
+        // 广播设备删除
+        broadcast('device:deleted', { id });
+
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -258,8 +288,8 @@ app.get('/api/reservations', (req, res) => {
 
 app.post('/api/reservations', (req, res) => {
     try {
-        const { userId, deviceId, date, timeSlot } = req.body;
-        
+        const { userId, deviceId, date, timeSlot, title, description, color } = req.body;
+
         const conflict = db.queryOne(
             `SELECT * FROM reservations WHERE deviceId = ? AND date = ? AND timeSlot = ? AND status != 'CANCELLED'`,
             [deviceId, date, timeSlot]
@@ -276,12 +306,15 @@ app.post('/api/reservations', (req, res) => {
             date,
             timeSlot,
             status: 'CONFIRMED',
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            title: title || '',
+            description: description || '',
+            color: color || 'default'
         };
 
         db.execute(
-            'INSERT INTO reservations (id, userId, deviceId, date, timeSlot, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [newReservation.id, newReservation.userId, newReservation.deviceId, newReservation.date, newReservation.timeSlot, newReservation.status, newReservation.createdAt]
+            'INSERT INTO reservations (id, userId, deviceId, date, timeSlot, status, createdAt, title, description, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [newReservation.id, newReservation.userId, newReservation.deviceId, newReservation.date, newReservation.timeSlot, newReservation.status, newReservation.createdAt, newReservation.title, newReservation.description, newReservation.color]
         );
 
         // 广播新预约（重要：实时显示）
@@ -297,7 +330,7 @@ app.patch('/api/reservations/:id', (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        
+
         const reservation = db.queryOne('SELECT * FROM reservations WHERE id = ?', [id]);
         if (!reservation) {
             return res.status(404).json({ error: 'Reservation not found' });
@@ -305,9 +338,9 @@ app.patch('/api/reservations/:id', (req, res) => {
 
         const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
         const values = [...Object.values(updates), id];
-        
+
         db.execute(`UPDATE reservations SET ${fields} WHERE id = ?`, values);
-        
+
         const updated = db.queryOne('SELECT * FROM reservations WHERE id = ?', [id]);
 
         // 广播预约更新（取消等操作）
@@ -322,7 +355,7 @@ app.patch('/api/reservations/:id', (req, res) => {
 app.delete('/api/reservations/:id', (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const reservation = db.queryOne('SELECT * FROM reservations WHERE id = ?', [id]);
         if (!reservation) {
             return res.status(404).json({ error: 'Reservation not found' });

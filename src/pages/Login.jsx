@@ -39,8 +39,8 @@ const Login = () => {
                         <div className="flex items-center justify-between max-w-[90rem] mx-auto pl-8" style={{ width: 'calc(100% - 2 * clamp(2rem, calc(1.43rem + 2.86vw), 4rem))' }}>
                             <div className="flex items-center">
                                 <a href="#" className="flex items-center gap-[0.5rem] py-[1.375rem]">
-                                    <img src="/logo.png" alt="Appointer Logo" className="w-[2.5rem] h-[2.5rem] object-contain" />
-                                    <span className="text-[1.5rem] font-display font-medium text-text-0 tracking-tight">
+                                    <img src="/logo.svg" alt="Appointer Logo" className="w-[1.75rem] h-[1.75rem] object-contain" />
+                                    <span className="text-[2rem] font-display font-medium text-text-0 tracking-tight">
                                         Appointer
                                     </span>
                                 </a>
@@ -76,7 +76,7 @@ const Login = () => {
                                             Inefficient?<br />
                                             Efficient.
                                         </h2>
-                                        <h3 className="flex flex-col gap-[0.3em] sm:gap-[0.15em] items-center text-center text-text-100 font-normal text-pretty font-claude-response mt-4 break-words leading-[1em] text-base md:text-lg leading-snug mb-8">
+                                        <h3 className="flex flex-col gap-[0.3em] sm:gap-[0.15em] items-center text-center text-text-100 font-normal text-pretty font-response mt-4 break-words leading-[1em] text-base md:text-lg leading-snug mb-8">
                                             The booking system for efficient management
                                         </h3>
                                         {/*login card*/}

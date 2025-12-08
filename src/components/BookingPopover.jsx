@@ -1,50 +1,103 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Clock, MapPin, AlignLeft, Calendar as CalendarIcon, User } from 'lucide-react';
+import { X, Clock, MapPin, AlignLeft, Calendar as CalendarIcon, User, Check, ChevronDown, Trash } from 'lucide-react';
 import Button from './ui/Button';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
-const BookingPopover = ({ isOpen, onClose, onSave, initialData, position }) => {
+const COLORS = [
+    { name: 'default', bg: 'bg-bg-100 border border-border-200', ring: 'ring-gray-400' },
+    { name: 'blue', bg: 'bg-blue-500', ring: 'ring-blue-500' },
+    { name: 'red', bg: 'bg-red-500', ring: 'ring-red-500' },
+    { name: 'green', bg: 'bg-green-500', ring: 'ring-green-500' },
+    { name: 'yellow', bg: 'bg-yellow-500', ring: 'ring-yellow-500' },
+    { name: 'purple', bg: 'bg-purple-500', ring: 'ring-purple-500' },
+    { name: 'pink', bg: 'bg-pink-500', ring: 'ring-pink-500' },
+    { name: 'gray', bg: 'bg-gray-500', ring: 'ring-gray-500' },
+];
+
+const BookingPopover = ({ isOpen, onClose, onSave, onColorChange, onDelete, initialData, position, placement }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [selectedColor, setSelectedColor] = useState('default');
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
     const popoverRef = useRef(null);
+    const colorPickerRef = useRef(null);
 
     useEffect(() => {
         if (isOpen && initialData) {
             setTitle('');
             setDescription('');
+            // Use initialData.color if present (editing existing/draft), otherwise use last selected color from local storage
+            const savedColor = localStorage.getItem('lastSelectedColor');
+            const colorToUse = initialData.color || savedColor || 'default';
+            setSelectedColor(colorToUse);
+
+            // Sync parent if using a saved color that isn't in initialData
+            if (!initialData.color && savedColor && onColorChange) {
+                onColorChange(savedColor);
+            }
         }
     }, [isOpen, initialData]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+                // Check if the click is inside the color picker before closing
+                // Actually, if color picker is open, we might want to close just the picker?
+                // But the requirement is to close popover on outside click.
+                // If color picker is open, it is inside the popover (visually), but maybe rendered in portal?
+                // Here we render it inline, so it is inside popoverRef.
                 onClose();
             }
         };
+
+        const handleColorPickerClickOutside = (event) => {
+            if (isColorPickerOpen && colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
+                setIsColorPickerOpen(false);
+            }
+        }
 
         if (isOpen) {
             // Use setTimeout to avoid conflict with grid click events
             const timer = setTimeout(() => {
                 document.addEventListener('mousedown', handleClickOutside);
+                document.addEventListener('mousedown', handleColorPickerClickOutside);
             }, 100);
             return () => {
                 clearTimeout(timer);
                 document.removeEventListener('mousedown', handleClickOutside);
+                document.removeEventListener('mousedown', handleColorPickerClickOutside);
             };
         }
-    }, [isOpen, onClose]);
-
-    if (!isOpen) return null;
+    }, [isOpen, onClose, isColorPickerOpen]);
 
     const handleSave = () => {
         onSave({
             ...initialData,
             title: title || '(无标题)',
-            description
+            description,
+            color: selectedColor
         });
         onClose();
     };
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                handleSave();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, handleSave]);
+
+    if (!isOpen) return null;
+
+
 
     // Use passed position directly
     const style = {
@@ -52,20 +105,72 @@ const BookingPopover = ({ isOpen, onClose, onSave, initialData, position }) => {
         left: position?.left || 0,
     };
 
+    const currentColorObj = COLORS.find(c => c.name === selectedColor) || COLORS[0];
+
+    // Determine animation class based on placement
+    const animationClass = placement === 'right'
+        ? 'animate-popover-in-right'
+        : 'animate-popover-in-left';
+
     return (
         <div
             ref={popoverRef}
-            className="fixed z-50 w-[400px] bg-white rounded-lg shadow-xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className={`fixed z-50 w-[400px] bg-white rounded-[1.5rem] shadow-xl border border-border overflow-hidden ${animationClass}`}
             style={style}
         >
             {/* Header */}
             <div className="bg-bg-50 px-4 py-2 flex items-center justify-between border-b border-border/50 handle cursor-move">
-                <div className="flex items-center gap-2">
-                    {/* Window controls simulation if needed, or just empty */}
+                <div className="flex items-center gap-2 relative">
+                    {/* Color Selector */}
+                    <div className="relative" ref={colorPickerRef}>
+                        <button
+                            onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
+                            className="flex items-center gap-1 p-1 rounded hover:bg-gray-100 transition-colors"
+                            title="Color Selector"
+                        >
+                            <div className={`w-5 h-5 rounded-full ${currentColorObj.bg}`} />
+                            <ChevronDown size={14} className="text-gray-500" />
+                        </button>
+                        {isColorPickerOpen && (
+                            <div className="absolute top-full left-0 mt-2 p-2 bg-white rounded-lg shadow-lg border border-border grid grid-cols-4 gap-2 z-50 w-[140px] animate-in fade-in zoom-in-95 duration-150">
+                                {COLORS.map((color) => (
+                                    <button
+                                        key={color.name}
+                                        onClick={() => {
+                                            const newColor = color.name;
+                                            setSelectedColor(newColor);
+                                            localStorage.setItem('lastSelectedColor', newColor);
+                                            setIsColorPickerOpen(false);
+                                            if (onColorChange) {
+                                                onColorChange(newColor);
+                                            }
+                                        }}
+                                        className={`w-6 h-6 rounded-full ${color.bg} hover:scale-110 transition-transform flex items-center justify-center`}
+                                    >
+                                        {selectedColor === color.name && <Check size={14} className="text-white" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <button onClick={onClose} className="text-text-secondary hover:bg-bg-200 rounded p-1">
-                    <X size={18} />
-                </button>
+                <div className="flex items-center">
+                    {initialData?.id && onDelete && (
+                        <button
+                            onClick={() => {
+                                onClose();
+                                onDelete(initialData.id);
+                            }}
+                            className="text-text-secondary hover:bg-bg-200 rounded p-1 mr-1"
+                            title="Delete event"
+                        >
+                            <Trash size={18} />
+                        </button>
+                    )}
+                    <button onClick={onClose} className="text-text-secondary hover:bg-bg-200 rounded p-1">
+                        <X size={18} />
+                    </button>
+                </div>
             </div>
 
             <div className="p-6 space-y-4">
@@ -73,7 +178,7 @@ const BookingPopover = ({ isOpen, onClose, onSave, initialData, position }) => {
                 <div>
                     <input
                         type="text"
-                        placeholder="添加标题"
+                        placeholder="Add title"
                         className="w-full text-2xl border-b-2 border-blue-500 pb-1 focus:outline-none placeholder:text-text-tertiary"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
@@ -83,7 +188,7 @@ const BookingPopover = ({ isOpen, onClose, onSave, initialData, position }) => {
 
                 {/* Type Selector (Mock) */}
                 <div className="flex gap-2">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">活动</span>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">Event</span>
                     <span className="px-3 py-1 hover:bg-bg-100 text-text-secondary rounded text-sm cursor-pointer">任务</span>
                     <span className="px-3 py-1 hover:bg-bg-100 text-text-secondary rounded text-sm cursor-pointer">预约安排 <span className="text-[10px] bg-blue-600 text-white px-1 rounded ml-1">新</span></span>
                 </div>
@@ -98,8 +203,6 @@ const BookingPopover = ({ isOpen, onClose, onSave, initialData, position }) => {
                         <div className="mt-0.5">
                             {initialData?.timeSlot && (() => {
                                 const [start, end] = initialData.timeSlot.split('-');
-                                // Convert 24h to 12h format roughly for display if needed, or keep as is
-                                // The image shows "下午1:30 - 下午2:30"
                                 return `${start} - ${end}`;
                             })()}
                         </div>

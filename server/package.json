@@ -8,8 +8,9 @@
     "init-db": "node init-db.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "better-sqlite3": "^12.5.0",
     "cors": "^2.8.5",
+    "express": "^4.18.2",
     "socket.io": "^4.7.2",
     "sql.js": "^1.10.3"
   }

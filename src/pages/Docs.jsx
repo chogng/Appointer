@@ -22,7 +22,7 @@ const Docs = () => {
                     >
                         <div className="flex items-center">
                             <a href="#" className="flex items-center gap-[0.5rem] py-[1.375rem]">
-                                <img src="/logo.png" alt="Appointer Logo" className="w-[2.5rem] h-[2.5rem] object-contain" />
+                                <img src="/logo.svg" alt="Appointer Logo" className="w-[2.5rem] h-[2.5rem] object-contain" />
                                 <span className="text-[1.5rem] font-display font-medium text-text-0 tracking-tight">
                                     Appointer
                                 </span>

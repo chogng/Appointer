@@ -67,6 +67,12 @@ class ApiService {
         });
     }
 
+    async deleteDevice(id) {
+        return this.request(`/devices/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
     // ============ 预约相关 ============
     async getReservations() {
         return this.request('/reservations');
@@ -76,6 +82,19 @@ class ApiService {
         return this.request('/reservations', {
             method: 'POST',
             body: JSON.stringify(reservationData),
+        });
+    }
+
+    async updateReservation(id, updates) {
+        return this.request(`/reservations/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates),
+        });
+    }
+
+    async deleteReservation(id) {
+        return this.request(`/reservations/${id}`, {
+            method: 'DELETE',
         });
     }
 

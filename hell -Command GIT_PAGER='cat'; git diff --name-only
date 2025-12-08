@@ -1,0 +1,38 @@
+warning: in the working copy of 'server/database.js', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'server/init-db.js', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'server/package-lock.json', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'server/package.json', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'server/server.js', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/components/BookingPopover.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/components/WeeklyCalendar.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/layouts/MainLayout.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/pages/CreateDevice.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/pages/Login.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/pages/PendingReview.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/pages/Register.jsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/services/apiService.js', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'src/styles/global.css', CRLF will be replaced by LF the next time Git touches it
+ .gitignore                        |   5 [32m+[m[31m-[m
+ index.html                        |   2 [32m+[m[31m-[m
+ public/logo.png                   | Bin [31m398794[m -> [32m0[m bytes
+ server/database.js                |  13 [32m+[m[31m-[m
+ server/init-db.js                 |   7 [32m+[m[31m-[m
+ server/package-lock.json          | 426 [32m+++++++++++++++++++++++[m
+ server/package.json               |   3 [32m+[m[31m-[m
+ server/server.js                  |  93 [32m+++[m[31m--[m
+ src/components/BookingPopover.jsx | 135 [32m+++++++[m[31m-[m
+ src/components/CalendarView.jsx   | 379 [31m--------------------[m
+ src/components/WeeklyCalendar.jsx | 704 [32m+++++++++++++++++++++++++++++++++[m[31m-----[m
+ src/components/ui/Button.jsx      |   2 [32m+[m[31m-[m
+ src/layouts/MainLayout.jsx        |   2 [32m+[m[31m-[m
+ src/pages/CreateDevice.jsx        |  62 [32m++[m[31m--[m
+ src/pages/DeviceBooking.jsx       | 141 [32m++++++[m[31m--[m
+ src/pages/Devices.jsx             | 130 [32m++++[m[31m---[m
+ src/pages/Docs.jsx                |   2 [32m+[m[31m-[m
+ src/pages/Login.jsx               |   6 [32m+[m[31m-[m
+ src/pages/PendingReview.jsx       |   4 [32m+[m[31m-[m
+ src/pages/Register.jsx            |   4 [32m+[m[31m-[m
+ src/services/apiService.js        |  19 [32m+[m
+ src/styles/global.css             |  30 [32m+[m[31m-[m
+ tailwind.config.js                |  33 [32m+[m[31m-[m
+ 23 files changed, 1512 insertions(+), 690 deletions(-)

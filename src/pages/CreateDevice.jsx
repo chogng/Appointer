@@ -20,17 +20,17 @@ const CreateDevice = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // 构建设备数据
         const deviceData = {
             name: formData.name,
             description: formData.description,
             timeGranularity: parseInt(formData.timeGranularity),
-            openDays: formData.availabilityType === 'everyday' 
+            openDays: formData.availabilityType === 'everyday'
                 ? [0, 1, 2, 3, 4, 5, 6] // 所有天
                 : formData.specificDays.map(day => {
                     const dayMap = {
-                        'sunday': 0, 'monday': 1, 'tuesday': 2, 
+                        'sunday': 0, 'monday': 1, 'tuesday': 2,
                         'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6
                     };
                     return dayMap[day];
@@ -125,20 +125,19 @@ const CreateDevice = () => {
                         </label>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             {[
-                                { value: '15', label: '15分钟' },
                                 { value: '30', label: '30分钟' },
                                 { value: '60', label: '1小时' },
+                                { value: '90', label: '90分钟' },
                                 { value: '120', label: '2小时' }
                             ].map(option => (
                                 <button
                                     key={option.value}
                                     type="button"
                                     onClick={() => handleChange('timeGranularity', option.value)}
-                                    className={`h-11 px-4 rounded-lg border transition-all ${
-                                        formData.timeGranularity === option.value
-                                            ? 'bg-blue-500 text-white border-blue-500'
-                                            : 'bg-bg-subtle border-border-subtle hover:border-border-default'
-                                    }`}
+                                    className={`h-11 px-4 rounded-lg border transition-all ${formData.timeGranularity === option.value
+                                        ? 'bg-blue-500 text-white border-blue-500'
+                                        : 'bg-bg-subtle border-border-subtle hover:border-border-default'
+                                        }`}
                                 >
                                     {option.label}
                                 </button>
@@ -155,22 +154,20 @@ const CreateDevice = () => {
                             <button
                                 type="button"
                                 onClick={() => handleChange('availabilityType', 'everyday')}
-                                className={`h-11 px-4 rounded-lg border transition-all ${
-                                    formData.availabilityType === 'everyday'
-                                        ? 'bg-blue-500 text-white border-blue-500'
-                                        : 'bg-bg-subtle border-border-subtle hover:border-border-default'
-                                }`}
+                                className={`h-11 px-4 rounded-lg border transition-all ${formData.availabilityType === 'everyday'
+                                    ? 'bg-blue-500 text-white border-blue-500'
+                                    : 'bg-bg-subtle border-border-subtle hover:border-border-default'
+                                    }`}
                             >
                                 每天可预约
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleChange('availabilityType', 'specific')}
-                                className={`h-11 px-4 rounded-lg border transition-all ${
-                                    formData.availabilityType === 'specific'
-                                        ? 'bg-blue-500 text-white border-blue-500'
-                                        : 'bg-bg-subtle border-border-subtle hover:border-border-default'
-                                }`}
+                                className={`h-11 px-4 rounded-lg border transition-all ${formData.availabilityType === 'specific'
+                                    ? 'bg-blue-500 text-white border-blue-500'
+                                    : 'bg-bg-subtle border-border-subtle hover:border-border-default'
+                                    }`}
                             >
                                 特定星期可预约
                             </button>
@@ -189,11 +186,10 @@ const CreateDevice = () => {
                                         key={day.value}
                                         type="button"
                                         onClick={() => toggleDay(day.value)}
-                                        className={`h-10 px-3 rounded-lg border text-sm transition-all ${
-                                            formData.specificDays.includes(day.value)
-                                                ? 'bg-blue-500 text-white border-blue-500'
-                                                : 'bg-bg-subtle border-border-subtle hover:border-border-default'
-                                        }`}
+                                        className={`h-10 px-3 rounded-lg border text-sm transition-all ${formData.specificDays.includes(day.value)
+                                            ? 'bg-blue-500 text-white border-blue-500'
+                                            : 'bg-bg-subtle border-border-subtle hover:border-border-default'
+                                            }`}
                                     >
                                         {day.label}
                                     </button>
@@ -211,22 +207,20 @@ const CreateDevice = () => {
                             <button
                                 type="button"
                                 onClick={() => handleChange('timeRangeType', '24hours')}
-                                className={`h-11 px-4 rounded-lg border transition-all ${
-                                    formData.timeRangeType === '24hours'
-                                        ? 'bg-blue-500 text-white border-blue-500'
-                                        : 'bg-bg-subtle border-border-subtle hover:border-border-default'
-                                }`}
+                                className={`h-11 px-4 rounded-lg border transition-all ${formData.timeRangeType === '24hours'
+                                    ? 'bg-blue-500 text-white border-blue-500'
+                                    : 'bg-bg-subtle border-border-subtle hover:border-border-default'
+                                    }`}
                             >
                                 24小时可预约
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleChange('timeRangeType', 'specific')}
-                                className={`h-11 px-4 rounded-lg border transition-all ${
-                                    formData.timeRangeType === 'specific'
-                                        ? 'bg-blue-500 text-white border-blue-500'
-                                        : 'bg-bg-subtle border-border-subtle hover:border-border-default'
-                                }`}
+                                className={`h-11 px-4 rounded-lg border transition-all ${formData.timeRangeType === 'specific'
+                                    ? 'bg-blue-500 text-white border-blue-500'
+                                    : 'bg-bg-subtle border-border-subtle hover:border-border-default'
+                                    }`}
                             >
                                 特定时间段可预约
                             </button>

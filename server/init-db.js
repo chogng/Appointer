@@ -32,6 +32,9 @@ db.exec(`
     timeSlot TEXT NOT NULL,
     status TEXT NOT NULL,
     createdAt TEXT NOT NULL,
+    title TEXT,
+    description TEXT,
+    color TEXT,
     FOREIGN KEY (userId) REFERENCES users(id),
     FOREIGN KEY (deviceId) REFERENCES devices(id)
   );
@@ -66,8 +69,8 @@ const insertDevice = db.prepare(`
 `);
 
 const devices = [
-  ['dev_001', '高性能服务器 A', '32核 CPU, 128GB 内存, 适用于重型计算。', 1, JSON.stringify([1,2,3,4,5]), JSON.stringify(['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00'])],
-  ['dev_002', 'VR 测试单元', 'Oculus Quest 2 设置，带动作追踪。', 1, JSON.stringify([1,3,5]), JSON.stringify(['10:00-12:00', '14:00-16:00'])]
+  ['dev_001', '高性能服务器 A', '32核 CPU, 128GB 内存, 适用于重型计算。', 1, JSON.stringify([1, 2, 3, 4, 5]), JSON.stringify(['09:00-10:00', '10:00-11:00', '11:00-12:00', '14:00-15:00', '15:00-16:00'])],
+  ['dev_002', 'VR 测试单元', 'Oculus Quest 2 设置，带动作追踪。', 1, JSON.stringify([1, 3, 5]), JSON.stringify(['10:00-12:00', '14:00-16:00'])]
 ];
 
 devices.forEach(device => insertDevice.run(...device));

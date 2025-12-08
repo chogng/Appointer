@@ -20,7 +20,7 @@ const MainLayout = () => {
         <div className="h-screen bg-bg-page flex overflow-hidden">
             <aside className="w-[260px] h-full bg-bg-surface/80 backdrop-blur-xl border-r border-border-subtle flex flex-col z-50 flex-shrink-0">
                 <div className="text-xl font-bold mb-10 flex items-center gap-2.5 text-text-primary px-6 pt-6">
-                    <div className="w-6 h-6 bg-white rounded-md"></div>
+                    <img src="/logo.svg" alt="Appointer Logo" className="w-6 h-6 object-contain" />
                     Appointer
                 </div>
                 {/* Navigation */}
