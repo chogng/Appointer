@@ -28,6 +28,7 @@ const BookingGranularity = ({ value, onChange, isAdmin }) => {
             title="Granularity"
             disabled={!isAdmin}
             className="mt-2"
+            popupClassName="min-w-[8.75rem]"
             formatDisplay={() => {
                 if (!isAdmin || isNarrow) {
                     return `${currentValue}m`;

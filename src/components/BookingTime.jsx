@@ -79,9 +79,10 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
                 value={startTime}
                 onChange={handleStartChange}
                 title="START TIME"
-                className="flex-1 min-w-[5rem]"
+                className="w-[5.5rem]"
                 formatDisplay={formatDisplay}
-                align="left"
+                align="center"
+                popupClassName="min-w-[8.75rem]"
             />
             <span className="text-gray-400">-</span>
             <Dropdown
@@ -89,9 +90,10 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
                 value={endTime}
                 onChange={handleEndChange}
                 title="END TIME"
-                className="flex-1 min-w-[5rem]"
+                className="w-[5.5rem]"
                 formatDisplay={formatDisplay}
-                align="left"
+                align="center"
+                popupClassName="min-w-[8.75rem]"
             />
         </div>
     );
