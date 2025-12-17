@@ -79,7 +79,7 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
                 value={startTime}
                 onChange={handleStartChange}
                 title="START TIME"
-                className="w-[5.5rem]"
+                className="w-[10.5rem]"
                 formatDisplay={formatDisplay}
                 align="center"
                 popupClassName="min-w-[8.75rem]"

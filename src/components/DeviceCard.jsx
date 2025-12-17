@@ -64,7 +64,7 @@ const DeviceCard = ({
                 isAdmin={isAdmin}
             />
 
-            {/* Booking granularity editor */}
+            {/* Booking granularity editor and booking time editor*/}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-[0.5rem]">
                 <BookingGranularity
                     value={device.granularity}
