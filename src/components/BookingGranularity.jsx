@@ -27,7 +27,8 @@ const BookingGranularity = ({ value, onChange, isAdmin }) => {
             onChange={onChange}
             title="Granularity"
             disabled={!isAdmin}
-            className="mt-2"
+            className="mt-2 w-[5.5rem]"
+            align="center"
             popupClassName="min-w-[8.75rem]"
             formatDisplay={() => {
                 if (!isAdmin || isNarrow) {

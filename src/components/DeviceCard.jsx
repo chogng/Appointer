@@ -23,8 +23,8 @@ const DeviceCard = ({
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="text-[1rem] sm:text-[1.125rem] font-semibold mb-[0.25rem] text-text-primary truncate">{device.name}</h3>
-                        <p className="text-[0.6875rem] text-text-secondary leading-relaxed line-clamp-2">
-                            {device.description}
+                        <p className="text-[0.6875rem] text-text-secondary leading-relaxed line-clamp-2 min-h-[2.25rem]">
+                            {device.description || "\u00A0"}
                         </p>
                     </div>
                 </div>
@@ -80,7 +80,7 @@ const DeviceCard = ({
 
             <div className="mt-auto pt-[0.75rem] sm:pt-[1rem] border-t border-border-subtle flex flex-col sm:flex-row gap-[0.5rem] sm:gap-[0.75rem]">
                 <Button
-                    className="flex-1 text-[0.875rem] sm:text-base"
+                    className="flex-1 text-[0.875rem] sm:text-base whitespace-nowrap bg-black hover:bg-gray-800 text-white border-transparent transition-all duration-200 ease-[cubic-bezier(0.165,0.85,0.45,1)] overflow-hidden"
                     disabled={!device.isEnabled}
                     onClick={onBook}
                 >
