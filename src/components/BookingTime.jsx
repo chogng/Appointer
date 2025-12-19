@@ -1,6 +1,17 @@
 import React from 'react';
-import { Clock } from 'lucide-react';
 import Dropdown from './ui/Dropdown';
+
+const TimeIcon = ({ size = 24, className }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <path d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 16H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 16H7.01" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 16H17.01" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
 
 const generateTimeOptions = (granularity = 60) => {
     const options = [];
@@ -18,7 +29,7 @@ const generateTimeOptions = (granularity = 60) => {
         const minStr = min.toString().padStart(2, '0');
         const val = `${hStr}:${minStr}`;
 
-        let label = `${displayH}:${minStr}${ampm}`;
+        let label = `${displayH}:${minStr} ${ampm}`;
 
         options.push({
             label,
@@ -61,8 +72,8 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
 
     if (!isAdmin) {
         return (
-            <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-600">
-                <Clock size="0.75rem" className="text-gray-400" />
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                <TimeIcon size={18} className="text-gray-400" />
                 <span>
                     {startTime} - {endTime}
                 </span>
@@ -73,28 +84,31 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
     const formatDisplay = (opt) => opt?.label || opt?.value;
 
     return (
-        <div className="flex items-center gap-2 mt-2 flex-1 min-w-0">
-            <Dropdown
-                options={timeOptions}
-                value={startTime}
-                onChange={handleStartChange}
-                title="START TIME"
-                className="w-[5.5rem]"
-                formatDisplay={formatDisplay}
-                align="center"
-                popupClassName="min-w-[5.5rem]"
-            />
-            <span className="text-gray-400">-</span>
-            <Dropdown
-                options={timeOptions}
-                value={endTime}
-                onChange={handleEndChange}
-                title="END TIME"
-                className="w-[5.5rem]"
-                formatDisplay={formatDisplay}
-                align="center"
-                popupClassName="min-w-[8.75rem]"
-            />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+            <TimeIcon size={18} className="text-gray-400 shrink-0" />
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Dropdown
+                    options={timeOptions}
+                    value={startTime}
+                    onChange={handleStartChange}
+                    title="START TIME"
+                    className="w-[5.5rem]"
+                    formatDisplay={formatDisplay}
+                    align="center"
+                    popupClassName="min-w-[8.75rem]"
+                />
+                <span className="text-gray-400">-</span>
+                <Dropdown
+                    options={timeOptions}
+                    value={endTime}
+                    onChange={handleEndChange}
+                    title="END TIME"
+                    className="w-[5.5rem]"
+                    formatDisplay={formatDisplay}
+                    align="center"
+                    popupClassName="min-w-[8.75rem]"
+                />
+            </div>
         </div>
     );
 };

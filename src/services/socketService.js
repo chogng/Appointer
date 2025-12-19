@@ -1,5 +1,8 @@
 import { io } from 'socket.io-client';
 
+const DEFAULT_WS_URL = 'http://localhost:3001';
+const WS_URL = (import.meta.env?.VITE_WS_URL || DEFAULT_WS_URL).replace(/\/$/, '');
+
 class SocketService {
     constructor() {
         this.socket = null;
@@ -9,7 +12,7 @@ class SocketService {
     connect() {
         if (this.socket?.connected) return;
 
-        this.socket = io('http://localhost:3001', {
+        this.socket = io(WS_URL, {
             transports: ['websocket'],
             reconnection: true,
             reconnectionDelay: 1000,

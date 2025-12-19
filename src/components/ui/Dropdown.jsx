@@ -18,7 +18,7 @@ const Dropdown = ({
     align = 'left',
     zIndex = 20,
     id,
-    popupClassName,
+    popupClassName = 'min-w-full',
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -100,7 +100,7 @@ const Dropdown = ({
                 data-state={isOpen ? 'open' : 'closed'}
                 onClick={() => setIsOpen(prev => !prev)}
                 onKeyDown={handleKeyDown}
-                className="w-full h-10 flex items-center justify-center gap-[0.5rem] px-[0.75rem] rounded-[0.75rem] hover:bg-black/5 text-text-300 hover:text-text-100 transition-all duration-200"
+                className="w-full h-10 flex items-center justify-center gap-[0.5rem] px-[0.75rem] rounded-[0.75rem] border border-border-subtle bg-white/40 backdrop-blur-sm hover:bg-white/60 hover:border-green-300 text-gray-700 transition-all duration-300 shadow-sm"
             >
                 <span className="text-left text-[0.875rem] font-medium text-gray-700 whitespace-nowrap">
                     {displayText}
@@ -122,19 +122,19 @@ const Dropdown = ({
                 className={popupClassName}
             >
                 {title && (
-                    <div className="px-[0.75rem] py-[0.5rem] mr-[0.375rem] text-[0.75rem] font-medium text-gray-400 uppercase tracking-wider">
+                    <div className="px-[0.75rem] py-[0.5rem] mr-[0.5rem] text-[0.6875rem] font-bold text-gray-400 uppercase tracking-widest">
                         {title}
                     </div>
                 )}
-                <div className="flex flex-col gap-[0.125rem] max-h-[15rem] pr-[0.375rem] overflow-y-auto">
+                <div className="flex flex-col gap-[0.125rem] max-h-[15rem] pr-[0.375rem] overflow-y-auto custom-scrollbar">
                     {groups.map((group, groupIdx) => (
                         <div key={group || 'default'} role={group ? 'group' : undefined}>
                             {group && (
                                 <>
                                     {groupIdx > 0 && (
-                                        <div role="separator" aria-orientation="horizontal" className="h-px bg-gray-100 my-[0.375rem] mx-[0.75rem]" />
+                                        <div role="separator" aria-orientation="horizontal" className="h-px bg-gray-50/50 my-[0.375rem] mx-[0.75rem]" />
                                     )}
-                                    <div className="px-[0.75rem] py-[0.375rem] text-[0.6875rem] font-medium text-gray-400 uppercase tracking-wider">
+                                    <div className="px-[0.75rem] py-[0.375rem] text-[0.625rem] font-bold text-gray-300 uppercase tracking-widest">
                                         {group}
                                     </div>
                                 </>
@@ -157,15 +157,15 @@ const Dropdown = ({
                                         className={`
                                             w-full px-[0.75rem] py-[0.5rem] text-[0.875rem] text-left rounded-[0.375rem] 
                                             transition-all duration-200 flex items-center justify-between
-                                            ${isSelected ? 'bg-[#F3F1EB] text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-50'}
-                                            ${isHighlighted && !isSelected ? 'bg-gray-50 text-gray-900' : ''}
+                                            ${isSelected ? 'bg-[#FAFDF7] text-green-700 font-medium' : 'text-gray-600 hover:bg-[#FAFDF7]/50'}
+                                            ${isHighlighted && !isSelected ? 'bg-green-50/50 text-green-600' : ''}
                                         `}
                                     >
                                         <span className="flex items-center gap-[0.5rem]">
                                             {option.icon && <option.icon style={{ width: '0.875rem', height: '0.875rem' }} />}
                                             {option.label}
                                         </span>
-                                        {isSelected && <Check style={{ width: '0.875rem', height: '0.875rem' }} className="text-gray-600" />}
+                                        {isSelected && <Check style={{ width: '0.875rem', height: '0.875rem' }} className="text-green-600" />}
                                     </button>
                                 );
                             })}

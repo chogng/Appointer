@@ -1,9 +1,16 @@
 import React from 'react';
 
-const Card = ({ children, className = '', ...props }) => {
+const Card = ({ children, className = '', variant = 'default', ...props }) => {
+    const variants = {
+        default: 'bg-bg-surface border-border-subtle shadow-sm',
+        glass: 'glass',
+        flat: 'bg-bg-surface border-transparent'
+    };
+
     const cardClasses = `
-        bg-bg-surface rounded-2xl border border-border-subtle
-        p-6 shadow-sm
+        rounded-2xl border
+        p-6
+        ${variants[variant] || variants.default}
         ${className}
     `.trim().replace(/\s+/g, ' ');
 

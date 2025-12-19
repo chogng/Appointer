@@ -100,7 +100,7 @@ class MockService {
 
     getUsers() {
         return this._get(STORAGE_KEYS.USERS).map(u => {
-            const { password, ...rest } = u;
+            const { password: _password, ...rest } = u;
             return rest;
         });
     }

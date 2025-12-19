@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { format, addDays, startOfWeek, isSameDay, parse, getHours, isSameWeek } from 'date-fns';
+import { format, addDays, startOfWeek, isSameDay, parse, getHours } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import BookingPopover from './BookingPopover';
 
@@ -14,15 +14,18 @@ const EVENT_COLORS = {
     gray: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800' },
 };
 
-const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId, currentDate, className = '' }) => {
-    const [viewMode, setViewMode] = useState('week');
-    //
-    const [hoverSlot, setHoverSlot] = useState(null);
+const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId, currentDate, layoutMode = 'grid', className = '' }) => {
+    const [_hoverSlot, setHoverSlot] = useState(null);
     const [selectionDraft, setSelectionDraft] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [draftEvent, setDraftEvent] = useState(null); // The interactive draft event
     const [draftInteraction, setDraftInteraction] = useState(null); // { type: 'move' | 'resize-top' | 'resize-bottom', startY: number, startData: object }
     const gridRef = useRef(null);
+
+    // Event card positioning based on layout mode
+    const eventCardPosition = layoutMode === 'list'
+        ? 'left-[20%] right-[20%]'  // Narrower for list view
+        : 'left-2 right-2';          // Slightly narrower for grid view
 
     // Popover state
     const [popoverData, setPopoverData] = useState({
@@ -34,20 +37,10 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
 
     // 24 Hour Grid
     const startHour = 0;
-    const endHour = 24;
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
     const startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
-
-    const isSlotBooked = (date, slot) => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        return reservations.find(r =>
-            r.date === dateStr &&
-            r.timeSlot === slot &&
-            r.status !== 'CANCELLED'
-        );
-    };
 
     // Helper to get time from Y coordinate
     const getTimeFromY = (y) => {
@@ -100,9 +93,71 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
         };
     };
 
+    function openPopoverForDraft(targetEvent = draftEvent) {
+        if (!targetEvent || !gridRef.current) return;
+
+        const [startStr, endStr] = targetEvent.timeSlot.split('-');
+        const startH = parseInt(startStr.split(':')[0]);
+        const endH = parseInt(endStr.split(':')[0]);
+
+        // Find which day column the event is in
+        const dayIndex = weekDays.findIndex(day =>
+            format(day, 'yyyy-MM-dd') === targetEvent.date
+        );
+
+        // Get grid dimensions
+        const gridRect = gridRef.current.getBoundingClientRect();
+        const columnWidth = gridRect.width / 7;
+
+        // Calculate event card position
+        const cardLeft = gridRect.left + (dayIndex * columnWidth);
+        const cardRight = cardLeft + columnWidth;
+        const cardTop = gridRect.top + (startH * 50);
+        const cardHeight = (endH - startH) * 50;
+
+        const popoverWidth = 400;
+        const popoverHeight = 500;
+        const gap = 12;
+        let left, top;
+
+        // Horizontal positioning
+        if (dayIndex < 3.5) {
+            left = cardRight + gap;
+            if (left + popoverWidth > window.innerWidth - 10) left = cardLeft - popoverWidth - gap;
+        } else {
+            left = cardLeft - popoverWidth - gap;
+            if (left < 10) left = cardRight + gap;
+        }
+
+        // Vertical positioning
+        if (cardTop < window.innerHeight / 2) {
+            top = cardTop;
+            if (top + popoverHeight > window.innerHeight - 10) top = window.innerHeight - popoverHeight - 10;
+        } else {
+            top = cardTop + cardHeight - popoverHeight;
+            if (top < 10) top = 10;
+        }
+
+        // Boundary checks
+        top = Math.max(10, Math.min(top, window.innerHeight - popoverHeight - 10));
+        left = Math.max(10, Math.min(left, window.innerWidth - popoverWidth - 10));
+
+        // Determine placement for animation direction
+        // If popover is to the right of the card (left > cardLeft), it's "right" placement
+        // If popover is to the left (left < cardLeft), it's "left" placement
+        const placement = left > cardLeft ? 'right' : 'left';
+
+        setPopoverData({
+            isOpen: true,
+            position: { top, left },
+            placement,
+            data: targetEvent
+        });
+    }
+
     // Global mouseup handler for drag completion and interactions
     useEffect(() => {
-        const handleGlobalMouseUp = (e) => {
+        const handleGlobalMouseUp = () => {
             // Handle Selection Drag End
             if (isDragging && selectionDraft) {
                 // If we were dragging to select, finalize the selection into a draft event
@@ -138,7 +193,6 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
             if (draftInteraction && gridRef.current) {
                 e.preventDefault(); // Prevent selection
                 const gridRect = gridRef.current.getBoundingClientRect();
-                const currentY = e.clientY - gridRect.top;
                 const currentX = e.clientX - gridRect.left;
 
                 const { start: openStart, end: openEnd } = getOpenTimeRange();
@@ -218,70 +272,6 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
             };
         }
     }, [isDragging, selectionDraft, weekDays, draftInteraction, device, popoverData.isOpen, draftEvent]);
-
-    const openPopoverForDraft = (targetEvent = draftEvent) => {
-        // ... (existing implementation)
-        if (!targetEvent || !gridRef.current) return;
-
-        const [startStr, endStr] = targetEvent.timeSlot.split('-');
-        const startH = parseInt(startStr.split(':')[0]);
-        const endH = parseInt(endStr.split(':')[0]);
-
-        // Find which day column the event is in
-        const dayIndex = weekDays.findIndex(day =>
-            format(day, 'yyyy-MM-dd') === targetEvent.date
-        );
-
-        // Get grid dimensions
-        const gridRect = gridRef.current.getBoundingClientRect();
-        const columnWidth = gridRect.width / 7;
-
-        // Calculate event card position
-        const cardLeft = gridRect.left + (dayIndex * columnWidth);
-        const cardRight = cardLeft + columnWidth;
-        const cardTop = gridRect.top + (startH * 50);
-        const cardHeight = (endH - startH) * 50;
-
-        const popoverWidth = 400;
-        const popoverHeight = 500;
-        const gap = 12;
-        let left, top;
-
-        // Horizontal positioning
-        if (dayIndex < 3.5) {
-            left = cardRight + gap;
-            if (left + popoverWidth > window.innerWidth - 10) left = cardLeft - popoverWidth - gap;
-        } else {
-            left = cardLeft - popoverWidth - gap;
-            if (left < 10) left = cardRight + gap;
-        }
-
-        // Vertical positioning
-        if (cardTop < window.innerHeight / 2) {
-            top = cardTop;
-            if (top + popoverHeight > window.innerHeight - 10) top = window.innerHeight - popoverHeight - 10;
-        } else {
-            top = cardTop + cardHeight - popoverHeight;
-            if (top < 10) top = 10;
-        }
-
-        // Boundary checks
-        top = Math.max(10, Math.min(top, window.innerHeight - popoverHeight - 10));
-        left = Math.max(10, Math.min(left, window.innerWidth - popoverWidth - 10));
-
-
-        // Determine placement for animation direction
-        // If popover is to the right of the card (left > cardLeft), it's "right" placement
-        // If popover is to the left (left < cardLeft), it's "left" placement
-        const placement = left > cardLeft ? 'right' : 'left';
-
-        setPopoverData({
-            isOpen: true,
-            position: { top, left },
-            placement, // Add placement to state
-            data: targetEvent // Pass all data including id, title, etc.
-        });
-    };
 
     const handleDeleteBooking = (id) => {
         if (onDelete) onDelete(id);
@@ -441,9 +431,6 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
                                                 }
                                             }
                                         }}
-                                        onMouseUp={(e) => {
-                                            // Let the event bubble to trigger global mouseup listener
-                                        }}
                                         onMouseLeave={() => setHoverSlot(null)}
                                     >
                                         {/* Closed Time Overlays */}
@@ -491,7 +478,7 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
                                                 const colorStyles = EVENT_COLORS[selectionDraft.color] || EVENT_COLORS.default;
                                                 return (
                                                     <div
-                                                        className={`absolute left-1 right-1 rounded-[0.5rem] px-1 py-1 border shadow-lg text-xs z-20 flex flex-col justify-center text-center pointer-events-none ${colorStyles.bg} ${colorStyles.border} ${colorStyles.text}`}
+                                                        className={`absolute ${eventCardPosition} rounded-[0.5rem] px-1 py-1 border shadow-lg text-xs z-20 flex flex-col justify-center text-center pointer-events-none ${colorStyles.bg} ${colorStyles.border} ${colorStyles.text}`}
                                                         style={{ top: `${top}px`, height: `${Math.max(height - 2, 48)}px` }}
                                                     >
                                                         <div className="font-medium truncate text-sm">（无标题）</div>
@@ -512,7 +499,7 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
                                                 const colorStyles = EVENT_COLORS[draftInteraction.startData.color] || EVENT_COLORS.default;
                                                 return (
                                                     <div
-                                                        className={`absolute left-1 right-1 rounded-[0.5rem] px-1 py-1 border shadow-sm text-xs z-10 flex flex-col justify-center text-center pointer-events-none opacity-50 ${colorStyles.bg} ${colorStyles.border} ${colorStyles.text}`}
+                                                        className={`absolute ${eventCardPosition} rounded-[0.5rem] px-1 py-1 border shadow-sm text-xs z-10 flex flex-col justify-center text-center pointer-events-none opacity-50 ${colorStyles.bg} ${colorStyles.border} ${colorStyles.text}`}
                                                         style={{ top: `${top}px`, height: `${Math.max(height - 2, 48)}px` }}
                                                     >
                                                         <div className="font-medium truncate text-sm">（无标题）</div>
@@ -532,8 +519,8 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
                                                 const height = (endH - startH) * 50;
                                                 return (
                                                     <div
-                                                        className={`absolute left-1 right-1 rounded-[0.5rem] px-1 py-1 border shadow-lg text-xs z-20 flex flex-col justify-center text-center select-none group/draft ${draftInteraction?.type === 'move' ? 'cursor-move' : 'cursor-pointer'}
-                                                            ${draftEvent.color ? (EVENT_COLORS[draftEvent.color]?.bg || 'bg-bg-100') : 'bg-bg-100'} 
+                                                        className={`absolute ${eventCardPosition} rounded-[0.5rem] px-1 py-1 border shadow-lg text-xs z-20 flex flex-col justify-center text-center select-none group/draft ${draftInteraction?.type === 'move' ? 'cursor-move' : 'cursor-pointer'}
+                                                            ${draftEvent.color ? (EVENT_COLORS[draftEvent.color]?.bg || 'bg-bg-100') : 'bg-bg-100'}
                                                             ${draftEvent.color ? (EVENT_COLORS[draftEvent.color]?.border || 'border-border-100') : 'border-border-100'}
                                                             ${draftEvent.color ? (EVENT_COLORS[draftEvent.color]?.text || 'text-text-100') : 'text-text-100'}
                                                         `}
@@ -600,7 +587,7 @@ const WeeklyCalendar = ({ device, reservations, onBook, onDelete, currentUserId,
                                                 <div
                                                     key={res.id || res.timeSlot}
                                                     className={`
-                                                        absolute left-1 right-1 rounded-[0.5rem] px-1 py-1 text-xs border overflow-hidden cursor-pointer hover:brightness-95 transition-all z-20 shadow-lg flex flex-col justify-center text-center
+                                                        absolute ${eventCardPosition} rounded-[0.5rem] px-1 py-1 text-xs border overflow-hidden cursor-pointer hover:brightness-95 transition-all z-20 shadow-lg flex flex-col justify-center text-center
                                                         ${colorStyles.bg} ${colorStyles.border} ${colorStyles.text}
                                                     `}
                                                     style={{ top: `${topOffset}px`, height: `${height - 2}px` }}

@@ -1,30 +1,40 @@
+import dotenv from 'dotenv';
 import initSqlJs from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, 'drms.db');
+dotenv.config({ path: path.join(__dirname, '.env') });
+const DEFAULT_DB_PATH = path.join(__dirname, 'drms.db');
+const DB_PATH = process.env.DB_PATH ? path.resolve(__dirname, process.env.DB_PATH) : DEFAULT_DB_PATH;
 
 let db = null;
 
 // 初始化数据库
 export async function initDatabase() {
     const SQL = await initSqlJs();
+    const dbFileExists = fs.existsSync(DB_PATH);
 
     // 尝试加载现有数据库
-    if (fs.existsSync(DB_PATH)) {
+    if (dbFileExists) {
         const buffer = fs.readFileSync(DB_PATH);
         db = new SQL.Database(buffer);
         console.log('✅ 数据库已加载');
     } else {
         db = new SQL.Database();
         console.log('✅ 创建新数据库');
-        await createTables();
-        await insertInitialData();
-        saveDatabase();
     }
 
+    await createTables();
+    await migrateSchema();
+
+    if (!dbFileExists) {
+        await insertInitialData();
+    }
+
+    // sql.js 在内存中运行：需要显式写回文件以持久化 schema/数据变化。
+    saveDatabase();
     return db;
 }
 
@@ -58,7 +68,9 @@ async function createTables() {
             description TEXT NOT NULL,
             isEnabled INTEGER NOT NULL DEFAULT 1,
             openDays TEXT NOT NULL,
-            timeSlots TEXT NOT NULL
+            timeSlots TEXT NOT NULL,
+            granularity INTEGER DEFAULT 60,
+            openTime TEXT DEFAULT '{"start":"09:00","end":"18:00"}'
         );
     `);
 
@@ -86,6 +98,37 @@ async function createTables() {
             timestamp TEXT NOT NULL
         );
     `);
+}
+
+function listTableColumns(table) {
+    const stmt = db.prepare(`PRAGMA table_info(${table});`);
+    const columns = [];
+
+    while (stmt.step()) {
+        columns.push(stmt.getAsObject().name);
+    }
+
+    stmt.free();
+    return columns;
+}
+
+function ensureColumn(table, column, typeWithConstraints) {
+    const columns = listTableColumns(table);
+    if (columns.includes(column)) return false;
+
+    db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeWithConstraints};`);
+    return true;
+}
+
+async function migrateSchema() {
+    // Keep runtime schema consistent with server.js expectations.
+    ensureColumn('devices', 'granularity', 'INTEGER DEFAULT 60');
+    ensureColumn('devices', 'openTime', `TEXT DEFAULT '{"start":"09:00","end":"18:00"}'`);
+
+    // Older databases may miss reservation detail fields.
+    ensureColumn('reservations', 'title', `TEXT DEFAULT ''`);
+    ensureColumn('reservations', 'description', `TEXT DEFAULT ''`);
+    ensureColumn('reservations', 'color', `TEXT DEFAULT 'default'`);
 }
 
 // 插入初始数据

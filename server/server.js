@@ -6,17 +6,25 @@ import { db } from './db-adapter.js';
 
 const app = express();
 const httpServer = createServer(app);
+
+const DEFAULT_CLIENT_ORIGIN = 'http://localhost:5173';
+const corsOriginEnv = process.env.CORS_ORIGIN || process.env.CLIENT_ORIGIN;
+const corsOrigins = (corsOriginEnv || DEFAULT_CLIENT_ORIGIN)
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: corsOrigins,
         methods: ['GET', 'POST']
     }
 });
 
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // 中间件
-app.use(cors());
+app.use(cors(corsOriginEnv ? { origin: corsOrigins } : undefined));
 app.use(express.json());
 
 // 初始化数据库
@@ -175,28 +183,30 @@ app.get('/api/devices/:id', (req, res) => {
 
 app.post('/api/devices', (req, res) => {
     try {
-        const { name, description, openDays, timeSlots, granularity = 60 } = req.body;
+        const { name, description, openDays, timeSlots, granularity = 60, openTime } = req.body;
 
         const newDevice = {
             id: 'dev_' + Date.now(),
             name,
             description,
             isEnabled: 1,
-            openDays: JSON.stringify(openDays),
-            timeSlots: JSON.stringify(timeSlots),
-            granularity
+            openDays: JSON.stringify(openDays || [1, 2, 3, 4, 5]),
+            timeSlots: JSON.stringify(timeSlots || []),
+            granularity,
+            openTime: JSON.stringify(openTime || { start: '09:00', end: '18:00' })
         };
 
         db.execute(
-            'INSERT INTO devices (id, name, description, isEnabled, openDays, timeSlots, granularity) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [newDevice.id, newDevice.name, newDevice.description, newDevice.isEnabled, newDevice.openDays, newDevice.timeSlots, newDevice.granularity]
+            'INSERT INTO devices (id, name, description, isEnabled, openDays, timeSlots, granularity, openTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [newDevice.id, newDevice.name, newDevice.description, newDevice.isEnabled, newDevice.openDays, newDevice.timeSlots, newDevice.granularity, newDevice.openTime]
         );
 
         const result = {
             ...newDevice,
             isEnabled: Boolean(newDevice.isEnabled),
             openDays: JSON.parse(newDevice.openDays),
-            timeSlots: JSON.parse(newDevice.timeSlots)
+            timeSlots: JSON.parse(newDevice.timeSlots),
+            openTime: JSON.parse(newDevice.openTime)
         };
 
         // 广播新设备创建

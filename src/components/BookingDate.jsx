@@ -1,5 +1,18 @@
 import React from 'react';
-import { Calendar } from 'lucide-react';
+const Calendar = ({ size = 24, className }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <path d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 14H8.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 14H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 14H16.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 18H8.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 18H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 18H16.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
 
 const DAYS = [
     { label: '一', value: 1 },
@@ -41,7 +54,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
                 <Calendar size={18} className="text-gray-400" />
                 <div className="flex flex-wrap gap-1">
                     {sortedDisplayDays.map(day => (
-                        <span key={day} className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                        <span key={day} className="text-[0.625rem] sm:text-xs px-2 py-0.5 bg-bg-100 text-text-secondary rounded-lg border border-border-subtle">
                             周{getDayLabel(day)}
                         </span>
                     ))}
@@ -51,7 +64,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
     }
 
     return (
-        <div className="flex items-center gap-3 mt-2">
+        <div className="flex items-center gap-3">
             <Calendar size={18} className="text-gray-400" />
             <div className="flex flex-wrap gap-2">
                 {DAYS.map((day) => {
@@ -63,8 +76,8 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
                             className={`
                                 w-8 h-8 rounded-full text-xs font-medium transition-all duration-200 flex items-center justify-center
                                 ${isSelected
-                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200 scale-105'
-                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                                    ? 'bg-accent text-white shadow-lg shadow-black/5 scale-105'
+                                    : 'bg-bg-100 text-gray-500 hover:bg-white hover:text-accent hover:shadow-sm'
                                 }
                             `}
                         >
@@ -73,7 +86,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
                     );
                 })}
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -29,6 +29,8 @@ npm run dev
 
 服务器将运行在 `http://localhost:3001`
 
+> 可选：复制 `server/.env.example` 为 `server/.env`，配置 `PORT` / `CORS_ORIGIN` / `DB_PATH`（会自动加载）。
+
 ## API 接口
 
 ### 用户相关
@@ -71,7 +73,7 @@ npm run dev
 
 ## 生产部署
 
-1. 修改 CORS 配置（server.js 中的 cors()）
-2. 使用环境变量配置端口和数据库路径
+1. 设置环境变量 `CORS_ORIGIN`（或 `CLIENT_ORIGIN`，支持逗号分隔多个 origin）
+2. 设置环境变量 `PORT`（默认 3001）与 `DB_PATH`（默认 `server/drms.db`，可选）
 3. 添加身份验证中间件（JWT）
 4. 使用 PM2 或 Docker 部署

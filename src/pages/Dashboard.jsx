@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import Card from '../components/ui/Card';
 
 import { Calendar, Clock, CheckCircle } from 'lucide-react';

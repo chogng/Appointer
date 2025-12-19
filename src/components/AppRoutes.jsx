@@ -13,7 +13,7 @@ import CreateDevice from '../pages/CreateDevice';
 import DeviceBooking from '../pages/DeviceBooking';
 import MyReservations from '../pages/MyReservations';
 import Messages from '../pages/Messages';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 const AppRoutes = () => {
     const location = useLocation();

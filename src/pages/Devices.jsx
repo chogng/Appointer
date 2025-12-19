@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
-import Button from '../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
 import { usePermission } from '../hooks/usePermission';
 import DeviceCard from '../components/DeviceCard';
+import AddDeviceCard from '../components/AddDeviceCard';
 
 const Devices = () => {
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [createConfirm, setCreateConfirm] = useState(false);
     const navigate = useNavigate();
     const { isAdmin } = usePermission();
 
@@ -18,16 +19,19 @@ const Devices = () => {
             if (deleteConfirmId) {
                 setDeleteConfirmId(null);
             }
+            if (createConfirm) {
+                setCreateConfirm(false);
+            }
         };
 
-        if (deleteConfirmId) {
+        if (deleteConfirmId || createConfirm) {
             document.addEventListener('click', handleClickOutside);
         }
 
         return () => {
             document.removeEventListener('click', handleClickOutside);
         };
-    }, [deleteConfirmId]);
+    }, [deleteConfirmId, createConfirm]);
 
     useEffect(() => {
         loadDevices();
@@ -117,25 +121,33 @@ const Devices = () => {
         }
     };
 
+    const handleCreateDevice = async () => {
+        try {
+            const newDevice = await apiService.createDevice({
+                name: '新设备',
+                description: '',
+                isEnabled: true,
+                openDays: [1, 2, 3, 4, 5],
+                timeSlots: [],
+                granularity: 60,
+                openTime: { start: '09:00', end: '18:00' },
+            });
+            console.log('设备创建成功:', newDevice);
+        } catch (error) {
+            console.error('Failed to create device:', error);
+            alert('创建设备失败，请重试');
+        }
+    };
+
     if (loading) {
         return <div className="min-h-[200px]" />;
     }
 
     return (
         <div className="max-w-[1500px] mx-auto">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">Device List</h1>
-                    <p className="text-text-secondary">选择设备进行预约</p>
-                </div>
-                {isAdmin() && (
-                    <Button
-                        onClick={() => navigate('/devices/create')}
-                        className="relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] active:scale-[0.985]"
-                    >
-                        Create
-                    </Button>
-                )}
+            <div className="mb-8">
+                <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">Device List</h1>
+                <p className="text-text-secondary">选择设备进行预约</p>
             </div>
             {/* Device Card List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -151,6 +163,20 @@ const Devices = () => {
                         onDeleteClick={handleDeleteClick}
                     />
                 ))}
+                {isAdmin() && (
+                    <AddDeviceCard
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (createConfirm) {
+                                handleCreateDevice();
+                                setCreateConfirm(false);
+                            } else {
+                                setCreateConfirm(true);
+                            }
+                        }}
+                        isConfirming={createConfirm}
+                    />
+                )}
             </div>
         </div>
     );

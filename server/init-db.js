@@ -21,7 +21,9 @@ db.exec(`
     description TEXT NOT NULL,
     isEnabled INTEGER NOT NULL DEFAULT 1,
     openDays TEXT NOT NULL,
-    timeSlots TEXT NOT NULL
+    timeSlots TEXT NOT NULL,
+    granularity INTEGER DEFAULT 60,
+    openTime TEXT DEFAULT '{"start":"09:00","end":"18:00"}'
   );
 
   CREATE TABLE IF NOT EXISTS reservations (

@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { mockService } from '../services/mockData';
-
-const AuthContext = createContext(null);
+import { useState, useEffect } from 'react';
+import { apiService } from '../services/apiService';
+import { AuthContext } from './auth-context';
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -18,7 +17,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const userData = mockService.login(username, password);
+            const userData = await apiService.login(username, password);
             setUser(userData);
             localStorage.setItem('drms_current_user', JSON.stringify(userData));
             return { success: true };
@@ -34,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (data) => {
         try {
-            await mockService.createUser(data);
+            await apiService.createUser(data);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
@@ -47,5 +46,3 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
-
-export const useAuth = () => useContext(AuthContext);

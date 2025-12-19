@@ -1,14 +1,16 @@
 :root {
   /* Colors */
-  --color-bg: #F5F4EF;
-  --color-surface: #FFFFFF;
-  --color-text-primary: #222222;
-  --color-text-secondary: #666666;
-  --color-accent: #222222;
-  --color-accent-hover: #000000;
-  --color-border: #E5E5E5;
-  --color-divider: #E5E5E5;
-  
+  --color-bg: #F8F9FA;
+  --color-surface: rgba(255, 255, 255, 0.8);
+  --color-text-primary: #1A1A1E;
+  --color-text-secondary: #6B7280;
+  --color-accent: #7FB77E;
+  /* Deep indigo/violet */
+  --color-accent-hover: #4F6F52;
+  --color-accent-soft: rgba(127, 183, 126, 0.15);
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-divider: rgba(0, 0, 0, 0.05);
+
   /* Status Colors */
   --color-success: #34C759;
   --color-warning: #FF9F0A;
@@ -41,10 +43,11 @@
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
-  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.04);
+  --shadow-premium: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.1);
+
   /* Transitions */
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);

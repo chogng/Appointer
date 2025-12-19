@@ -32,13 +32,6 @@ cd server && npm run start    # Start production server
 cd server && npm run init-db  # Initialize/reset database
 ```
 
-### Database Migrations
-```bash
-cd server && node migrate-to-granularity.js        # Add/rename granularity field
-cd server && node migrate-add-reservation-details.js  # Add title/description/color to reservations
-cd server && node migrate-add-opentime.js          # Add openTime field to devices
-```
-
 ## Architecture
 
 ### Frontend Structure
@@ -77,7 +70,6 @@ server/
 ├── database.js       # SQL.js database initialization and setup
 ├── db-adapter.js     # Database abstraction layer (query/queryOne/execute)
 ├── init-db.js        # Database initialization script (better-sqlite3 version)
-├── migrate-*.js      # Database migration scripts
 └── drms.db          # SQLite database file (created at runtime)
 ```
 
@@ -135,7 +127,8 @@ The adapter currently uses SQL.js but has commented placeholders for MySQL migra
 - Real-time features use `socketService.connect()` + `useRealtimeSync()` pattern
 
 ### API Conventions
-- Base URL: `http://localhost:3001/api`
+- Base URL: `VITE_API_BASE_URL` (default: `http://localhost:3001/api`)
+- WebSocket URL: `VITE_WS_URL` (default: `http://localhost:3001`)
 - REST endpoints follow pattern: `/api/{resource}` and `/api/{resource}/:id`
 - All responses are JSON
 - Error responses: `{ error: "message" }`
@@ -171,12 +164,6 @@ const MyComponent = () => {
 };
 ```
 
-### Running Database Migrations
-- Create a new `migrate-*.js` file in `server/` directory
-- Check if column exists using `PRAGMA table_info(table_name)`
-- Use `db.execute()` with `ALTER TABLE` or table rebuild pattern
-- Run: `cd server && node migrate-your-migration.js`
-
 ### Testing API Endpoints
 - Use `server/test-api.js` to manually test endpoints
 - Default test accounts: admin/123, manager/123, user/123
@@ -186,6 +173,6 @@ const MyComponent = () => {
 
 - **Database persistence**: SQL.js runs in-memory; `saveDatabase()` writes to `drms.db` file after each write operation
 - **ID generation**: Uses timestamp-based IDs (`dev_${Date.now()}`, `user_${Date.now()}`, etc.)
-- **Port configuration**: Frontend runs on 5173 (Vite default), backend on 3001
+- **Port configuration**: Frontend runs on 5173 (Vite default), backend runs on `PORT` (default: 3001)
 - **Module type**: Both frontend and backend use ES modules (`"type": "module"` in package.json)
 - **Watch mode**: Backend supports `--watch` flag for auto-restart during development

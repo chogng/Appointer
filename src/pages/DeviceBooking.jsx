@@ -2,13 +2,13 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/apiService';
 import { useReservationSync } from '../hooks/useRealtimeSync';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import WeeklyCalendar from '../components/WeeklyCalendar';
 import Button from '../components/ui/Button';
 import Toast from '../components/ui/Toast';
 
 import Dropdown from '../components/ui/Dropdown';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { format, addWeeks, subWeeks } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -21,6 +21,7 @@ const DeviceBooking = () => {
     const [loading, setLoading] = useState(true);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState('Weeks');
+    const [layoutMode, setLayoutMode] = useState('grid'); // 'grid' | 'list'
     const containerRef = useRef(null);
     const [toastState, setToastState] = useState({
         isVisible: false,
@@ -159,7 +160,7 @@ const DeviceBooking = () => {
                     if (resToDelete) {
                         // We need to strip ID? Or allow backend to generate new ID?
                         // Usually create new with same data.
-                        const { id, ...rest } = resToDelete;
+                        const { id: _id, ...rest } = resToDelete;
                         await apiService.createReservation(rest);
                         hideToast();
                     }
@@ -221,7 +222,24 @@ const DeviceBooking = () => {
                 </h1>
 
                 {/* Right Side Controls */}
-                <div className="flex items-center gap-4 justify-self-end">
+                <div className="flex items-center gap-2 justify-self-end">
+                    {/* Layout Toggle */}
+                    <div className="flex items-center bg-bg-100 rounded-lg p-0.5">
+                        <button
+                            onClick={() => setLayoutMode('grid')}
+                            className={`p-1.5 rounded-md transition-colors ${layoutMode === 'grid' ? 'bg-white shadow-sm text-accent' : 'text-text-secondary hover:text-text-primary'}`}
+                            title="网格视图"
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                        <button
+                            onClick={() => setLayoutMode('list')}
+                            className={`p-1.5 rounded-md transition-colors ${layoutMode === 'list' ? 'bg-white shadow-sm text-accent' : 'text-text-secondary hover:text-text-primary'}`}
+                            title="列表视图"
+                        >
+                            <List size={18} />
+                        </button>
+                    </div>
                     <Dropdown
                         options={[
                             { label: 'Weeks', value: 'Weeks' },
@@ -246,6 +264,7 @@ const DeviceBooking = () => {
                 onDelete={handleDelete}
                 currentUserId={user.id}
                 currentDate={currentDate}
+                layoutMode={layoutMode}
                 className="flex-1 min-h-0"
             />
 

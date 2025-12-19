@@ -1,5 +1,6 @@
 // 简单的 API 测试脚本
-const API_BASE = 'http://localhost:3001/api';
+const DEFAULT_API_BASE = 'http://localhost:3001/api';
+const API_BASE = (process.env.API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
 
 async function test() {
     console.log('🧪 开始测试 API...\n');

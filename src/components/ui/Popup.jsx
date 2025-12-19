@@ -45,24 +45,31 @@ const Popup = ({
     return (
         <div
             ref={popupRef}
-            id={menuId}
-            role="menu"
-            aria-orientation="vertical"
-            aria-labelledby={triggerId}
-            data-state={isOpen ? 'open' : 'closed'}
-            data-side="bottom"
-            data-align={align}
-            tabIndex={-1}
             className={`
-                absolute top-full pt-[0.5rem] min-w-full
-                transition-all duration-300 ease-in-out
-                ${align === 'right' ? 'right-0 origin-top-right' : align === 'center' ? 'left-1/2 -translate-x-1/2 origin-top' : 'left-0 origin-top'}
-                ${isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-[0.5rem] pointer-events-none'}
-                ${className}
+                absolute top-full pt-[0.5rem]
+                ${align === 'right' ? 'right-0' : align === 'center' ? 'left-1/2 -translate-x-1/2' : 'left-0'}
+                ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}
             `}
             style={{ zIndex }}
         >
-            <div className="bg-white border border-gray-100 rounded-[0.5rem] shadow-[0_0.625rem_2.5rem_-0.625rem_rgba(0,0,0,0.1)] py-[0.375rem] pl-[0.375rem] pr-0">
+            <div
+                id={menuId}
+                role="menu"
+                aria-orientation="vertical"
+                aria-labelledby={triggerId}
+                data-state={isOpen ? 'open' : 'closed'}
+                data-side="bottom"
+                data-align={align}
+                tabIndex={-1}
+                className={`
+                    rounded-[1rem] shadow-premium py-[0.5rem] pl-[0.5rem] pr-[0.125rem]
+                    bg-white/70 backdrop-blur-md
+                    transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]
+                    ${align === 'right' ? 'origin-top-right' : align === 'center' ? 'origin-top' : 'origin-top-left'}
+                    ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-[10px] scale-95'}
+                    ${className}
+                `}
+            >
                 {children}
             </div>
         </div>

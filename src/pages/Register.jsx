@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
 
 const Register = () => {
     const [studentId, setStudentId] = useState('');
@@ -9,6 +10,7 @@ const Register = () => {
     const [verificationCode, setVerificationCode] = useState('');
 
     const [error, setError] = useState('');
+    const { register } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -26,13 +28,19 @@ const Register = () => {
             return;
         }
 
-        // Mock registration logic
-        console.log('Registering:', { studentId, email, verificationCode });
+        const result = await register({
+            username: studentId,
+            password,
+            name: studentId,
+            email,
+            verificationCode
+        });
 
-        // Simulate API call
-        setTimeout(() => {
+        if (result.success) {
             navigate('/pending-review');
-        }, 500);
+        } else {
+            setError(result.error);
+        }
     };
 
     let animationClass = '';

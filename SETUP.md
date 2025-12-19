@@ -41,6 +41,10 @@ cd ..
 - 前端：React, Socket.io-client, Tailwind CSS 等
 - 后端：Express, Socket.io, sql.js 等
 
+**可选：配置环境变量**（不改也可直接用默认 localhost）
+- 前端：复制 `.env.example` 为 `.env`（`VITE_API_BASE_URL` / `VITE_WS_URL`）
+- 后端：复制 `server/.env.example` 为 `server/.env`（`PORT` / `CORS_ORIGIN` / `DB_PATH`）
+
 ### 第二步：启动后端服务器
 
 **打开第一个终端**，运行：
@@ -177,7 +181,7 @@ CMD ["node", "server/server.js"]
 **Vercel（前端）+ Railway（后端）**：
 - 前端部署到 Vercel
 - 后端部署到 Railway/Render
-- 修改 `src/services/apiService.js` 中的 API_BASE_URL
+- 配置前端环境变量 `VITE_API_BASE_URL`（REST API）和 `VITE_WS_URL`（WebSocket）指向你的后端地址
 
 ## 常见问题
 
@@ -185,15 +189,15 @@ CMD ["node", "server/server.js"]
 A: 确保后端服务器在运行（localhost:3001），检查浏览器控制台的 CORS 错误。
 
 ### Q: 数据库文件在哪里？
-A: `server/drms.db`，可以使用 DB Browser for SQLite 查看。
+A: 默认是 `server/drms.db`（可用服务端环境变量 `DB_PATH` 修改），可以使用 DB Browser for SQLite 查看。
 
 ### Q: 如何添加新的 API 接口？
 A: 在 `server/server.js` 中添加路由，在 `src/services/apiService.js` 中添加对应方法。
 
 ### Q: 如何修改端口？
 A: 
-- 后端：修改 `server/server.js` 中的 `PORT` 变量
-- 前端：修改 `vite.config.js` 中的 `server.port`
+- 后端：设置环境变量 `PORT`（默认 3001）
+- 前端：修改 `vite.config.js` 中的 `server.port`（默认 5173）
 
 ## 迁移到 MySQL
 
