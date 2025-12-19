@@ -53,9 +53,13 @@ const MiniCalendar = ({ selectedDate, onDateSelect, className = '' }) => {
                             onClick={() => onDateSelect(day)}
                             className={`
                                 h-8 w-8 rounded-full flex items-center justify-center text-xs relative
+                                transition-all duration-200
                                 ${!isCurrentMonth ? 'text-text-tertiary' : 'text-text-primary'}
-                                ${isSelected ? 'bg-accent text-white hover:bg-accent-hover' : 'hover:bg-bg-200'}
-                                ${isToday && !isSelected ? 'bg-bg-200 text-accent font-bold' : ''}
+                                ${isSelected
+                                    ? 'bg-accent text-white font-semibold shadow-lg shadow-accent/25 hover:scale-105'
+                                    : 'hover:bg-accent/5'
+                                }
+                                ${isToday && !isSelected ? 'bg-accent/10 text-accent font-bold ring-1 ring-accent/20' : ''}
                             `}
                         >
                             {format(day, 'd')}

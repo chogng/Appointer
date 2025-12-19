@@ -212,6 +212,12 @@ app.post('/api/devices', (req, res) => {
         // 广播新设备创建
         broadcast('device:created', result);
 
+        // 记录日志
+        db.execute(
+            'INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+            ['log_' + Date.now(), 'system', 'DEVICE_CREATED', `Created device: ${result.name}`, new Date().toISOString()]
+        );
+
         res.status(201).json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -330,6 +336,12 @@ app.post('/api/reservations', (req, res) => {
         // 广播新预约（重要：实时显示）
         broadcast('reservation:created', newReservation);
 
+        // 记录日志
+        db.execute(
+            'INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+            ['log_' + Date.now(), newReservation.userId, 'RESERVATION_CREATED', `Created reservation for device ${newReservation.deviceId}`, new Date().toISOString()]
+        );
+
         res.status(201).json(newReservation);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -386,7 +398,13 @@ app.delete('/api/reservations/:id', (req, res) => {
 
 app.get('/api/logs', (req, res) => {
     try {
-        const logs = db.query('SELECT * FROM logs ORDER BY timestamp DESC LIMIT 100');
+        const logs = db.query(`
+            SELECT l.*, u.name as userName 
+            FROM logs l 
+            LEFT JOIN users u ON l.userId = u.id 
+            ORDER BY l.timestamp DESC 
+            LIMIT 10
+        `);
         res.json(logs);
     } catch (error) {
         res.status(500).json({ error: error.message });

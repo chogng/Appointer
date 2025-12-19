@@ -6,6 +6,10 @@
     color-scheme: light;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     @apply bg-bg-page text-text-primary antialiased;
 }
@@ -55,15 +59,21 @@ textarea {
 }
 
 .glass {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.45) 0%,
+            rgba(255, 255, 255, 0.25) 100%);
+    backdrop-filter: blur(40px) saturate(210%);
+    -webkit-backdrop-filter: blur(40px) saturate(210%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow:
+        0 8px 32px 0 rgba(0, 0, 0, 0.08),
+        inset 0 0 0 1px var(--color-highlight);
 }
 
 .dark .glass {
-    background: rgba(28, 28, 30, 0.5);
+    background: linear-gradient(135deg,
+            rgba(28, 28, 30, 0.4) 0%,
+            rgba(28, 28, 30, 0.2) 100%);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -90,7 +100,7 @@ textarea {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--color-divider);
     border-radius: 10px;
 }
 

@@ -21,7 +21,7 @@ const Messages = () => {
     }
 
     return (
-        <div className="max-w-[800px] mx-auto">
+        <div className="max-w-[1500px] mx-auto">
             <h1 className="text-3xl font-serif font-medium text-text-primary mb-8">消息中心</h1>
 
             <div className="flex flex-col gap-4">
