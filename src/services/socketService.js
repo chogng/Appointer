@@ -10,7 +10,11 @@ class SocketService {
     }
 
     connect() {
-        if (this.socket?.connected) return;
+        if (this.socket) {
+            if (this.socket.connected) return;
+            this.socket.connect();
+            return;
+        }
 
         this.socket = io(WS_URL, {
             transports: ['websocket'],
@@ -34,9 +38,11 @@ class SocketService {
 
     disconnect() {
         if (this.socket) {
+            this.socket.removeAllListeners();
             this.socket.disconnect();
             this.socket = null;
         }
+        this.listeners.clear();
     }
 
     // 订阅事件

@@ -52,7 +52,9 @@ const Devices = () => {
         // 监听设备创建事件
         const handleDeviceCreated = (newDevice) => {
             console.log('📡 收到新设备:', newDevice);
-            setDevices(prevDevices => [...prevDevices, newDevice]);
+            setDevices(prevDevices =>
+                prevDevices.some(d => d.id === newDevice.id) ? prevDevices : [...prevDevices, newDevice]
+            );
         };
 
         // 监听设备删除事件
@@ -94,7 +96,10 @@ const Devices = () => {
 
     const handleUpdateDevice = async (deviceId, updates) => {
         try {
-            await apiService.updateDevice(deviceId, updates);
+            const updatedDevice = await apiService.updateDevice(deviceId, updates);
+            setDevices(prevDevices =>
+                prevDevices.map(d => (d.id === updatedDevice.id ? updatedDevice : d))
+            );
         } catch (error) {
             console.error('Failed to update device:', error);
             alert('更新失败，请重试');
@@ -132,6 +137,9 @@ const Devices = () => {
                 granularity: 60,
                 openTime: { start: '09:00', end: '18:00' },
             });
+            setDevices(prevDevices =>
+                prevDevices.some(d => d.id === newDevice.id) ? prevDevices : [...prevDevices, newDevice]
+            );
             console.log('设备创建成功:', newDevice);
         } catch (error) {
             console.error('Failed to create device:', error);

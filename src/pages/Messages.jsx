@@ -26,7 +26,7 @@ const Messages = () => {
 
             <div className="flex flex-col gap-4">
                 {messages.map(msg => (
-                    <Card key={msg.id} className={`
+                    <Card key={msg.id} variant="glass" className={`
                         transition-all duration-200
                         ${!msg.read ? 'border-l-4 border-l-accent' : 'opacity-80'}
                     `}>

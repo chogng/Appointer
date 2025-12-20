@@ -8,19 +8,36 @@ import { socketService } from '../services/socketService';
  * @param {string} event - 事件名称（如 'reservation:created'）
  * @param {function} callback - 回调函数
  */
-export const useRealtimeSync = (event, callback) => {
+export const useRealtimeSync = (eventOrHandlers, callback) => {
     useEffect(() => {
         // 确保 WebSocket 已连接
         socketService.connect();
 
         // 订阅事件
-        socketService.on(event, callback);
+        const subscriptions = [];
+
+        // Backwards compatible: (event, callback)
+        if (typeof eventOrHandlers === 'string') {
+            if (typeof callback === 'function') {
+                socketService.on(eventOrHandlers, callback);
+                subscriptions.push([eventOrHandlers, callback]);
+            }
+        } else if (eventOrHandlers && typeof eventOrHandlers === 'object' && !Array.isArray(eventOrHandlers)) {
+            // New: ({ eventName: handler, ... })
+            for (const [eventName, handler] of Object.entries(eventOrHandlers)) {
+                if (typeof handler !== 'function') continue;
+                socketService.on(eventName, handler);
+                subscriptions.push([eventName, handler]);
+            }
+        }
 
         // 清理：组件卸载时取消订阅
         return () => {
-            socketService.off(event, callback);
+            for (const [eventName, handler] of subscriptions) {
+                socketService.off(eventName, handler);
+            }
         };
-    }, [event, callback]);
+    }, [eventOrHandlers, callback]);
 };
 
 /**

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import { useLanguage } from '../context/useLanguage';
 import { Calendar, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DashboardIcon = ({ size = 20, className = "" }) => (
@@ -65,15 +66,25 @@ const LogoutIcon = ({ size = 24, className = "" }) => (
     </svg>
 );
 
+const SidebarCollapseIcon = ({ size = 24, className = "" }) => (
+    <svg fill="none" height={size} viewBox="0 0 24 24" width={size} xmlns="http://www.w3.org/2000/svg" className={className}>
+        <rect height="18" rx="2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" width="18" x="3" y="3"></rect>
+        <path d="M9 3V21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+        <path d="M15 15L12 12L15 9" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+    </svg>
+);
+
 const MainLayout = () => {
     const { user, logout } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const navItems = [
-        { icon: DashboardIcon, label: '仪表盘', path: '/dashboard' },
-        { icon: DevicesIcon, label: '设备管理', path: '/devices' },
-        { icon: BookingIcon, label: '设备预约', path: '/reservations' },
-        { icon: MessageIcon, label: '消息通知', path: '/messages' },
+        { icon: DashboardIcon, label: t('dashboard'), path: '/dashboard' },
+        { icon: DevicesIcon, label: t('devices'), path: '/devices' },
+        { icon: BookingIcon, label: t('booking'), path: '/reservations' },
+        { icon: MessageIcon, label: t('messages'), path: '/messages' },
     ];
 
     return (
@@ -93,20 +104,32 @@ const MainLayout = () => {
                     ${isCollapsed ? 'w-20' : 'w-[280px]'}
                 `}
             >
-                <div className={`flex items-center mb-10 text-text-primary pt-6 transition-all duration-500 pl-[28px] pr-6 gap-2.5`}>
+                <div className={`flex items-center mb-10 text-text-primary pt-6 transition-all duration-500 pl-[28px] pr-6 gap-2.5 relative`}>
                     <img src="/logo.svg" alt="Appointer Logo" className="w-6 h-6 object-contain shrink-0" />
                     <span className={`text-xl font-bold truncate transition-all duration-500 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[150px] opacity-100'}`}>
                         Appointer
                     </span>
+
+                    {/* Toggle Button in Header */}
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className={`
+                            absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
+                            ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+                        `}
+                    >
+                        <SidebarCollapseIcon size={20} />
+                    </button>
                 </div>
 
-                {/* Toggle Button */}
-                <button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-3 top-8 w-6 h-6 bg-white border border-border-subtle rounded-full flex items-center justify-center shadow-sm text-text-secondary hover:text-text-primary z-50 transition-transform duration-300"
-                >
-                    {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-                </button>
+                {/* Invisible Toggle Overlay on Logo for Collapsed State */}
+                {isCollapsed && (
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="absolute top-6 left-[28px] w-6 h-6 z-50 cursor-pointer"
+                        title="展开菜单"
+                    />
+                )}
 
                 {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto mb-4 px-2">
@@ -154,25 +177,26 @@ const MainLayout = () => {
                         <User size={20} className="text-text-secondary" />
                     </div>
 
-                    {/* User Text - Fades out when collapsed */}
+                    {/* User Text - Click to go to Settings */}
                     <div
                         className={`
-                            absolute transition-all duration-500 overflow-hidden -translate-y-1/2
+                            absolute transition-all duration-500 overflow-hidden -translate-y-1/2 cursor-pointer
                             ${isCollapsed
                                 ? 'opacity-0 pointer-events-none'
                                 : 'opacity-100'}
                         `}
+                        onClick={() => navigate('/settings')}
                         style={{
                             left: '70px',
                             top: '48px',
                             width: isCollapsed ? '0px' : '140px'
                         }}
                     >
-                        <div className="font-semibold text-sm truncate text-text-primary">
+                        <div className="font-semibold text-sm truncate text-text-primary hover:text-accent transition-colors">
                             {user?.name}
                         </div>
                         <div className="text-xs text-text-secondary truncate">
-                            {user?.role}
+                            {t(user?.role)}
                         </div>
                     </div>
 
@@ -184,7 +208,7 @@ const MainLayout = () => {
                             left: isCollapsed ? '23px' : '234px',
                             top: isCollapsed ? '108px' : '48px'
                         }}
-                        title="退出登录"
+                        title={t('logout')}
                     >
                         <LogoutIcon size={18} />
                     </button>

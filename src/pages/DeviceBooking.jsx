@@ -112,11 +112,12 @@ const DeviceBooking = () => {
 
             let result;
             if (extraData.id) {
+                const { id: reservationId, ...reservationUpdates } = extraData;
                 // Update
-                result = await apiService.updateReservation(extraData.id, {
+                result = await apiService.updateReservation(reservationId, {
                     date: format(date, 'yyyy-MM-dd'),
                     timeSlot: slot,
-                    ...extraData
+                    ...reservationUpdates
                 });
                 // No Undo for Update implemented yet for simplicity, or we can stash old data.
                 showToast('预约已更新');

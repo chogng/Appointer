@@ -129,6 +129,13 @@ async function migrateSchema() {
     ensureColumn('reservations', 'title', `TEXT DEFAULT ''`);
     ensureColumn('reservations', 'description', `TEXT DEFAULT ''`);
     ensureColumn('reservations', 'color', `TEXT DEFAULT 'default'`);
+
+    // Prevent double-booking the same device/date/slot (while allowing re-booking after cancellation).
+    db.run(`
+        CREATE UNIQUE INDEX IF NOT EXISTS reservations_unique_active
+        ON reservations (deviceId, date, timeSlot)
+        WHERE status != 'CANCELLED'
+    `);
 }
 
 // 插入初始数据

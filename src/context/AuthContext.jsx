@@ -1,19 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { apiService } from '../services/apiService';
 import { AuthContext } from './auth-context';
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        // Check for existing session (simple storage check for demo)
-        const storedUser = localStorage.getItem('drms_current_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
+    const [user, setUser] = useState(() => {
+        try {
+            const storedUser = localStorage.getItem('drms_current_user');
+            return storedUser ? JSON.parse(storedUser) : null;
+        } catch {
+            return null;
         }
-        setLoading(false);
-    }, []);
+    });
+    const loading = false;
 
     const login = async (username, password) => {
         try {
@@ -40,8 +38,15 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateUser = (updates) => {
+        const newUser = { ...user, ...updates };
+        setUser(newUser);
+        localStorage.setItem('drms_current_user', JSON.stringify(newUser));
+        return { success: true };
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, register, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, register, loading, updateUser }}>
             {children}
         </AuthContext.Provider>
     );

@@ -13,6 +13,7 @@ import CreateDevice from '../pages/CreateDevice';
 import DeviceBooking from '../pages/DeviceBooking';
 import MyReservations from '../pages/MyReservations';
 import Messages from '../pages/Messages';
+import Settings from '../pages/Settings';
 import { useAuth } from '../context/useAuth';
 
 const AppRoutes = () => {
@@ -32,6 +33,7 @@ const AppRoutes = () => {
                     </PrivateRoute>
                 }>
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/settings" element={<Settings />} />
                     <Route path="/devices" element={<Devices />} />
                     <Route path="/devices/create" element={
                         <AdminRoute>
