@@ -609,14 +609,33 @@ app.delete('/api/reservations/:id', (req, res) => {
 
 app.get('/api/logs', (req, res) => {
     try {
-        const logs = db.query(`
+        const { search } = req.query;
+        let query = `
             SELECT l.*, u.name as userName 
             FROM logs l 
             LEFT JOIN users u ON l.userId = u.id 
-            ORDER BY l.timestamp DESC 
-            LIMIT 10
-        `);
+        `;
+        const params = [];
+
+        if (search) {
+            query += ` WHERE l.action LIKE ? OR l.details LIKE ? OR u.name LIKE ?`;
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        query += ` ORDER BY l.timestamp DESC LIMIT 50`;
+
+        const logs = db.query(query, params);
         res.json(logs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/logs', (req, res) => {
+    try {
+        db.execute('DELETE FROM logs');
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

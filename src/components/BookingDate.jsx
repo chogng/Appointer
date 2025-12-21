@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../context/useLanguage';
 const Calendar = ({ size = 24, className }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
         <path d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -14,17 +15,19 @@ const Calendar = ({ size = 24, className }) => (
     </svg>
 );
 
-const DAYS = [
-    { label: '一', value: 1 },
-    { label: '二', value: 2 },
-    { label: '三', value: 3 },
-    { label: '四', value: 4 },
-    { label: '五', value: 5 },
-    { label: '六', value: 6 },
-    { label: '日', value: 0 },
-];
-
 const BookingDate = ({ device, onUpdate, isAdmin }) => {
+    const { t } = useLanguage();
+
+    const getDays = () => [
+        { label: t('mon'), value: 1 },
+        { label: t('tue'), value: 2 },
+        { label: t('wed'), value: 3 },
+        { label: t('thu'), value: 4 },
+        { label: t('fri'), value: 5 },
+        { label: t('sat'), value: 6 },
+        { label: t('sun'), value: 0 },
+    ];
+
     // Default to Mon-Fri if undefined
     const selectedDays = device.openDays || [1, 2, 3, 4, 5];
 
@@ -37,14 +40,15 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
     };
 
     const getDayLabel = (value) => {
-        return DAYS.find(d => d.value === value)?.label;
+        return getDays().find(d => d.value === value)?.label;
     };
 
     // Sort days for display: Mon(1) -> Sun(0)
     // We want 1,2,3,4,5,6,0 order for display if we follow the DAYS array order
     const sortedDisplayDays = [...selectedDays].sort((a, b) => {
-        const aIndex = DAYS.findIndex(d => d.value === a);
-        const bIndex = DAYS.findIndex(d => d.value === b);
+        const days = getDays();
+        const aIndex = days.findIndex(d => d.value === a);
+        const bIndex = days.findIndex(d => d.value === b);
         return aIndex - bIndex;
     });
 
@@ -55,7 +59,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
                 <div className="flex flex-wrap gap-1">
                     {sortedDisplayDays.map(day => (
                         <span key={day} className="text-[0.625rem] sm:text-xs px-2 py-0.5 bg-bg-100 text-text-secondary rounded-lg border border-border-subtle">
-                            周{getDayLabel(day)}
+                            {t('week')}{getDayLabel(day)}
                         </span>
                     ))}
                 </div>
@@ -67,7 +71,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
         <div className="flex items-center gap-3">
             <Calendar size={18} className="text-gray-400" />
             <div className="flex flex-wrap gap-2">
-                {DAYS.map((day) => {
+                {getDays().map((day) => {
                     const isSelected = selectedDays.includes(day.value);
                     return (
                         <button

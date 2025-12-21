@@ -4,31 +4,49 @@ import { useAuth } from '../context/useAuth';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Dropdown from '../components/ui/Dropdown';
+import SegmentedControl from '../components/ui/SegmentedControl';
 import { Calendar, Clock, LayoutGrid, List } from 'lucide-react';
 
 const MyReservations = () => {
     const { user } = useAuth();
-    const [reservations, setReservations] = useState([]);
+    const [allReservations, setAllReservations] = useState([]); // Store all raw data
+    const [users, setUsers] = useState([]); // Store users for admin view
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterDeviceId, setFilterDeviceId] = useState('all');
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
+    const [scope, setScope] = useState('mine'); // 'mine' | 'all'
+
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
     useEffect(() => {
         if (!user?.id) return;
         loadData();
-    }, [user?.id]);
+    }, [user?.id, isAdmin]); // Reload if admin status changes (though unlikely without re-login)
 
     const loadData = async () => {
         try {
             setLoading(true);
-            const [allRes, allDevices] = await Promise.all([
+            const promises = [
                 apiService.getReservations(),
                 apiService.getDevices()
-            ]);
-            const myRes = allRes.filter(r => r.userId === user.id && r.status !== 'CANCELLED');
-            setReservations(myRes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+            ];
+
+            // If admin, also fetch users
+            if (isAdmin) {
+                promises.push(apiService.getUsers());
+            }
+
+            const [allRes, allDevices, allUsers] = await Promise.all(promises);
+
+            // Filter out cancelled ones, but keep all users' reservations for now
+            const validRes = allRes.filter(r => r.status !== 'CANCELLED');
+            setAllReservations(validRes);
             setDevices(allDevices);
+
+            if (allUsers) {
+                setUsers(allUsers);
+            }
         } catch (error) {
             console.error('Failed to load reservations:', error);
         } finally {
@@ -37,6 +55,7 @@ const MyReservations = () => {
     };
 
     const getDeviceName = (id) => devices.find(d => d.id === id)?.name || '未知设备';
+    const getUserName = (id) => users.find(u => u.id === id)?.username || '未知用户';
 
     const handleCancel = async (id) => {
         if (!confirm('您确定要取消此预约吗？')) return;
@@ -50,9 +69,24 @@ const MyReservations = () => {
         }
     };
 
-    const filteredReservations = filterDeviceId === 'all'
-        ? reservations
-        : reservations.filter(res => res.deviceId === filterDeviceId);
+    const getFilteredReservations = () => {
+        let result = allReservations;
+
+        // 1. Scope filter (Mine vs All)
+        if (!isAdmin || scope === 'mine') {
+            result = result.filter(r => r.userId === user.id);
+        }
+
+        // 2. Device filter
+        if (filterDeviceId !== 'all') {
+            result = result.filter(res => res.deviceId === filterDeviceId);
+        }
+
+        // 3. Sort by creation date (newest first)
+        return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    };
+
+    const filteredReservations = getFilteredReservations();
 
     const filterOptions = [
         { label: '全部设备', value: 'all' },
@@ -66,9 +100,24 @@ const MyReservations = () => {
     return (
         <div className="max-w-[1500px] mx-auto px-4 sm:px-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <h1 className="text-3xl font-serif font-medium text-text-primary">我的预约</h1>
+                <div className="flex items-center gap-6">
+                    {/* Title removed as per user request */}
+                    {isAdmin && (
+                        <div className="w-[200px] mt-1">
+                            <SegmentedControl
+                                options={[
+                                    { label: '我的预约', value: 'mine' },
+                                    { label: '用户预约', value: 'all' }
+                                ]}
+                                value={scope}
+                                onChange={setScope}
+                            />
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex items-center gap-3">
+
                     {/* Device Filter */}
                     <div className="w-[180px]">
                         <Dropdown
@@ -121,36 +170,51 @@ const MyReservations = () => {
                         <Card
                             key={res.id}
                             variant="glass"
-                            className={`hover-lift group ${viewMode === 'list' ? 'flex justify-between items-center' : 'flex flex-col gap-6'}`}
+                            className={`hover-lift group ${viewMode === 'list' ? 'flex items-center gap-4 py-4 pr-6' : 'flex flex-col gap-6 p-6'}`}
                         >
-                            <div className="flex gap-4 sm:gap-6 items-center">
+                            {/* 1. Device Info (Left) */}
+                            <div className={`flex gap-4 sm:gap-6 items-center ${viewMode === 'list' ? 'w-[280px] shrink-0' : ''}`}>
                                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#FAFDF7] dark:bg-green-900/20 flex items-center justify-center shrink-0 border border-green-100/50 group-hover:scale-110 transition-transform duration-300">
                                     <Calendar size={24} className="text-[#7FB77E] dark:text-green-400" />
                                 </div>
 
-                                <div className="min-w-0">
-                                    <h3 className="text-[1rem] sm:text-lg font-semibold mb-1 text-text-primary truncate">
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="text-base sm:text-lg font-semibold text-text-primary truncate leading-normal">
                                         {getDeviceName(res.deviceId)}
+                                        {scope === 'all' && (
+                                            <span className="ml-2 text-sm font-normal text-text-secondary">
+                                                By {getUserName(res.userId)}
+                                            </span>
+                                        )}
                                     </h3>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-secondary">
-                                        <span className="flex items-center gap-1.5 whitespace-nowrap">
-                                            <Calendar size={14} className="opacity-70" /> {res.date}
-                                        </span>
-                                        <span className="flex items-center gap-1.5 whitespace-nowrap">
-                                            <Clock size={14} className="opacity-70" /> {res.timeSlot}
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
 
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleCancel(res.id)}
-                                className={`transition-all duration-300 ${viewMode === 'list' ? '' : 'w-full'} bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm`}
-                            >
-                                取消
-                            </Button>
+                            {/* 2. Date Info (Middle Left) */}
+                            <div className={`flex items-center ${viewMode === 'list' ? 'flex-1 justify-center' : ''}`}>
+                                <span className="flex items-center gap-1.5 text-sm text-text-secondary whitespace-nowrap bg-bg-subtle/50 px-3 py-1.5 rounded-lg border border-border-subtle/50">
+                                    <Calendar size={14} className="opacity-70" /> {res.date}
+                                </span>
+                            </div>
+
+                            {/* 3. Time Info (Middle Right) */}
+                            <div className={`flex items-center ${viewMode === 'list' ? 'flex-1 justify-center' : ''}`}>
+                                <span className="flex items-center gap-1.5 text-sm text-text-secondary whitespace-nowrap bg-bg-subtle/50 px-3 py-1.5 rounded-lg border border-border-subtle/50">
+                                    <Clock size={14} className="opacity-70" /> {res.timeSlot}
+                                </span>
+                            </div>
+
+                            {/* 4. Actions (Right) */}
+                            <div className={viewMode === 'list' ? 'shrink-0 ml-4' : 'w-full'}>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => handleCancel(res.id)}
+                                    className={`transition-all duration-300 ${viewMode === 'list' ? '' : 'w-full'} bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm`}
+                                >
+                                    取消
+                                </Button>
+                            </div>
                         </Card>
                     ))}
                 </div>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '../components/PageTransition';
+import { useLanguage } from '../context/useLanguage';
 
 const Docs = () => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -33,13 +35,13 @@ const Docs = () => {
                                 onClick={() => navigate('/login', { state: { from: 'docs' } })}
                                 className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] h-9 px-5 rounded-lg min-w-[7rem] active:scale-[0.985] whitespace-nowrap bg-bg-100 text-text-100 border border-border-200 text-[15px] hover:border-border-200 hover:bg-bg-150"
                             >
-                                Log in
+                                {t('login')}
                             </button>
                             <button
                                 onClick={() => navigate('/register', { state: { from: 'docs' } })}
                                 className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] h-9 px-5 rounded-lg min-w-[7rem] active:scale-[0.985] whitespace-nowrap bg-text-0 text-bg-0 text-[15px]"
                             >
-                                Sign up
+                                {t('signup')}
                             </button>
                         </div>
                     </div>
@@ -53,11 +55,10 @@ const Docs = () => {
                     <main className="flex justify-center items-center flex-1">
                         <div className="w-full max-w-2xl">
                             <h1 className="text-center text-text-100 font-display min-[500px]:text-[3.5rem] min-[350px]:text-[3.2rem] text-[1.75rem] select-none leading-none mb-4">
-                                Appointer Docs
+                                {t('docsTitle')}
                             </h1>
                             <p className="mt-4 text-center text-text-200 text-base md:text-lg leading-relaxed max-w-xl mx-auto">
-                                Learn how to make the most of Appointer. This page will contain documentation and guides
-                                about booking devices, managing reservations, and getting the best out of the system.
+                                {t('docsDescription')}
                             </p>
                         </div>
                     </main>

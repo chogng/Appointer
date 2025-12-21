@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useLanguage } from '../context/useLanguage';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import Switch from './ui/Switch';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ArrowUp } from 'lucide-react';
 
 const DeviceIcon = ({ className }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -26,37 +27,60 @@ const DeviceCard = ({
     deleteConfirmId,
     onDeleteClick
 }) => {
-    const [editingField, setEditingField] = useState(null); // 'name' | 'description' | null
-    const [editValue, setEditValue] = useState('');
-    const inputRef = useRef(null);
+    // Local state for inputs
+    const [nameValue, setNameValue] = useState(device.name);
+    const [descValue, setDescValue] = useState(device.description || '');
 
+    // Sync local state if props change (e.g. real-time update from another user)
     useEffect(() => {
-        if (editingField && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [editingField]);
+        setNameValue(device.name);
+        setDescValue(device.description || '');
+    }, [device.name, device.description]);
 
-    const handleDoubleClick = (field) => {
-        if (!isAdmin) return;
-        setEditingField(field);
-        setEditValue(device[field] || '');
+    const { t } = useLanguage();
+
+    const handleSaveName = () => {
+        if (nameValue.trim() !== device.name) {
+            onUpdate(device.id, { name: nameValue.trim() });
+        }
     };
 
-    const handleSave = () => {
-        if (editingField && editValue !== device[editingField]) {
-            onUpdate(device.id, { [editingField]: editValue });
+    const handleSaveDesc = () => {
+        if (descValue.trim() !== (device.description || '')) {
+            onUpdate(device.id, { description: descValue.trim() });
         }
-        setEditingField(null);
-        setEditValue('');
     };
 
-    const handleKeyDown = (e) => {
+    const handleSaveAll = () => {
+        const updates = {};
+        if (nameValue.trim() !== device.name) {
+            updates.name = nameValue.trim();
+        }
+        if (descValue.trim() !== (device.description || '')) {
+            updates.description = descValue.trim();
+        }
+        if (Object.keys(updates).length > 0) {
+            onUpdate(device.id, updates);
+        }
+    };
+
+    const handleKeyDownName = (e) => {
         if (e.key === 'Enter') {
-            handleSave();
+            handleSaveName();
+            e.currentTarget.blur();
         } else if (e.key === 'Escape') {
-            setEditingField(null);
-            setEditValue('');
+            setNameValue(device.name); // Reset
+            e.currentTarget.blur();
+        }
+    };
+
+    const handleKeyDownDesc = (e) => {
+        if (e.key === 'Enter') {
+            handleSaveDesc();
+            e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+            setDescValue(device.description || ''); // Reset
+            e.currentTarget.blur();
         }
     };
 
@@ -66,75 +90,96 @@ const DeviceCard = ({
             className="flex flex-col gap-[0.75rem] sm:gap-[1rem] hover-lift group"
         >
             <div className="flex items-start gap-[0.75rem] sm:gap-[1rem]">
-                <div className="w-[2.5rem] h-[2.5rem] sm:w-[3rem] sm:h-[3rem] rounded-[1rem] bg-[#FAFDF7] dark:bg-green-900/20 flex items-center justify-center shrink-0 border border-green-100/50 dark:border-green-500/10 group-hover:scale-110 transition-transform duration-300">
-                    <DeviceIcon className="w-[1.25rem] h-[1.25rem] sm:w-[1.5rem] sm:h-[1.5rem] text-[#7FB77E] dark:text-green-400" />
-                </div>
+                {isAdmin ? (
+                    <div
+                        onClick={() => onToggle(device.id)}
+                        className={`
+                            relative w-[2.5rem] h-[2.5rem] sm:w-[3rem] sm:h-[3rem] rounded-[0.5rem] 
+                            transition-all duration-200 cursor-pointer 
+                            flex items-center justify-center
+                            backdrop-blur-md shadow-lg active:scale-90 hover:scale-105
+                            ${device.isEnabled
+                                ? 'bg-gradient-to-br from-white/90 to-white/50 dark:from-green-500/20 dark:to-green-900/10'
+                                : 'bg-gray-100/80 dark:bg-gray-800/50'}
+                        `}
+                    >
+                        <div className={`
+                            transition-colors duration-300
+                            ${device.isEnabled
+                                ? 'text-[#7FB77E] dark:text-green-400'
+                                : 'text-gray-400 dark:text-gray-500'}
+                        `}>
+                            <DeviceIcon className="w-[1.25rem] h-[1.25rem] sm:w-[1.5rem] sm:h-[1.5rem]" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="w-[2.5rem] h-[2.5rem] sm:w-[3rem] sm:h-[3rem] rounded-[0.5rem] bg-white/60 dark:bg-green-900/10 backdrop-blur-md flex items-center justify-center border border-green-100/50 dark:border-green-500/10 transition-transform duration-300">
+                        <DeviceIcon className={`w-[1.25rem] h-[1.25rem] sm:w-[1.5rem] sm:h-[1.5rem] ${device.isEnabled ? 'text-[#7FB77E] dark:text-green-400' : 'text-gray-400'}`} />
+                    </div>
+                )}
                 <div className="flex-1 min-w-0 flex flex-col justify-center min-h-[2.5rem] sm:min-h-[3rem]">
                     <div className="flex justify-between items-start gap-2">
-                        {editingField === 'name' ? (
-                            <div className="relative flex-1 min-w-0">
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onBlur={handleSave}
-                                    onKeyDown={handleKeyDown}
-                                    className="text-[1rem] sm:text-[1.125rem] font-semibold text-text-primary bg-transparent border-0 border-b-2 border-indigo-500 rounded-none px-0 py-0 outline-none w-full placeholder-indigo-300"
-                                    placeholder="输入设备名称"
-                                />
+                        {isAdmin ? (
+                            <div className="relative flex-1 min-w-0 z-10">
+                                <div className="flex items-center p-1 bg-transparent rounded-xl focus-within:ring-1 focus-within:ring-black transition-all">
+                                    <input
+                                        type="text"
+                                        value={nameValue}
+                                        onChange={(e) => setNameValue(e.target.value)}
+                                        onBlur={handleSaveName}
+                                        onKeyDown={handleKeyDownName}
+                                        className="flex-1 min-w-0 pl-2 pr-4 py-1 bg-transparent border-none text-[1rem] sm:text-[1.125rem] font-semibold text-text-primary focus:outline-none focus:ring-0 placeholder:text-text-secondary"
+                                        placeholder={t('enterDeviceName')}
+                                    />
+                                    <button
+                                        type="button"
+                                        onMouseDown={(e) => { e.preventDefault(); handleSaveAll(); }}
+                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-black text-white text-xs sm:text-sm font-medium rounded-lg hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
+                                    >
+                                        <span>{t('save')}</span>
+                                        <ArrowUp size={14} />
+                                    </button>
+                                </div>
                             </div>
                         ) : (
-                            <h3
-                                className={`text-[1rem] sm:text-[1.125rem] font-semibold text-text-primary truncate transition-colors duration-200 border-b-2 border-transparent ${isAdmin ? 'cursor-text hover:text-indigo-600' : ''}`}
-                                onDoubleClick={() => handleDoubleClick('name')}
-                                title={isAdmin ? '双击编辑名称' : undefined}
-                            >
+                            <h3 className="text-[1rem] sm:text-[1.125rem] font-semibold text-text-primary truncate transition-colors duration-200 border-b-2 border-transparent">
                                 {device.name}
                             </h3>
                         )}
 
-                        {/* Switch for admin / Status for user */}
-                        {isAdmin ? (
-                            <div className="flex items-center shrink-0 md:hidden xl:flex">
-                                <Switch
-                                    checked={device.isEnabled}
-                                    onChange={() => onToggle(device.id)}
-                                    activeColor="#7FB77E"
-                                />
-                            </div>
-                        ) : (
+                        {/* Status for user ONLY - Admin switch moved to description row */}
+                        {!isAdmin && (
                             /* Status dot only for User in narrow views, or full pill in large */
                             <span className={`flex items-center gap-[0.375rem] px-[0.5rem] py-[0.125rem] rounded-[0.5rem] text-[0.875rem] font-semibold shrink-0 md:hidden xl:flex ${device.isEnabled
                                 ? 'bg-green-500/10 text-green-600'
                                 : 'bg-red-500/10 text-red-600'
                                 }`}>
                                 <span className={`w-[0.375rem] h-[0.375rem] rounded-full shrink-0 ${device.isEnabled ? 'bg-green-600' : 'bg-red-600'}`}></span>
-                                <span className="hidden xl:inline">{device.isEnabled ? 'Available' : 'Unavailable'}</span>
-                                <span className="xl:hidden">{device.isEnabled ? 'On' : 'Off'}</span>
+                                <span className="hidden xl:inline">{device.isEnabled ? t('available') : t('unavailable')}</span>
+                                <span className="xl:hidden">{device.isEnabled ? t('on') : t('off')}</span>
                             </span>
                         )}
                     </div>
-                    {editingField === 'description' ? (
-                        <div className="relative w-full mt-[0.125rem] sm:mt-[0.25rem]">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={handleSave}
-                                onKeyDown={handleKeyDown}
-                                placeholder="添加描述..."
-                                className="text-[0.6875rem] text-text-secondary bg-transparent border-0 border-b border-indigo-500 rounded-none px-0 py-0 outline-none w-full placeholder-indigo-300"
-                            />
+                    {isAdmin ? (
+                        <div className="flex items-center gap-2 mt-[0.125rem] sm:mt-[0.25rem] z-10 w-full">
+                            <div className="relative flex-1 min-w-0">
+                                <div className="flex items-center p-1 bg-transparent rounded-lg focus-within:ring-1 focus-within:ring-black transition-all">
+                                    <input
+                                        type="text"
+                                        value={descValue}
+                                        onChange={(e) => setDescValue(e.target.value)}
+                                        onBlur={handleSaveDesc}
+                                        onKeyDown={handleKeyDownDesc}
+                                        placeholder={t('addDescription')}
+                                        className="flex-1 min-w-0 pl-2 pr-4 py-0.5 bg-transparent border-none text-[0.6875rem] text-text-secondary focus:outline-none focus:ring-0 placeholder:text-text-secondary"
+                                    />
+                                </div>
+                            </div>
+
                         </div>
                     ) : (
-                        <p
-                            className={`text-[0.6875rem] text-text-secondary leading-tight line-clamp-2 mt-[0.125rem] sm:mt-[0.25rem] transition-colors duration-200 border-b border-transparent ${isAdmin ? 'cursor-text hover:text-indigo-600' : ''}`}
-                            onDoubleClick={() => handleDoubleClick('description')}
-                            title={isAdmin ? '双击编辑描述' : undefined}
-                        >
-                            {device.description || (isAdmin ? '双击添加描述...' : '\u00A0')}
+                        <p className="text-[0.6875rem] text-text-secondary leading-tight line-clamp-2 mt-[0.125rem] sm:mt-[0.25rem] transition-colors duration-200 border-b border-transparent">
+                            {device.description || '\u00A0'}
                         </p>
                     )}
                 </div>
@@ -170,7 +215,7 @@ const DeviceCard = ({
                     disabled={!device.isEnabled}
                     onClick={onBook}
                 >
-                    立即预约
+                    {t('bookNow')}
                 </Button>
                 {isAdmin && (
                     <Button
@@ -180,15 +225,15 @@ const DeviceCard = ({
                             ? 'bg-red-600 shadow-red-200 border-transparent shadow-lg text-white'
                             : 'bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm'
                             }`}
-                        title={deleteConfirmId === device.id ? "确认删除" : "删除设备"}
+                        title={deleteConfirmId === device.id ? t('confirm') : t('deleteDevice')}
                     >
                         {deleteConfirmId === device.id ? (
                             <div className="flex items-center gap-1">
                                 <Trash2 className="w-4 h-4" />
-                                <span>确认</span>
+                                <span>{t('confirm')}</span>
                             </div>
                         ) : (
-                            "删除"
+                            t('delete')
                         )}
                     </Button>
                 )}

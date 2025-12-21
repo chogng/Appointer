@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useLanguage } from '../context/useLanguage';
-import { Calendar, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DashboardIcon = ({ size = 20, className = "" }) => (
     <svg
@@ -71,6 +71,16 @@ const SidebarCollapseIcon = ({ size = 24, className = "" }) => (
         <rect height="18" rx="2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" width="18" x="3" y="3"></rect>
         <path d="M9 3V21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
         <path d="M15 15L12 12L15 9" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+    </svg>
+);
+
+const UserIcon = ({ size = 24, className = "" }) => (
+    <svg fill="none" height={size} viewBox="0 0 24 24" width={size} xmlns="http://www.w3.org/2000/svg" className={className}>
+        <circle cx="12" cy="7" r="4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></circle>
+        <path d="M20 21V19C20 16.7909 18.2091 15 16 15H8C5.79086 15 4 16.7909 4 19V21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+        <path d="M12 11V17" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+        <path d="M12 17L10 15" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+        <path d="M12 17L14 15" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
     </svg>
 );
 
@@ -174,7 +184,7 @@ const MainLayout = () => {
                             top: isCollapsed ? '44px' : '48px'
                         }}
                     >
-                        <User size={20} className="text-text-secondary" />
+                        <UserIcon size={20} className="text-text-secondary" />
                     </div>
 
                     {/* User Text - Click to go to Settings */}

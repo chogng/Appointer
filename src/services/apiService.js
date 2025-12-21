@@ -100,8 +100,15 @@ class ApiService {
     }
 
     // ============ 日志相关 ============
-    async getLogs() {
-        return this.request('/logs');
+    async getLogs(search = '') {
+        const query = search ? `?search=${encodeURIComponent(search)}` : '';
+        return this.request(`/logs${query}`);
+    }
+
+    async deleteLogs() {
+        return this.request('/logs', {
+            method: 'DELETE',
+        });
     }
 }
 

@@ -1,21 +1,34 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/useAuth';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import Card from '../components/ui/Card';
+import Toast from '../components/ui/Toast';
 import { apiService } from '../services/apiService';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
-import { Calendar, Clock, CheckCircle, Activity } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, Activity, Search, Trash2 } from 'lucide-react';
 
 import { useLanguage } from '../context/useLanguage';
 
 const Dashboard = () => {
+    const containerRef = useRef(null);
     const { user } = useAuth();
     const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [logs, setLogs] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [toast, setToast] = useState({ isVisible: false, message: '', actionText: null, onAction: null });
+
+    const showToast = (message, actionText = null, onAction = null) => {
+        setToast({ isVisible: true, message, actionText, onAction });
+    };
+
+    const closeToast = () => {
+        setToast(prev => ({ ...prev, isVisible: false }));
+    };
+
     const stats = [
         { label: t('upcomingReservations'), value: '2', icon: Calendar, color: '#0071E3' },
         { label: t('reservedHours'), value: '14', icon: Clock, color: '#34C759' },
@@ -24,12 +37,37 @@ const Dashboard = () => {
 
     const fetchLogs = useCallback(async () => {
         try {
-            const data = await apiService.getLogs();
+            const data = await apiService.getLogs(searchTerm);
             setLogs(data);
         } catch (error) {
             console.error('Failed to fetch logs:', error);
         }
-    }, []);
+    }, [searchTerm]);
+
+    const handleClearLogs = async () => {
+        // Show confirmation toast
+        showToast(
+            t('confirmClearLogs') || 'Are you sure you want to clear all logs?',
+            t('clearLogs') || 'Clear',
+            async () => {
+                try {
+                    closeToast(); // Close confirmation toast
+                    await apiService.deleteLogs();
+                    await fetchLogs();
+                    // Show success toast
+                    setTimeout(() => {
+                        showToast(t('updateSuccess') || 'Success');
+                    }, 300);
+                } catch (error) {
+                    console.error('Failed to clear logs:', error);
+                    // Show error toast
+                    setTimeout(() => {
+                        showToast(t('clearLogsFailed') || 'Failed to clear logs');
+                    }, 300);
+                }
+            }
+        );
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -62,7 +100,7 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="max-w-[1500px] mx-auto">
+        <div ref={containerRef} className="max-w-[1500px] mx-auto relative min-h-screen">
             <div className="mb-8">
                 <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">{t('dashboard')}</h1>
                 <p className="text-text-secondary">
@@ -88,9 +126,30 @@ const Dashboard = () => {
             </div>
 
             <div className="mt-10">
-                <div className="flex items-center gap-2 mb-4">
-                    <Activity size={20} className="text-accent" />
-                    <h2 className="text-xl font-serif font-medium text-text-primary">{t('recentActivity')}</h2>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Activity size={20} className="text-accent" />
+                        <h2 className="text-xl font-serif font-medium text-text-primary">{t('recentActivity')}</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                            <input
+                                type="text"
+                                placeholder={t('searchLogs') || 'Search logs...'}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9 pr-4 py-1.5 text-sm bg-bg-200 border-none rounded-lg focus:ring-1 focus:ring-accent w-48 transition-all"
+                            />
+                        </div>
+                        <button
+                            onClick={handleClearLogs}
+                            className="p-1.5 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title={t('clearLogs') || 'Clear logs'}
+                        >
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
                 </div>
                 <Card variant="glass" className="p-0 overflow-hidden">
                     {logs.length > 0 ? (
@@ -123,6 +182,14 @@ const Dashboard = () => {
                     )}
                 </Card>
             </div>
+            <Toast
+                message={toast.message}
+                isVisible={toast.isVisible}
+                onClose={closeToast}
+                actionText={toast.actionText}
+                onAction={toast.onAction}
+                containerRef={containerRef}
+            />
         </div>
     );
 };

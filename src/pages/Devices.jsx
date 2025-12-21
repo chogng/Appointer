@@ -3,6 +3,7 @@ import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
 import { useNavigate } from 'react-router-dom';
 import { usePermission } from '../hooks/usePermission';
+import { useLanguage } from '../context/useLanguage';
 import DeviceCard from '../components/DeviceCard';
 import AddDeviceCard from '../components/AddDeviceCard';
 
@@ -13,6 +14,7 @@ const Devices = () => {
     const [createConfirm, setCreateConfirm] = useState(false);
     const navigate = useNavigate();
     const { isAdmin } = usePermission();
+    const { t } = useLanguage();
 
     useEffect(() => {
         const handleClickOutside = () => {
@@ -102,7 +104,7 @@ const Devices = () => {
             );
         } catch (error) {
             console.error('Failed to update device:', error);
-            alert('更新失败，请重试');
+            alert(t('updateFailed'));
         }
     };
 
@@ -122,14 +124,14 @@ const Devices = () => {
             setDeleteConfirmId(null);
         } catch (error) {
             console.error('Failed to delete device:', error);
-            alert('删除失败，请重试');
+            alert(t('deleteFailed'));
         }
     };
 
     const handleCreateDevice = async () => {
         try {
             const newDevice = await apiService.createDevice({
-                name: '新设备',
+                name: t('newDevice'),
                 description: '',
                 isEnabled: true,
                 openDays: [1, 2, 3, 4, 5],
@@ -143,7 +145,7 @@ const Devices = () => {
             console.log('设备创建成功:', newDevice);
         } catch (error) {
             console.error('Failed to create device:', error);
-            alert('创建设备失败，请重试');
+            alert(t('createDeviceFailed'));
         }
     };
 
@@ -154,8 +156,8 @@ const Devices = () => {
     return (
         <div className="max-w-[1500px] mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">Device List</h1>
-                <p className="text-text-secondary">选择设备进行预约</p>
+                <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">{t('deviceList')}</h1>
+                <p className="text-text-secondary">{t('selectDeviceToBook')}</p>
             </div>
             {/* Device Card List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
