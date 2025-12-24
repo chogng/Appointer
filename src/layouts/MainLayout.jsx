@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useLanguage } from '../context/useLanguage';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Package, Users, Trophy } from 'lucide-react';
+
+
 
 const DashboardIcon = ({ size = 20, className = "" }) => (
     <svg
@@ -93,9 +95,15 @@ const MainLayout = () => {
     const navItems = [
         { icon: DashboardIcon, label: t('dashboard'), path: '/dashboard' },
         { icon: DevicesIcon, label: t('devices'), path: '/devices' },
+        { icon: Package, label: t('inventory'), path: '/inventory' },
         { icon: BookingIcon, label: t('booking'), path: '/reservations' },
         { icon: MessageIcon, label: t('messages'), path: '/messages' },
     ];
+
+    if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+        navItems.push({ icon: Users, label: t('user_management') || 'Users', path: '/users' });
+        navItems.push({ icon: Trophy, label: t('leaderboard') || 'Leaderboard', path: '/leaderboard' });
+    }
 
     return (
         <div className="h-screen bg-bg-page flex overflow-hidden">

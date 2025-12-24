@@ -14,6 +14,9 @@ import DeviceBooking from '../pages/DeviceBooking';
 import MyReservations from '../pages/MyReservations';
 import Messages from '../pages/Messages';
 import Settings from '../pages/Settings';
+import Inventory from '../pages/Inventory';
+import Users from '../pages/Users';
+import Leaderboard from '../pages/Leaderboard';
 import { useAuth } from '../context/useAuth';
 
 const AppRoutes = () => {
@@ -35,6 +38,7 @@ const AppRoutes = () => {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/devices" element={<Devices />} />
+                    <Route path="/inventory" element={<Inventory />} />
                     <Route path="/devices/create" element={
                         <AdminRoute>
                             <CreateDevice />
@@ -43,6 +47,16 @@ const AppRoutes = () => {
                     <Route path="/devices/:id" element={<DeviceBooking />} />
                     <Route path="/reservations" element={<MyReservations />} />
                     <Route path="/messages" element={<Messages />} />
+                    <Route path="/users" element={
+                        <AdminRoute>
+                            <Users />
+                        </AdminRoute>
+                    } />
+                    <Route path="/leaderboard" element={
+                        <AdminRoute>
+                            <Leaderboard />
+                        </AdminRoute>
+                    } />
                 </Route>
 
                 <Route path="/" element={

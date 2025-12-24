@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
 import { useNavigate } from 'react-router-dom';
@@ -6,12 +6,19 @@ import { usePermission } from '../hooks/usePermission';
 import { useLanguage } from '../context/useLanguage';
 import DeviceCard from '../components/DeviceCard';
 import AddDeviceCard from '../components/AddDeviceCard';
+import Toast from '../components/ui/Toast';
+
+import { useAuth } from '../context/useAuth';
 
 const Devices = () => {
+    const { user: currentUser } = useAuth();
     const [devices, setDevices] = useState([]);
+    const [blockedDeviceIds, setBlockedDeviceIds] = useState([]); // Array of blocked device IDs
     const [loading, setLoading] = useState(true);
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [createConfirm, setCreateConfirm] = useState(false);
+    const [toast, setToast] = useState({ isVisible: false, message: '', type: 'success' });
+    const containerRef = useRef(null);
     const navigate = useNavigate();
     const { isAdmin } = usePermission();
     const { t } = useLanguage();
@@ -79,8 +86,12 @@ const Devices = () => {
 
     const loadDevices = async () => {
         try {
-            const data = await apiService.getDevices();
-            setDevices(data);
+            const [devicesData, blocklistData] = await Promise.all([
+                apiService.getDevices(),
+                currentUser ? apiService.getUserBlocklist(currentUser.id).catch(() => []) : Promise.resolve([])
+            ]);
+            setDevices(devicesData);
+            setBlockedDeviceIds(blocklistData.map(b => b.deviceId));
         } catch (error) {
             console.error('Failed to load devices:', error);
         } finally {
@@ -104,7 +115,7 @@ const Devices = () => {
             );
         } catch (error) {
             console.error('Failed to update device:', error);
-            alert(t('updateFailed'));
+            showToast(t('updateFailed'), 'error');
         }
     };
 
@@ -122,9 +133,10 @@ const Devices = () => {
             await apiService.deleteDevice(deviceId);
             setDevices(prev => prev.filter(d => d.id !== deviceId));
             setDeleteConfirmId(null);
+            showToast(t('updateSuccess'), 'success');
         } catch (error) {
             console.error('Failed to delete device:', error);
-            alert(t('deleteFailed'));
+            showToast(t('deleteFailed'), 'error');
         }
     };
 
@@ -143,18 +155,22 @@ const Devices = () => {
                 prevDevices.some(d => d.id === newDevice.id) ? prevDevices : [...prevDevices, newDevice]
             );
             console.log('设备创建成功:', newDevice);
+            showToast(t('updateSuccess'), 'success');
         } catch (error) {
             console.error('Failed to create device:', error);
-            alert(t('createDeviceFailed'));
+            showToast(t('createDeviceFailed'), 'error');
         }
     };
+
+    const showToast = (message, type = 'success') => setToast({ isVisible: true, message, type });
+    const closeToast = () => setToast((prev) => ({ ...prev, isVisible: false }));
 
     if (loading) {
         return <div className="min-h-[200px]" />;
     }
 
     return (
-        <div className="max-w-[1500px] mx-auto">
+        <div className="max-w-[1500px] mx-auto min-h-screen relative" ref={containerRef}>
             <div className="mb-8">
                 <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">{t('deviceList')}</h1>
                 <p className="text-text-secondary">{t('selectDeviceToBook')}</p>
@@ -166,11 +182,13 @@ const Devices = () => {
                         key={device.id}
                         device={device}
                         isAdmin={isAdmin()}
+                        isBlocked={blockedDeviceIds.includes(device.id)}
                         onToggle={handleToggleDevice}
                         onUpdate={handleUpdateDevice}
                         onBook={() => navigate(`/devices/${device.id}`)}
                         deleteConfirmId={deleteConfirmId}
                         onDeleteClick={handleDeleteClick}
+                        onShowToast={showToast}
                     />
                 ))}
                 {isAdmin() && (
@@ -188,6 +206,14 @@ const Devices = () => {
                     />
                 )}
             </div>
+            {/* Global Toast for this page */}
+            <Toast
+                message={toast.message}
+                isVisible={toast.isVisible}
+                onClose={closeToast}
+                containerRef={containerRef}
+                type={toast.type}
+            />
         </div>
     );
 };

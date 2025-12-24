@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
@@ -8,11 +8,65 @@ const Register = () => {
     const [repeatPassword, setRepeatPassword] = useState('');
     const [email, setEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
+    const [captchaCode, setCaptchaCode] = useState('');
+    const canvasRef = useRef(null);
 
     const [error, setError] = useState('');
     const { register } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+
+    const generateCaptcha = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Random background color
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Generate Code
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude I, O, 1, 0, Q to avoid confusion
+        let code = '';
+        for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setCaptchaCode(code);
+
+        // Draw Code
+        ctx.font = 'bold 24px Arial';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < code.length; i++) {
+            ctx.save();
+            ctx.translate(20 + i * 20, canvas.height / 2);
+            ctx.rotate((Math.random() - 0.5) * 0.4);
+            ctx.fillStyle = `hsl(${Math.random() * 360}, 50%, 30%)`;
+            ctx.fillText(code[i], -10, 0);
+            ctx.restore();
+        }
+
+        // Add Noise (Lines)
+        for (let i = 0; i < 5; i++) {
+            ctx.strokeStyle = `rgba(0, 0, 0, ${Math.random() * 0.3})`;
+            ctx.beginPath();
+            ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+            ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+            ctx.stroke();
+        }
+
+        // Add Noise (Dots)
+        for (let i = 0; i < 30; i++) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    };
+
+    useEffect(() => {
+        generateCaptcha();
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,8 +77,14 @@ const Register = () => {
             return;
         }
 
-        if (!studentId || !password || !email || !verificationCode) {
-            setError('All fields are required');
+        if (!studentId || !password || !verificationCode) {
+            setError('Please fill in all required fields');
+            return;
+        }
+
+        if (verificationCode.toUpperCase() !== captchaCode) {
+            setError('Invalid verification code');
+            generateCaptcha(); // Refresh captcha on failure
             return;
         }
 
@@ -32,14 +92,15 @@ const Register = () => {
             username: studentId,
             password,
             name: studentId,
-            email,
-            verificationCode
+            email, // Email is now optional, passed as empty string if not provided
+            verificationCode // Note: Backend ignores this currently, but frontend validation passed
         });
 
         if (result.success) {
             navigate('/pending-review');
         } else {
             setError(result.error);
+            generateCaptcha(); // Refresh captcha on error
         }
     };
 
@@ -114,7 +175,7 @@ const Register = () => {
                                                 type="email"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
-                                                placeholder="Email"
+                                                placeholder="Email (Optional)"
                                                 className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
                                             />
                                         </div>
@@ -136,13 +197,21 @@ const Register = () => {
                                                 className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
                                             />
                                         </div>
-                                        <div className="flex flex-col gap-1 text-left">
+                                        <div className="flex flex-row gap-2 text-left items-center">
                                             <input
                                                 type="text"
                                                 value={verificationCode}
                                                 onChange={(e) => setVerificationCode(e.target.value)}
-                                                placeholder="Verification Code"
-                                                className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
+                                                placeholder="Enter CAPTCHA"
+                                                className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full flex-grow"
+                                            />
+                                            <canvas
+                                                ref={canvasRef}
+                                                width="100"
+                                                height="44"
+                                                onClick={generateCaptcha}
+                                                className="border border-border-300 rounded-[0.6rem] cursor-pointer hover:border-border-200 transition-colors"
+                                                title="Click to refresh"
                                             />
                                         </div>
 

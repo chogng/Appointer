@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/apiService';
 import { useReservationSync } from '../hooks/useRealtimeSync';
 import { useAuth } from '../context/useAuth';
@@ -15,7 +15,9 @@ import { zhCN } from 'date-fns/locale';
 const DeviceBooking = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
+    const highlightUserName = location.state?.highlightUserName;
     const [device, setDevice] = useState(null);
     const [reservations, setReservations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -218,8 +220,13 @@ const DeviceBooking = () => {
                 </div>
 
                 {/*Device Name - Centered */}
-                <h1 className="text-2xl font-serif font-medium text-text-primary justify-self-center whitespace-nowrap">
+                <h1 className="text-2xl font-serif font-medium text-text-primary justify-self-center whitespace-nowrap flex items-center gap-2">
                     {device.name}
+                    {highlightUserName && (
+                        <span className="text-lg text-text-secondary font-normal">
+                            - {highlightUserName}
+                        </span>
+                    )}
                 </h1>
 
                 {/* Right Side Controls */}

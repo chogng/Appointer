@@ -25,7 +25,9 @@ const DeviceCard = ({
     onUpdate,
     onBook,
     deleteConfirmId,
-    onDeleteClick
+    onDeleteClick,
+    onShowToast,
+    isBlocked = false
 }) => {
     // Local state for inputs
     const [nameValue, setNameValue] = useState(device.name);
@@ -42,12 +44,14 @@ const DeviceCard = ({
     const handleSaveName = () => {
         if (nameValue.trim() !== device.name) {
             onUpdate(device.id, { name: nameValue.trim() });
+            onShowToast(t('updateSuccess'));
         }
     };
 
     const handleSaveDesc = () => {
         if (descValue.trim() !== (device.description || '')) {
             onUpdate(device.id, { description: descValue.trim() });
+            onShowToast(t('updateSuccess'));
         }
     };
 
@@ -61,6 +65,7 @@ const DeviceCard = ({
         }
         if (Object.keys(updates).length > 0) {
             onUpdate(device.id, updates);
+            onShowToast(t('updateSuccess'));
         }
     };
 
@@ -126,7 +131,6 @@ const DeviceCard = ({
                                         type="text"
                                         value={nameValue}
                                         onChange={(e) => setNameValue(e.target.value)}
-                                        onBlur={handleSaveName}
                                         onKeyDown={handleKeyDownName}
                                         className="flex-1 min-w-0 pl-2 pr-4 py-1 bg-transparent border-none text-[1rem] sm:text-[1.125rem] font-semibold text-text-primary focus:outline-none focus:ring-0 placeholder:text-text-secondary"
                                         placeholder={t('enterDeviceName')}
@@ -134,7 +138,7 @@ const DeviceCard = ({
                                     <button
                                         type="button"
                                         onMouseDown={(e) => { e.preventDefault(); handleSaveAll(); }}
-                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-black text-white text-xs sm:text-sm font-medium rounded-lg hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
+                                        className="flex items-center justify-center gap-2 px-4 py-2 bg-black text-white text-xs sm:text-sm font-medium rounded-lg hover:scale-102 active:scale-95 transition-all whitespace-nowrap"
                                     >
                                         <span>{t('save')}</span>
                                         <ArrowUp size={14} />
@@ -150,13 +154,18 @@ const DeviceCard = ({
                         {/* Status for user ONLY - Admin switch moved to description row */}
                         {!isAdmin && (
                             /* Status dot only for User in narrow views, or full pill in large */
-                            <span className={`flex items-center gap-[0.375rem] px-[0.5rem] py-[0.125rem] rounded-[0.5rem] text-[0.875rem] font-semibold shrink-0 md:hidden xl:flex ${device.isEnabled
-                                ? 'bg-green-500/10 text-green-600'
-                                : 'bg-red-500/10 text-red-600'
+                            <span className={`flex items-center gap-[0.375rem] px-[0.5rem] py-[0.125rem] rounded-[0.5rem] text-[0.875rem] font-semibold shrink-0 md:hidden xl:flex ${isBlocked ? 'bg-red-500/10 text-red-600' :
+                                device.isEnabled
+                                    ? 'bg-green-500/10 text-green-600'
+                                    : 'bg-red-500/10 text-red-600'
                                 }`}>
-                                <span className={`w-[0.375rem] h-[0.375rem] rounded-full shrink-0 ${device.isEnabled ? 'bg-green-600' : 'bg-red-600'}`}></span>
-                                <span className="hidden xl:inline">{device.isEnabled ? t('available') : t('unavailable')}</span>
-                                <span className="xl:hidden">{device.isEnabled ? t('on') : t('off')}</span>
+                                <span className={`w-[0.375rem] h-[0.375rem] rounded-full shrink-0 ${isBlocked || !device.isEnabled ? 'bg-red-600' : 'bg-green-600'}`}></span>
+                                <span className="hidden xl:inline">
+                                    {isBlocked ? 'Banned' : (device.isEnabled ? t('available') : t('unavailable'))}
+                                </span>
+                                <span className="xl:hidden">
+                                    {isBlocked ? 'Ban' : (device.isEnabled ? t('on') : t('off'))}
+                                </span>
                             </span>
                         )}
                     </div>
@@ -168,7 +177,6 @@ const DeviceCard = ({
                                         type="text"
                                         value={descValue}
                                         onChange={(e) => setDescValue(e.target.value)}
-                                        onBlur={handleSaveDesc}
                                         onKeyDown={handleKeyDownDesc}
                                         placeholder={t('addDescription')}
                                         className="flex-1 min-w-0 pl-2 pr-4 py-0.5 bg-transparent border-none text-[0.6875rem] text-text-secondary focus:outline-none focus:ring-0 placeholder:text-text-secondary"
@@ -211,11 +219,11 @@ const DeviceCard = ({
             <div className="mt-auto pt-[0.75rem] sm:pt-[1rem] border-t border-border-subtle flex gap-[0.75rem]">
                 <Button
                     variant="dark"
-                    className="flex-1 text-[0.875rem] sm:text-base whitespace-nowrap overflow-hidden"
-                    disabled={!device.isEnabled}
+                    className={`flex-1 text-[0.875rem] sm:text-base whitespace-nowrap overflow-hidden ${isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!device.isEnabled || isBlocked}
                     onClick={onBook}
                 >
-                    {t('bookNow')}
+                    {isBlocked ? 'Banned' : t('bookNow')}
                 </Button>
                 {isAdmin && (
                     <Button

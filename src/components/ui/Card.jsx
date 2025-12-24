@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
-const Card = ({ children, className = '', variant = 'default', ...props }) => {
+const Card = forwardRef(({ children, className = '', variant = 'default', ...props }, ref) => {
     const variants = {
         default: 'bg-bg-surface border-border-subtle shadow-sm',
         glass: 'glass',
@@ -15,10 +15,12 @@ const Card = ({ children, className = '', variant = 'default', ...props }) => {
     `.trim().replace(/\s+/g, ' ');
 
     return (
-        <div className={cardClasses} {...props}>
+        <div ref={ref} className={cardClasses} {...props}>
             {children}
         </div>
     );
-};
+});
+
+Card.displayName = 'Card';
 
 export default Card;

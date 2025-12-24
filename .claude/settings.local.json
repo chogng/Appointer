@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore\\(release\\): v0.2.0\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 \\(1M context\\) <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

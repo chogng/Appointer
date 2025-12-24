@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useLayoutEffect } from 'react';
+import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
-const Toast = ({ message, actionText, onAction, onClose, isVisible, containerRef }) => {
+const Toast = ({ message, type = 'success', actionText, onAction, onClose, isVisible, containerRef, position = 'absolute' }) => {
     const [positionStyle, setPositionStyle] = useState({});
 
     // Handle auto-close
@@ -16,13 +17,20 @@ const Toast = ({ message, actionText, onAction, onClose, isVisible, containerRef
     // Calculate position if containerRef is provided
     useLayoutEffect(() => {
         const updatePosition = () => {
-            if (containerRef?.current) {
+            if (containerRef?.current && position === 'absolute') {
                 const rect = containerRef.current.getBoundingClientRect();
                 const center = rect.left + rect.width / 2;
                 setPositionStyle({
-                    position: 'fixed',
-                    bottom: 0,
+                    position: 'fixed', // relative to viewport but calculated based on container
+                    bottom: '32px',
                     left: `${center}px`
+                });
+            } else if (position === 'fixed') {
+                setPositionStyle({
+                    position: 'fixed',
+                    bottom: '32px',
+                    left: '50%',
+                    transform: 'translateX(-50%)'
                 });
             }
         };
@@ -32,7 +40,7 @@ const Toast = ({ message, actionText, onAction, onClose, isVisible, containerRef
             window.addEventListener('resize', updatePosition);
             return () => window.removeEventListener('resize', updatePosition);
         }
-    }, [isVisible, containerRef]);
+    }, [isVisible, containerRef, position]);
 
     // Render logic
     const [shouldRender, setShouldRender] = useState(false);
@@ -54,29 +62,50 @@ const Toast = ({ message, actionText, onAction, onClose, isVisible, containerRef
 
     if (!shouldRender) return null;
 
+    const getIcon = () => {
+        switch (type) {
+            case 'success': return <CheckCircle2 size={20} className="text-green-500" />;
+            case 'error': return <AlertCircle size={20} className="text-red-500" />;
+            case 'warning': return <AlertCircle size={20} className="text-amber-500" />;
+            default: return <Info size={20} className="text-blue-500" />;
+        }
+    };
+
     return (
         <div
-            className={`transform -translate-x-1/2 z-[60] flex items-center gap-4 bg-[#202124] text-white px-4 py-3 rounded-md shadow-lg min-w-[320px] justify-between ${isClosing ? 'animate-slide-down' : 'animate-slide-up'} ${Object.keys(positionStyle).length === 0 ? 'absolute bottom-0 left-1/2' : ''}`}
+            className={`
+                transform -translate-x-1/2 z-[60] 
+                flex items-center gap-3 
+                bg-white/90 backdrop-blur-xl 
+                border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.12)] 
+                pl-4 pr-3 py-3 rounded-2xl min-w-[340px] max-w-[420px]
+                ${isClosing ? 'animate-slide-down' : 'animate-slide-up'} 
+                ${Object.keys(positionStyle).length === 0 ? (position === 'fixed' ? 'fixed bottom-8 left-1/2' : 'absolute bottom-0 left-1/2') : ''}
+            `}
             style={positionStyle}
         >
-            <span className="text-sm font-normal tracking-wide">{message}</span>
-            <div className="flex items-center gap-4">
+            <div className="shrink-0">
+                {getIcon()}
+            </div>
+
+            <span className="text-sm font-medium text-text-primary flex-1 leading-snug">
+                {message}
+            </span>
+
+            <div className="flex items-center gap-3 pl-3 border-l border-black/5">
                 {actionText && onAction && (
                     <button
                         onClick={onAction}
-                        className="text-[#8AB4F8] text-sm font-medium hover:text-[#AECBFA] transition-colors"
+                        className="text-accent text-sm font-semibold hover:text-accent-hover transition-colors whitespace-nowrap"
                     >
                         {actionText}
                     </button>
                 )}
                 <button
                     onClick={onClose}
-                    className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-full"
+                    className="text-text-tertiary hover:text-text-primary hover:bg-black/5 rounded-full p-1 transition-all"
                 >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <X size={16} />
                 </button>
             </div>
         </div>

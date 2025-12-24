@@ -75,6 +75,17 @@ async function createTables() {
     `);
 
     db.run(`
+        CREATE TABLE IF NOT EXISTS inventory (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            requesterName TEXT
+        );
+    `);
+
+    db.run(`
         CREATE TABLE IF NOT EXISTS reservations (
             id TEXT PRIMARY KEY,
             userId TEXT NOT NULL,
@@ -96,6 +107,38 @@ async function createTables() {
             action TEXT NOT NULL,
             details TEXT,
             timestamp TEXT NOT NULL
+        );
+    `);
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS requests (
+            id TEXT PRIMARY KEY,
+            requesterId TEXT NOT NULL,
+            requesterName TEXT NOT NULL,
+            type TEXT NOT NULL,
+            targetId TEXT,
+            originalData TEXT,
+            newData TEXT,
+            status TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+        );
+    `);
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS blocklist (
+            id TEXT PRIMARY KEY,
+            userId TEXT NOT NULL,
+            deviceId TEXT NOT NULL,
+            reason TEXT,
+            createdAt TEXT NOT NULL
+        );
+    `);
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updatedAt TEXT NOT NULL
         );
     `);
 }
@@ -130,11 +173,30 @@ async function migrateSchema() {
     ensureColumn('reservations', 'description', `TEXT DEFAULT ''`);
     ensureColumn('reservations', 'color', `TEXT DEFAULT 'default'`);
 
+    // Inventory requester
+    ensureColumn('inventory', 'requesterName', 'TEXT');
+    ensureColumn('inventory', 'requesterId', 'TEXT');
+
     // Prevent double-booking the same device/date/slot (while allowing re-booking after cancellation).
     db.run(`
         CREATE UNIQUE INDEX IF NOT EXISTS reservations_unique_active
         ON reservations (deviceId, date, timeSlot)
         WHERE status != 'CANCELLED'
+    `);
+
+    db.run(`
+        CREATE UNIQUE INDEX IF NOT EXISTS blocklist_unique_user_device
+        ON blocklist (userId, deviceId)
+    `);
+
+    db.run(`
+        CREATE INDEX IF NOT EXISTS logs_timestamp_idx
+        ON logs (timestamp)
+    `);
+
+    db.run(`
+        CREATE INDEX IF NOT EXISTS requests_status_createdAt_idx
+        ON requests (status, createdAt)
     `);
 }
 

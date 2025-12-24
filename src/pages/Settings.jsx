@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useTheme } from '../context/useTheme';
 import { useLanguage } from '../context/useLanguage';
+import { apiService } from '../services/apiService';
 import Card from '../components/ui/Card';
 import Toast from '../components/ui/Toast';
-import { User, Moon, Sun, Monitor, Lock, Camera, Check, ArrowUp } from 'lucide-react';
+import { User, Moon, Sun, Monitor, Lock, Camera, Check, ArrowUp, Database, Trash2 } from 'lucide-react';
 
 function Section({ title, icon, children }) {
     const Icon = icon;
@@ -27,15 +28,50 @@ const Settings = () => {
 
     const [name, setName] = useState(user?.name || '');
     const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
-    const [toast, setToast] = useState({ isVisible: false, message: '' });
+    const [toast, setToast] = useState({ isVisible: false, message: '', type: 'success' });
 
-    const showToast = (message) => setToast({ isVisible: true, message });
+    const showToast = (message, type = 'success') => setToast({ isVisible: true, message, type });
     const closeToast = () => setToast((prev) => ({ ...prev, isVisible: false }));
 
-    const handleNameSave = () => {
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const [retentionLoading, setRetentionLoading] = useState(false);
+    const [retentionSaving, setRetentionSaving] = useState(false);
+    const [retentionRunning, setRetentionRunning] = useState(false);
+    const [retention, setRetention] = useState(null);
+    const [retentionForm, setRetentionForm] = useState({ logsDays: '', requestsDays: '' });
+
+    useEffect(() => {
+        if (!isSuperAdmin) return;
+
+        let cancelled = false;
+        const load = async () => {
+            try {
+                setRetentionLoading(true);
+                const data = await apiService.getRetentionSettings();
+                if (cancelled) return;
+                setRetention(data);
+                setRetentionForm({ logsDays: String(data.logsDays), requestsDays: String(data.requestsDays) });
+            } catch (_error) {
+                if (!cancelled) showToast(t('retentionLoadFailed'), 'error');
+            } finally {
+                if (!cancelled) setRetentionLoading(false);
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [isSuperAdmin, t]);
+
+    const handleNameSave = async () => {
         if (!name.trim()) return;
-        updateUser({ name: name.trim() });
-        showToast(t('updateSuccess'));
+        const result = await updateUser({ name: name.trim() });
+        if (result.success) {
+            showToast(t('updateSuccess'), 'success');
+        } else {
+            showToast(t('updateFailed') || 'Update failed', 'error');
+        }
     };
 
     const handleAvatarChange = (e) => {
@@ -43,9 +79,11 @@ const Settings = () => {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onloadend = () => {
-            updateUser({ avatar: reader.result });
-            showToast(t('updateSuccess'));
+        reader.onloadend = async () => {
+            const result = await updateUser({ avatar: reader.result });
+            if (result.success) {
+                showToast(t('updateSuccess'), 'success');
+            }
         };
         reader.readAsDataURL(file);
     };
@@ -53,11 +91,42 @@ const Settings = () => {
     const handlePasswordChange = (e) => {
         e.preventDefault();
         if (passwordData.new !== passwordData.confirm) {
-            showToast('两次输入的密码不一致');
+            showToast(t('passwordMismatch'), 'error');
             return;
         }
         setPasswordData({ current: '', new: '', confirm: '' });
-        showToast(t('updateSuccess'));
+        showToast(t('updateSuccess'), 'success');
+    };
+
+    const handleRetentionSave = async () => {
+        try {
+            setRetentionSaving(true);
+            const updated = await apiService.updateRetentionSettings({
+                logsDays: Number(retentionForm.logsDays),
+                requestsDays: Number(retentionForm.requestsDays),
+            });
+            setRetention(updated);
+            setRetentionForm({ logsDays: String(updated.logsDays), requestsDays: String(updated.requestsDays) });
+            showToast(t('updateSuccess'), 'success');
+        } catch (error) {
+            showToast(error.message || t('updateFailed'), 'error');
+        } finally {
+            setRetentionSaving(false);
+        }
+    };
+
+    const handleRetentionRunNow = async () => {
+        try {
+            setRetentionRunning(true);
+            const result = await apiService.runRetentionCleanup();
+            setRetention(result);
+            setRetentionForm({ logsDays: String(result.logsDays), requestsDays: String(result.requestsDays) });
+            showToast(t('updateSuccess'), 'success');
+        } catch (error) {
+            showToast(error.message || t('retentionCleanupFailed'), 'error');
+        } finally {
+            setRetentionRunning(false);
+        }
     };
 
     return (
@@ -101,7 +170,7 @@ const Settings = () => {
                                     <button
                                         type="button"
                                         onClick={handleNameSave}
-                                        className="flex items-center justify-center gap-2 pl-6 pr-3 py-1.5 bg-black text-white text-sm font-medium rounded-lg hover:scale-102 active:scale-95 transition-all whitespace-nowrap"
+                                        className="flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-lg hover:scale-102 active:scale-95 transition-all whitespace-nowrap"
                                     >
                                         <span>{t('saveChanges')}</span>
                                         <ArrowUp size={16} />
@@ -203,6 +272,95 @@ const Settings = () => {
                         </button>
                     </form>
                 </Section>
+
+                {isSuperAdmin && (
+                    <div className="md:col-span-2">
+                        <Section title={t('dataRetention')} icon={Database}>
+                            {retentionLoading ? (
+                                <div className="text-sm text-text-secondary">Loading...</div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <p className="text-sm text-text-secondary">{t('retentionHint')}</p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-secondary mb-1">{t('logsRetentionDays')}</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="3650"
+                                                value={retentionForm.logsDays}
+                                                onChange={(e) => setRetentionForm(prev => ({ ...prev, logsDays: e.target.value }))}
+                                                className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                                                disabled={retentionLoading || retentionSaving || retentionRunning}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-secondary mb-1">{t('requestsRetentionDays')}</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="3650"
+                                                value={retentionForm.requestsDays}
+                                                onChange={(e) => setRetentionForm(prev => ({ ...prev, requestsDays: e.target.value }))}
+                                                className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                                                disabled={retentionLoading || retentionSaving || retentionRunning}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-text-secondary">
+                                        <div>
+                                            <div className="text-xs text-text-tertiary mb-1">{t('lastCleanupAt')}</div>
+                                            <div className="text-text-primary">
+                                                {retention?.lastCleanupAt ? new Date(retention.lastCleanupAt).toLocaleString() : '-'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs text-text-tertiary mb-1">{t('nextCleanupAt')}</div>
+                                            <div className="text-text-primary">
+                                                {retention?.nextCleanupAt ? new Date(retention.nextCleanupAt).toLocaleString() : '-'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {retention?.deleted && (
+                                        <div className="text-sm text-text-secondary bg-bg-page/50 border border-border-subtle rounded-lg p-3">
+                                            <div className="text-xs text-text-tertiary mb-1">
+                                                {retention?.ranAt ? new Date(retention.ranAt).toLocaleString() : ''}
+                                            </div>
+                                            <div className="flex flex-wrap gap-4">
+                                                <span>Logs: {retention.deleted.logs}</span>
+                                                <span>Requests: {retention.deleted.requests}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleRetentionSave}
+                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors font-medium text-sm disabled:opacity-60"
+                                            disabled={retentionLoading || retentionSaving || retentionRunning}
+                                        >
+                                            <Check size={16} />
+                                            {retentionSaving ? `${t('saveChanges')}...` : t('saveChanges')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleRetentionRunNow}
+                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-bg-page border border-border-subtle text-text-primary rounded-lg hover:bg-bg-subtle transition-colors font-medium text-sm disabled:opacity-60"
+                                            disabled={retentionLoading || retentionSaving || retentionRunning}
+                                        >
+                                            <Trash2 size={16} />
+                                            {retentionRunning ? `${t('runCleanupNow')}...` : t('runCleanupNow')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </Section>
+                    </div>
+                )}
             </div>
 
             <Toast
@@ -210,6 +368,7 @@ const Settings = () => {
                 isVisible={toast.isVisible}
                 onClose={closeToast}
                 containerRef={containerRef}
+                type={toast.type}
             />
         </div>
     );

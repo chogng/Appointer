@@ -3,6 +3,11 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { db } from './db-adapter.js';
+import { getRetentionSettings, runRetentionCleanup, startRetentionScheduler, updateRetentionSettings } from './retention.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const httpServer = createServer(app);
@@ -13,6 +18,9 @@ const corsOrigins = (corsOriginEnv || DEFAULT_CLIENT_ORIGIN)
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean);
+
+// JWT Secret - ensure this is set in environment in production
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-me';
 
 function safeJsonParse(value, fallback) {
     if (value === null || value === undefined) return fallback;
@@ -40,21 +48,57 @@ function isUniqueConstraintError(error) {
     return msg.includes('UNIQUE constraint failed') || msg.includes('constraint failed');
 }
 
+function isAdminRole(role) {
+    return role === 'SUPER_ADMIN' || role === 'ADMIN';
+}
+
+function requireSuperAdmin(req, res, next) {
+    if (req.user?.role !== 'SUPER_ADMIN') return res.sendStatus(403);
+    next();
+}
+
 const io = new Server(httpServer, {
     cors: {
         origin: corsOrigins,
-        methods: ['GET', 'POST']
+        methods: ['GET', 'POST'],
+        credentials: true
     }
 });
 
 const PORT = Number(process.env.PORT) || 3001;
 
-// 中间件
-app.use(cors({ origin: corsOrigins }));
+// Login Rate Limiter
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 login requests per windowMs
+    message: { error: 'Too many login attempts, please try again after 15 minutes' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Authentication Middleware
+const authenticateToken = (req, res, next) => {
+    const token = req.cookies.token;
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+};
+
+// Middleware
+app.use(cors({
+    origin: corsOrigins,
+    credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // 初始化数据库
 await db.init();
+startRetentionScheduler(db);
 
 // WebSocket 连接管理
 io.on('connection', (socket) => {
@@ -71,25 +115,112 @@ function broadcast(event, data) {
     console.log(`📡 广播事件: ${event}`, data);
 }
 
+function calculateDuration(timeSlot) {
+    if (!timeSlot || !timeSlot.includes('-')) return 0;
+    const [start, end] = timeSlot.split('-');
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    return (endH * 60 + endM) - (startH * 60 + startM);
+}
+
+// ============ 统计报表 API ============
+
+app.get('/api/admin/leaderboard', authenticateToken, (req, res) => {
+    try {
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+            return res.sendStatus(403);
+        }
+
+        const users = db.query('SELECT id, username, name, role FROM users');
+        const reservations = db.query('SELECT userId, timeSlot FROM reservations');
+
+        const stats = {};
+
+        // Initialize user stats
+        users.forEach(user => {
+            stats[user.id] = {
+                id: user.id,
+                username: user.username,
+                name: user.name || user.username, // Fallback to username if name is empty
+                role: user.role,
+                totalMinutes: 0
+            };
+        });
+
+        // Aggregate reservation duration
+        reservations.forEach(res => {
+            if (stats[res.userId]) {
+                stats[res.userId].totalMinutes += calculateDuration(res.timeSlot);
+            }
+        });
+
+        // Convert to array and sort by totalMinutes descending
+        const leaderboard = Object.values(stats)
+            .sort((a, b) => b.totalMinutes - a.totalMinutes)
+            // Optional: Filter out users with 0 minutes if desired, or keep them
+            // .filter(u => u.totalMinutes > 0)
+            .map(u => ({
+                ...u,
+                totalHours: parseFloat((u.totalMinutes / 60).toFixed(1))
+            }));
+
+        res.json(leaderboard);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ 用户相关 API ============
 
-app.post('/api/auth/login', (req, res) => {
+// ============ 用户相关 API ============
+
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
-        const user = db.queryOne('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+        const user = db.queryOne('SELECT * FROM users WHERE username = ?', [username]);
+
+        const genericError = { error: 'Invalid credentials' };
 
         if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json(genericError);
         }
 
         if (user.status !== 'ACTIVE') {
             return res.status(403).json({ error: 'Account is not active' });
         }
 
+        // Check if password matches (try bcrypt first)
+        let passwordMatch = false;
+        if (user.password.startsWith('$2b$')) {
+            passwordMatch = await bcrypt.compare(password, user.password);
+        } else {
+            // Fallback for legacy plain text passwords (remove after migration)
+            passwordMatch = user.password === password;
+        }
+
+        if (!passwordMatch) {
+            return res.status(401).json(genericError);
+        }
+
         db.execute(
             'INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
             ['log_' + Date.now(), user.id, 'LOGIN', 'User logged in', new Date().toISOString()]
         );
+
+        // Generate JWT
+        const token = jwt.sign(
+            { id: user.id, role: user.role, username: user.username },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        // Set HttpOnly Cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
 
         const { password: _, ...userWithoutPassword } = user;
         res.json(userWithoutPassword);
@@ -98,8 +229,26 @@ app.post('/api/auth/login', (req, res) => {
     }
 });
 
-app.get('/api/users', (req, res) => {
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('token');
+    res.json({ success: true });
+});
+
+app.get('/api/auth/me', authenticateToken, (req, res) => {
     try {
+        const user = db.queryOne('SELECT id, username, role, status, name, email, expiryDate FROM users WHERE id = ?', [req.user.id]);
+        if (!user) return res.sendStatus(404);
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/users', authenticateToken, (req, res) => {
+    try {
+        // Optional: restrict to admin
+        // if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') return res.sendStatus(403);
+
         const users = db.query('SELECT id, username, role, status, name, email, expiryDate FROM users');
         res.json(users);
     } catch (error) {
@@ -107,7 +256,7 @@ app.get('/api/users', (req, res) => {
     }
 });
 
-app.post('/api/users', (req, res) => {
+app.post('/api/users', async (req, res) => {
     try {
         const { username, password, name, email, expiryDate } = req.body;
 
@@ -116,10 +265,12 @@ app.post('/api/users', (req, res) => {
             return res.status(400).json({ error: 'Username already exists' });
         }
 
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         const newUser = {
             id: 'user_' + Date.now(),
             username,
-            password,
+            password: hashedPassword,
             role: 'USER',
             status: 'PENDING',
             name,
@@ -143,6 +294,67 @@ app.post('/api/users', (req, res) => {
     }
 });
 
+
+app.post('/api/admin/users', authenticateToken, async (req, res) => {
+    try {
+        const { username, password, name, email, role, expiryDate } = req.body;
+
+        // Permission check
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+            return res.sendStatus(403);
+        }
+
+        // Validate role assignment permissions
+        // ADMIN can only create USER
+        if (req.user.role === 'ADMIN' && role !== 'USER') {
+            return res.status(403).json({ error: 'Admins can only create ordinary users' });
+        }
+
+        // SUPER_ADMIN can create ADMIN or USER
+        if (req.user.role === 'SUPER_ADMIN' && !['ADMIN', 'USER'].includes(role)) {
+            return res.status(400).json({ error: 'Invalid role' });
+        }
+
+        const existing = db.queryOne('SELECT id FROM users WHERE username = ?', [username]);
+        if (existing) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = {
+            id: 'user_' + Date.now(),
+            username,
+            password: hashedPassword,
+            role: role,
+            status: 'ACTIVE', // Admin-created users are active by default
+            name,
+            email,
+            expiryDate: expiryDate || null
+        };
+
+        db.execute(
+            'INSERT INTO users (id, username, password, role, status, name, email, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [newUser.id, newUser.username, newUser.password, newUser.role, newUser.status, newUser.name, newUser.email, newUser.expiryDate]
+        );
+
+        const { password: _, ...userWithoutPassword } = newUser;
+
+        // Broadcast
+        broadcast('user:created', userWithoutPassword);
+
+        // Audit log
+        db.execute(
+            'INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+            ['log_' + Date.now(), req.user.id, 'USER_CREATED', `Created user ${username} (${role})`, new Date().toISOString()]
+        );
+
+        res.status(201).json(userWithoutPassword);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.patch('/api/users/:id', (req, res) => {
     try {
         const { id } = req.params;
@@ -151,7 +363,7 @@ app.patch('/api/users/:id', (req, res) => {
         }
 
         const rawUpdates = req.body;
-        const allowedKeys = new Set(['role', 'status', 'name', 'email', 'expiryDate']);
+        const allowedKeys = new Set(['role', 'status', 'name', 'email', 'expiryDate', 'username']);
         const unknownKeys = Object.keys(rawUpdates).filter(key => !allowedKeys.has(key));
         if (unknownKeys.length > 0) {
             return res.status(400).json({ error: `Unknown fields: ${unknownKeys.join(', ')}` });
@@ -168,6 +380,20 @@ app.patch('/api/users/:id', (req, res) => {
                 return res.status(400).json({ error: 'Invalid name' });
             }
             updates.name = rawUpdates.name.trim();
+        }
+        if ('username' in rawUpdates) {
+            const newUsername = rawUpdates.username.trim();
+            if (typeof newUsername !== 'string' || !newUsername) {
+                return res.status(400).json({ error: 'Invalid username' });
+            }
+            // Check uniqueness if changed
+            if (newUsername !== user.username) {
+                const existing = db.queryOne('SELECT id FROM users WHERE username = ?', [newUsername]);
+                if (existing) {
+                    return res.status(409).json({ error: 'Username already taken' });
+                }
+                updates.username = newUsername;
+            }
         }
         if ('email' in rawUpdates) {
             if (typeof rawUpdates.email !== 'string' || !rawUpdates.email.trim()) {
@@ -211,6 +437,93 @@ app.patch('/api/users/:id', (req, res) => {
         broadcast('user:updated', updated);
 
         res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/users/:id', authenticateToken, (req, res) => {
+    try {
+        // Optional: restrict to admin
+        // if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') return res.sendStatus(403);
+
+        const { id } = req.params;
+        const user = db.queryOne('SELECT * FROM users WHERE id = ?', [id]);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Prevent deleting self (optional safety)
+        if (user.id === req.user.id) {
+            return res.status(400).json({ error: 'Cannot delete yourself' });
+        }
+
+        db.execute('DELETE FROM users WHERE id = ?', [id]);
+
+        // Broadcast user deletion
+        broadcast('user:deleted', { id });
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Blocklist Management
+app.get('/api/users/:id/blocklist', authenticateToken, (req, res) => {
+    try {
+        const { id } = req.params;
+        // Allow admins or the user themselves to view blocklist
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN' && req.user.id !== id) {
+            return res.sendStatus(403);
+        }
+
+        const blockedDevices = db.query('SELECT deviceId, reason, createdAt FROM blocklist WHERE userId = ?', [id]);
+        res.json(blockedDevices);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/users/:id/blocklist', authenticateToken, (req, res) => {
+    try {
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') return res.sendStatus(403);
+
+        const { id } = req.params;
+        const { deviceId, reason } = req.body;
+
+        if (!deviceId) return res.status(400).json({ error: 'deviceId is required' });
+
+        const blockId = 'blk_' + Date.now();
+        const createdAt = new Date().toISOString();
+
+        try {
+            db.execute(
+                'INSERT INTO blocklist (id, userId, deviceId, reason, createdAt) VALUES (?, ?, ?, ?, ?)',
+                [blockId, id, deviceId, reason || '', createdAt]
+            );
+        } catch (error) {
+            if (isUniqueConstraintError(error)) {
+                return res.status(409).json({ error: 'User is already blocked from this device' });
+            }
+            throw error;
+        }
+
+        res.status(201).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/users/:id/blocklist/:deviceId', authenticateToken, (req, res) => {
+    try {
+        if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') return res.sendStatus(403);
+
+        const { id, deviceId } = req.params;
+        db.execute('DELETE FROM blocklist WHERE userId = ? AND deviceId = ?', [id, deviceId]);
+
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -425,6 +738,103 @@ app.delete('/api/devices/:id', (req, res) => {
     }
 });
 
+// ============ 库存相关 API ============
+
+app.get('/api/inventory', authenticateToken, (req, res) => {
+    try {
+        const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        const where = search ? 'WHERE i.name LIKE ?' : '';
+        const params = search ? [`%${search}%`] : [];
+
+        const query = `
+            SELECT
+                i.*,
+                COALESCE(uById.name, uByUsername.name, i.requesterName, 'System') AS requesterDisplayName
+            FROM inventory i
+            LEFT JOIN users uById ON i.requesterId = uById.id
+            LEFT JOIN users uByUsername ON i.requesterId IS NULL AND i.requesterName = uByUsername.username
+            ${where}
+            ORDER BY i.date DESC
+        `;
+
+        const items = db.query(query, params);
+        res.json(items);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/inventory', authenticateToken, (req, res) => {
+    try {
+        const { name, category, quantity } = req.body;
+        if (!name || !category || quantity === undefined) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Get the authenticated user's information
+        const requesterId = req.user.id;
+        const user = db.queryOne('SELECT name FROM users WHERE id = ?', [requesterId]);
+        const requesterName = user?.name || req.user.username || 'Unknown';
+
+        const itemId = 'item_' + Date.now();
+        const date = new Date().toISOString().split('T')[0];
+
+        db.execute(
+            'INSERT INTO inventory (id, name, category, quantity, date, requesterName, requesterId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [itemId, name, category, Number(quantity), date, requesterName, requesterId]
+        );
+
+        // Query the item back with the join to include requesterDisplayName
+        const newItem = db.queryOne(`
+            SELECT
+                i.*,
+                COALESCE(uById.name, uByUsername.name, i.requesterName, 'System') AS requesterDisplayName
+            FROM inventory i
+            LEFT JOIN users uById ON i.requesterId = uById.id
+            LEFT JOIN users uByUsername ON i.requesterId IS NULL AND i.requesterName = uByUsername.username
+            WHERE i.id = ?
+        `, [itemId]);
+
+        res.status(201).json(newItem);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.patch('/api/inventory/:id', authenticateToken, (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, category, quantity } = req.body;
+
+        const updates = [];
+        const values = [];
+
+        if (name) { updates.push('name = ?'); values.push(name); }
+        if (category) { updates.push('category = ?'); values.push(category); }
+        if (quantity !== undefined) { updates.push('quantity = ?'); values.push(Number(quantity)); }
+
+        if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+        values.push(id);
+        db.execute(`UPDATE inventory SET ${updates.join(', ')} WHERE id = ?`, values);
+
+        const updatedItem = db.queryOne('SELECT * FROM inventory WHERE id = ?', [id]);
+        res.json(updatedItem);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/inventory/:id', authenticateToken, (req, res) => {
+    try {
+        const { id } = req.params;
+        db.execute('DELETE FROM inventory WHERE id = ?', [id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ 预约相关 API ============
 
 app.get('/api/reservations', (req, res) => {
@@ -450,6 +860,19 @@ app.post('/api/reservations', (req, res) => {
         }
         if (!isValidTimeSlot(timeSlot)) {
             return res.status(400).json({ error: 'Invalid timeSlot (expected HH:MM-HH:MM)' });
+        }
+
+        // Check if user is blocked from this device
+        const blockEntry = db.queryOne(
+            'SELECT reason FROM blocklist WHERE userId = ? AND deviceId = ?',
+            [userId, deviceId]
+        );
+
+        if (blockEntry) {
+            return res.status(403).json({
+                error: 'Authorization Failed',
+                message: `You are banned from booking this device. Reason: ${blockEntry.reason || 'Violation of usage policy'}`
+            });
         }
 
         const conflict = db.queryOne(
@@ -607,23 +1030,40 @@ app.delete('/api/reservations/:id', (req, res) => {
 
 // ============ 日志相关 API ============
 
-app.get('/api/logs', (req, res) => {
+app.get('/api/logs', authenticateToken, (req, res) => {
     try {
         const { search } = req.query;
+        const limitRaw = req.query.limit;
+        const limitParsed = limitRaw === undefined ? 50 : Number(limitRaw);
+        const limit = Number.isFinite(limitParsed)
+            ? Math.max(1, Math.min(200, Math.trunc(limitParsed)))
+            : 50;
+
         let query = `
             SELECT l.*, u.name as userName 
             FROM logs l 
             LEFT JOIN users u ON l.userId = u.id 
         `;
+        const conditions = [];
         const params = [];
 
+        if (!isAdminRole(req.user.role)) {
+            conditions.push('l.userId = ?');
+            params.push(req.user.id);
+        }
+
         if (search) {
-            query += ` WHERE l.action LIKE ? OR l.details LIKE ? OR u.name LIKE ?`;
+            conditions.push('(l.action LIKE ? OR l.details LIKE ? OR u.name LIKE ?)');
             const searchTerm = `%${search}%`;
             params.push(searchTerm, searchTerm, searchTerm);
         }
 
-        query += ` ORDER BY l.timestamp DESC LIMIT 50`;
+        if (conditions.length > 0) {
+            query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+
+        query += ` ORDER BY l.timestamp DESC LIMIT ?`;
+        params.push(limit);
 
         const logs = db.query(query, params);
         res.json(logs);
@@ -632,9 +1072,226 @@ app.get('/api/logs', (req, res) => {
     }
 });
 
-app.delete('/api/logs', (req, res) => {
+app.delete('/api/logs', authenticateToken, (req, res) => {
     try {
+        if (!isAdminRole(req.user.role)) {
+            return res.sendStatus(403);
+        }
         db.execute('DELETE FROM logs');
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ Data Retention (SUPER_ADMIN) ============
+
+app.get('/api/admin/retention', authenticateToken, requireSuperAdmin, (req, res) => {
+    try {
+        res.json(getRetentionSettings(db));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.patch('/api/admin/retention', authenticateToken, requireSuperAdmin, (req, res) => {
+    try {
+        const updated = updateRetentionSettings(db, req.body);
+        res.json(updated);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.post('/api/admin/retention/run', authenticateToken, requireSuperAdmin, (req, res) => {
+    try {
+        const result = runRetentionCleanup(db);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ 申请相关 API ============
+
+app.get('/api/requests', authenticateToken, (req, res) => {
+    try {
+        const statusParam = typeof req.query.status === 'string' ? req.query.status : '';
+        const statuses = statusParam
+            .split(',')
+            .map(s => s.trim().toUpperCase())
+            .filter(s => ['PENDING', 'APPROVED', 'REJECTED'].includes(s));
+
+        const limitRaw = req.query.limit;
+        const limitParsed = limitRaw === undefined ? null : Number(limitRaw);
+        const limit = Number.isFinite(limitParsed)
+            ? Math.max(1, Math.min(1000, Math.trunc(limitParsed)))
+            : null;
+
+        const offsetRaw = req.query.offset;
+        const offsetParsed = offsetRaw === undefined ? null : Number(offsetRaw);
+        const offset = Number.isFinite(offsetParsed) ? Math.max(0, Math.trunc(offsetParsed)) : null;
+
+        let query = `
+            SELECT
+                r.*,
+                COALESCE(u.name, r.requesterName, 'Unknown') AS requesterDisplayName
+            FROM requests r
+            LEFT JOIN users u ON r.requesterId = u.id
+        `;
+
+        const conditions = [];
+        const params = [];
+
+        if (!isAdminRole(req.user.role)) {
+            conditions.push('r.requesterId = ?');
+            params.push(req.user.id);
+        }
+
+        if (statuses.length > 0) {
+            conditions.push(`r.status IN (${statuses.map(() => '?').join(', ')})`);
+            params.push(...statuses);
+        }
+
+        if (conditions.length > 0) {
+            query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+
+        query += ` ORDER BY r.createdAt DESC`;
+
+        if (limit !== null) {
+            query += ` LIMIT ?`;
+            params.push(limit);
+        }
+
+        if (offset !== null) {
+            query += ` OFFSET ?`;
+            params.push(offset);
+        }
+
+        const requests = db.query(query, params);
+        res.json(requests);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/requests', authenticateToken, (req, res) => {
+    try {
+        const { type, targetId, originalData, newData, requesterName } = req.body;
+
+        if (typeof type !== 'string' || !type.trim()) {
+            return res.status(400).json({ error: 'type is required' });
+        }
+
+        const resolvedRequesterId = req.user.id;
+        const user = db.queryOne('SELECT name FROM users WHERE id = ?', [resolvedRequesterId]);
+        const resolvedRequesterName =
+            user?.name ||
+            (typeof requesterName === 'string' && requesterName.trim() ? requesterName.trim() : null) ||
+            req.user.username ||
+            'Unknown';
+
+        const newRequest = {
+            id: 'req_' + Date.now(),
+            requesterId: resolvedRequesterId,
+            requesterName: resolvedRequesterName,
+            type,
+            targetId,
+            originalData: JSON.stringify(originalData),
+            newData: JSON.stringify(newData),
+            status: 'PENDING',
+            createdAt: new Date().toISOString()
+        };
+
+        db.execute(
+            'INSERT INTO requests (id, requesterId, requesterName, type, targetId, originalData, newData, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [newRequest.id, newRequest.requesterId, newRequest.requesterName, newRequest.type, newRequest.targetId, newRequest.originalData, newRequest.newData, newRequest.status, newRequest.createdAt]
+        );
+
+        broadcast('request:created', newRequest);
+        res.status(201).json(newRequest);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/requests/:id/approve', authenticateToken, (req, res) => {
+    try {
+        if (!isAdminRole(req.user.role)) {
+            return res.sendStatus(403);
+        }
+
+        const { id } = req.params;
+        const request = db.queryOne('SELECT * FROM requests WHERE id = ?', [id]);
+
+        if (!request) return res.status(404).json({ error: 'Request not found' });
+
+        // Apply changes
+        if (request.type === 'INVENTORY_UPDATE') {
+            const updates = JSON.parse(request.newData);
+            const { name, category, quantity } = updates;
+            const targetId = request.targetId;
+
+            db.execute(
+                'UPDATE inventory SET name = ?, category = ?, quantity = ?, requesterName = ?, requesterId = ? WHERE id = ?',
+                [name, category, quantity, request.requesterName, request.requesterId, targetId]
+            );
+        } else if (request.type === 'INVENTORY_ADD') {
+            const newItem = JSON.parse(request.newData);
+            const itemId = 'item_' + Date.now();
+            const { name, category, quantity } = newItem;
+            const date = new Date().toISOString().split('T')[0];
+
+            db.execute(
+                'INSERT INTO inventory (id, name, category, quantity, date, requesterName, requesterId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [itemId, name, category, quantity, date, request.requesterName, request.requesterId]
+            );
+        }
+
+        // Update request status instead of deleting
+        db.execute("UPDATE requests SET status = 'APPROVED' WHERE id = ?", [id]);
+
+        broadcast('request:approved', { id });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/requests/:id/reject', authenticateToken, (req, res) => {
+    try {
+        if (!isAdminRole(req.user.role)) {
+            return res.sendStatus(403);
+        }
+
+        const { id } = req.params;
+        db.execute("UPDATE requests SET status = 'REJECTED' WHERE id = ?", [id]);
+        broadcast('request:rejected', { id });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/requests/:id', authenticateToken, (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const request = db.queryOne('SELECT id, requesterId, status FROM requests WHERE id = ?', [id]);
+        if (!request) return res.status(404).json({ error: 'Request not found' });
+
+        if (!isAdminRole(req.user.role)) {
+            if (request.requesterId !== req.user.id) {
+                return res.sendStatus(403);
+            }
+            if (request.status !== 'PENDING') {
+                return res.status(400).json({ error: 'Only pending requests can be revoked' });
+            }
+        }
+
+        db.execute('DELETE FROM requests WHERE id = ?', [id]);
+        broadcast('request:deleted', { id });
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
