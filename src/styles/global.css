@@ -91,21 +91,41 @@ textarea {
     position: relative;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
+/* Global Scrollbar Styling */
+::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-divider);
-    border-radius: 10px;
+::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.3);
+    /* Slate-400 equivalent with opacity */
+    border-radius: 100vh;
+    border: 2px solid transparent;
+    background-clip: content-box;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.1);
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(148, 163, 184, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Optional: Keep .custom-scrollbar for specific forcing if needed, but global covers it */
+.custom-scrollbar {
+    /* Fallback for firefox */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
 
 .bg-grain {

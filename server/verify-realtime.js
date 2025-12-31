@@ -1,72 +1,117 @@
-import { io } from 'socket.io-client';
-import http from 'http';
+import { io } from "socket.io-client";
 
-const verify = async () => {
-    console.log('📡 Verifying realtime features...');
-    console.log('Please ensure the server is running on http://localhost:3001');
+const DEFAULT_API_BASE = "http://localhost:3001/api";
+const API_BASE = (process.env.API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
 
-    return new Promise((resolve) => {
-        const socket = io('http://localhost:3001', {
-            transports: ['websocket', 'polling']
-        });
+const DEFAULT_WS_URL = "http://localhost:3001";
+const WS_URL = (process.env.WS_URL || DEFAULT_WS_URL).replace(/\/$/, "");
 
-        let deviceCreatedReceived = false;
+function extractTokenCookie(setCookieHeader) {
+  if (!setCookieHeader) return null;
+  return setCookieHeader.split(";")[0] || null;
+}
 
-        socket.on('connect', () => {
-            console.log('✅ WebSocket Connected');
+async function readErrorBody(res) {
+  const contentType = res.headers.get("content-type") || "";
+  try {
+    if (contentType.includes("application/json")) {
+      const json = await res.json();
+      return json?.error || json?.message || JSON.stringify(json);
+    }
+    return await res.text();
+  } catch {
+    return "";
+  }
+}
 
-            // Trigger an event via REST API
-            const postData = JSON.stringify({
-                name: 'Test Device ' + Date.now(),
-                description: 'Automated test device',
-                isEnabled: true,
-                granularity: 60
-            });
+async function loginAsAdmin() {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "123" }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Login failed (${res.status}): ${await readErrorBody(res)}`,
+    );
+  }
 
-            const options = {
-                hostname: 'localhost',
-                port: 3001,
-                path: '/api/devices',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': postData.length
-                }
-            };
+  const cookie = extractTokenCookie(res.headers.get("set-cookie"));
+  if (!cookie) throw new Error("Login did not return a token cookie.");
+  return cookie;
+}
 
-            const req = http.request(options, (res) => {
-                console.log(`REST Request Status: ${res.statusCode}`);
-                if (res.statusCode !== 201) {
-                    console.error('❌ Failed to create device via REST API');
-                    process.exit(1);
-                }
-            });
+async function verify() {
+  console.log("Verifying realtime features...");
+  console.log(`API: ${API_BASE}`);
+  console.log(`WS : ${WS_URL}`);
 
-            req.on('error', (e) => {
-                console.error(`❌ Request error: ${e.message}`);
-                process.exit(1);
-            });
+  const authCookie = await loginAsAdmin();
 
-            req.write(postData);
-            req.end();
-        });
-
-        socket.on('device:created', (data) => {
-            console.log('✅ Received device:created event:', data.name);
-            deviceCreatedReceived = true;
-            socket.disconnect();
-            console.log('✅ Realtime verification passed!');
-            process.exit(0);
-        });
-
-        // Timeout
-        setTimeout(() => {
-            if (!deviceCreatedReceived) {
-                console.error('❌ Timeout: Did not receive realtime event within 5 seconds.');
-                process.exit(1);
-            }
-        }, 5000);
+  return new Promise((resolve, reject) => {
+    const socket = io(WS_URL, {
+      transports: ["websocket", "polling"],
+      extraHeaders: { Cookie: authCookie },
     });
-};
 
-verify();
+    const timeout = setTimeout(() => {
+      socket.disconnect();
+      reject(new Error("Timeout: no realtime event received within 5 seconds."));
+    }, 5000);
+
+    socket.on("connect_error", (err) => {
+      clearTimeout(timeout);
+      socket.disconnect();
+      reject(new Error(`Socket connect error: ${err?.message || err}`));
+    });
+
+    socket.on("connect", async () => {
+      try {
+        const postData = {
+          name: `Test Device ${Date.now()}`,
+          description: "Automated test device",
+          granularity: 60,
+          openDays: [1, 2, 3, 4, 5],
+          openTime: { start: "09:00", end: "18:00" },
+        };
+
+        const res = await fetch(`${API_BASE}/devices`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: authCookie },
+          body: JSON.stringify(postData),
+        });
+
+        console.log(`REST Request Status: ${res.status}`);
+        if (!res.ok) {
+          clearTimeout(timeout);
+          socket.disconnect();
+          reject(
+            new Error(`Failed to create device: ${await readErrorBody(res)}`),
+          );
+        }
+      } catch (error) {
+        clearTimeout(timeout);
+        socket.disconnect();
+        reject(error);
+      }
+    });
+
+    socket.on("device:created", (data) => {
+      clearTimeout(timeout);
+      console.log(`Received device:created event: ${data?.name || data?.id}`);
+      socket.disconnect();
+      resolve();
+    });
+  });
+}
+
+verify()
+  .then(() => {
+    console.log("Realtime verification passed.");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("Realtime verification failed:", error?.message || error);
+    console.error("Hint: ensure backend is running (npm run server).");
+    process.exit(1);
+  });

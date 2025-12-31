@@ -17,6 +17,7 @@ import Settings from '../pages/Settings';
 import Inventory from '../pages/Inventory';
 import Users from '../pages/Users';
 import Leaderboard from '../pages/Leaderboard';
+import DeviceAnalysis from '../pages/DeviceAnalysis';
 import { useAuth } from '../context/useAuth';
 
 const AppRoutes = () => {
@@ -57,6 +58,7 @@ const AppRoutes = () => {
                             <Leaderboard />
                         </AdminRoute>
                     } />
+                    <Route path="/device-analysis" element={<DeviceAnalysis />} />
                 </Route>
 
                 <Route path="/" element={

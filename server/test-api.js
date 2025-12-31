@@ -1,49 +1,89 @@
-// 简单的 API 测试脚本
-const DEFAULT_API_BASE = 'http://localhost:3001/api';
-const API_BASE = (process.env.API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
+// Simple API smoke test (Node 18+)
+const DEFAULT_API_BASE = "http://localhost:3001/api";
+const API_BASE = (process.env.API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
 
-async function test() {
-    console.log('🧪 开始测试 API...\n');
-
-    try {
-        // 测试 1: 获取设备列表
-        console.log('1️⃣ 测试获取设备列表...');
-        const devicesRes = await fetch(`${API_BASE}/devices`);
-        const devices = await devicesRes.json();
-        console.log(`✅ 成功获取 ${devices.length} 个设备\n`);
-
-        // 测试 2: 登录
-        console.log('2️⃣ 测试用户登录...');
-        const loginRes = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'admin', password: '123' })
-        });
-        const user = await loginRes.json();
-        console.log(`✅ 登录成功: ${user.name} (${user.role})\n`);
-
-        // 测试 3: 更新设备状态
-        console.log('3️⃣ 测试更新设备状态...');
-        const deviceId = devices[0].id;
-        const updateRes = await fetch(`${API_BASE}/devices/${deviceId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isEnabled: false })
-        });
-        const updated = await updateRes.json();
-        console.log(`✅ 设备状态已更新: ${updated.name} -> ${updated.isEnabled ? '启用' : '停用'}\n`);
-
-        // 测试 4: 验证更新
-        console.log('4️⃣ 验证设备状态...');
-        const verifyRes = await fetch(`${API_BASE}/devices/${deviceId}`);
-        const verified = await verifyRes.json();
-        console.log(`✅ 验证成功: ${verified.name} 状态为 ${verified.isEnabled ? '启用' : '停用'}\n`);
-
-        console.log('🎉 所有测试通过！');
-    } catch (error) {
-        console.error('❌ 测试失败:', error.message);
-        console.log('\n💡 提示: 请确保后端服务器正在运行 (npm run server)');
-    }
+function extractTokenCookie(setCookieHeader) {
+  if (!setCookieHeader) return null;
+  // set-cookie: "token=...; Path=/; HttpOnly; ..."
+  return setCookieHeader.split(";")[0] || null;
 }
 
-test();
+async function readErrorBody(res) {
+  const contentType = res.headers.get("content-type") || "";
+  try {
+    if (contentType.includes("application/json")) {
+      const json = await res.json();
+      return json?.error || json?.message || JSON.stringify(json);
+    }
+    return await res.text();
+  } catch {
+    return "";
+  }
+}
+
+async function test() {
+  console.log("Running API smoke test...");
+
+  console.log("1) Fetch devices");
+  const devicesRes = await fetch(`${API_BASE}/devices`);
+  if (!devicesRes.ok) {
+    throw new Error(
+      `GET /devices failed (${devicesRes.status}): ${await readErrorBody(devicesRes)}`,
+    );
+  }
+  const devices = await devicesRes.json();
+  console.log(`   OK: ${devices.length} device(s)`);
+
+  console.log("2) Login (admin/123)");
+  const loginRes = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "123" }),
+  });
+  if (!loginRes.ok) {
+    throw new Error(
+      `POST /auth/login failed (${loginRes.status}): ${await readErrorBody(loginRes)}`,
+    );
+  }
+  const authCookie = extractTokenCookie(loginRes.headers.get("set-cookie"));
+  if (!authCookie) {
+    throw new Error("Login did not return a token cookie (set-cookie missing).");
+  }
+  const user = await loginRes.json();
+  console.log(`   OK: logged in as ${user.username} (${user.role})`);
+
+  console.log("3) Toggle first device isEnabled=false (admin-only)");
+  const deviceId = devices?.[0]?.id;
+  if (!deviceId) throw new Error("No devices found to update.");
+
+  const updateRes = await fetch(`${API_BASE}/devices/${deviceId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: authCookie },
+    body: JSON.stringify({ isEnabled: false }),
+  });
+  if (!updateRes.ok) {
+    throw new Error(
+      `PATCH /devices/:id failed (${updateRes.status}): ${await readErrorBody(updateRes)}`,
+    );
+  }
+  const updated = await updateRes.json();
+  console.log(`   OK: ${updated.name} -> isEnabled=${updated.isEnabled}`);
+
+  console.log("4) Verify device state");
+  const verifyRes = await fetch(`${API_BASE}/devices/${deviceId}`);
+  if (!verifyRes.ok) {
+    throw new Error(
+      `GET /devices/:id failed (${verifyRes.status}): ${await readErrorBody(verifyRes)}`,
+    );
+  }
+  const verified = await verifyRes.json();
+  console.log(`   OK: isEnabled=${verified.isEnabled}`);
+
+  console.log("All tests passed.");
+}
+
+test().catch((error) => {
+  console.error("Test failed:", error?.message || error);
+  console.error("Hint: ensure backend is running (npm run server).");
+  process.exit(1);
+});

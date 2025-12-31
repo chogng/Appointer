@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { useLanguage } from '../context/useLanguage';
-import { Calendar, ChevronLeft, ChevronRight, Package, Users, Trophy } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Package, Users, Trophy, Activity } from 'lucide-react';
 
 
 
@@ -86,6 +86,10 @@ const UserIcon = ({ size = 24, className = "" }) => (
     </svg>
 );
 
+const ActivityIcon = ({ size = 20, className = "" }) => (
+    <Activity size={size} className={className} />
+);
+
 const MainLayout = () => {
     const { user, logout } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -94,6 +98,7 @@ const MainLayout = () => {
 
     const navItems = [
         { icon: DashboardIcon, label: t('dashboard'), path: '/dashboard' },
+        { icon: ActivityIcon, label: t('device_analysis') || 'Device Analysis', path: '/device-analysis' },
         { icon: DevicesIcon, label: t('devices'), path: '/devices' },
         { icon: Package, label: t('inventory'), path: '/inventory' },
         { icon: BookingIcon, label: t('booking'), path: '/reservations' },
