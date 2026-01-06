@@ -1,24 +1,24 @@
-import { useAuth } from '../context/useAuth';
+import { useAuth } from "./useAuth";
 
 export const usePermission = () => {
-    const { user } = useAuth();
+  const { user } = useAuth();
 
-    const isAdmin = () => {
-        return user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-    };
+  const isAdmin = () => {
+    return user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  };
 
-    const isSuperAdmin = () => {
-        return user?.role === 'SUPER_ADMIN';
-    };
+  const isSuperAdmin = () => {
+    return user?.role === "SUPER_ADMIN";
+  };
 
-    const isUser = () => {
-        return user?.role === 'USER';
-    };
+  const isUser = () => {
+    return user?.role === "USER";
+  };
 
-    return {
-        isAdmin,
-        isSuperAdmin,
-        isUser,
-        role: user?.role
-    };
+  return {
+    isAdmin,
+    isSuperAdmin,
+    isUser,
+    role: user?.role,
+  };
 };

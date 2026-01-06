@@ -1,4 +1,4 @@
-import { db } from './db-adapter.js';
+import { db } from "../src/db/db-adapter.js";
 
 async function viewUsers() {
     try {

@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/useAuth";
+import { useAuth } from "../hooks/useAuth";
 import { useCallback, useMemo, useRef } from "react";
 import Card from "../components/ui/Card";
 import Toast from "../components/ui/Toast";
@@ -23,7 +23,7 @@ import {
   Package,
 } from "lucide-react";
 
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../hooks/useLanguage";
 
 const Dashboard = () => {
   const containerRef = useRef(null);

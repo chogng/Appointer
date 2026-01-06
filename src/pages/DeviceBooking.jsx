@@ -1,291 +1,357 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { apiService } from '../services/apiService';
-import { useReservationSync } from '../hooks/useRealtimeSync';
-import { useAuth } from '../context/useAuth';
-import WeeklyCalendar from '../components/WeeklyCalendar';
-import Button from '../components/ui/Button';
-import Toast from '../components/ui/Toast';
-
-import Dropdown from '../components/ui/Dropdown';
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
-import { format, addWeeks, subWeeks } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, addWeeks, subWeeks, startOfWeek, addDays } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  List,
+} from "lucide-react";
+import { apiService } from "../services/apiService";
+import { useAuth } from "../hooks/useAuth";
+import WeeklyCalendar from "../components/WeeklyCalendar";
+import Button from "../components/ui/Button";
+import Toast from "../components/ui/Toast";
+import Dropdown from "../components/ui/Dropdown";
+import { queryKeys } from "../hooks/queries/queryKeys";
+import { useReservationsRangeQuery } from "../hooks/queries/useReservationsRangeQuery";
+import { useReservationsRealtimeSync } from "../hooks/useReservationsRealtimeSync";
 
 const DeviceBooking = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { user } = useAuth();
-    const highlightUserName = location.state?.highlightUserName;
-    const [device, setDevice] = useState(null);
-    const [reservations, setReservations] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState('Weeks');
-    const [layoutMode, setLayoutMode] = useState('grid'); // 'grid' | 'list'
-    const containerRef = useRef(null);
-    const [toastState, setToastState] = useState({
-        isVisible: false,
-        message: '',
-        actionText: null,
-        onAction: null
-    });
+  const { id: deviceId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
 
-    const showToast = (message, actionText = null, onAction = null) => {
-        setToastState({
-            isVisible: true,
-            message,
-            actionText,
-            onAction
+  const { user } = useAuth();
+  const highlightUserName = location.state?.highlightUserName;
+
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState("Weeks");
+  const [layoutMode, setLayoutMode] = useState("grid"); // 'grid' | 'list'
+  const containerRef = useRef(null);
+  const [toastState, setToastState] = useState({
+    isVisible: false,
+    message: "",
+    actionText: null,
+    onAction: null,
+  });
+
+  const showToast = useCallback(
+    (message, actionText = null, onAction = null) => {
+      setToastState({
+        isVisible: true,
+        message,
+        actionText,
+        onAction,
+      });
+    },
+    [],
+  );
+
+  const hideToast = useCallback(() => {
+    setToastState((prev) => ({ ...prev, isVisible: false }));
+  }, []);
+
+  useReservationsRealtimeSync();
+
+  const weekRange = useMemo(() => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 0 });
+    const end = addDays(start, 6);
+    return {
+      start,
+      end,
+      from: format(start, "yyyy-MM-dd"),
+      to: format(end, "yyyy-MM-dd"),
+    };
+  }, [currentDate]);
+
+  const reservationsRangeKey = useMemo(
+    () =>
+      queryKeys.reservationsRange({
+        deviceId,
+        from: weekRange.from,
+        to: weekRange.to,
+        active: true,
+      }),
+    [deviceId, weekRange.from, weekRange.to],
+  );
+
+  const deviceQuery = useQuery({
+    queryKey: ["device", deviceId],
+    queryFn: () => apiService.getDevice(deviceId),
+    enabled: Boolean(deviceId),
+  });
+
+  const reservationsQuery = useReservationsRangeQuery({
+    deviceId,
+    from: weekRange.from,
+    to: weekRange.to,
+    active: true,
+  });
+
+  const device = deviceQuery.data || null;
+  const reservations = reservationsQuery.data || [];
+
+  const invalidateWeekReservations = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: reservationsRangeKey });
+  }, [queryClient, reservationsRangeKey]);
+
+  const createReservationMutation = useMutation({
+    mutationFn: ({ date, timeSlot, title, description, color }) =>
+      apiService.createReservation({
+        deviceId,
+        date,
+        timeSlot,
+        title,
+        description,
+        color,
+      }),
+    onSuccess: (newReservation) => {
+      queryClient.setQueryData(reservationsRangeKey, (current) => {
+        const list = Array.isArray(current) ? current : [];
+        if (list.some((r) => r.id === newReservation.id)) return list;
+        return [...list, newReservation];
+      });
+    },
+  });
+
+  const updateReservationMutation = useMutation({
+    mutationFn: ({ reservationId, updates }) =>
+      apiService.updateReservation(reservationId, updates),
+    onSuccess: (updatedReservation) => {
+      queryClient.setQueryData(reservationsRangeKey, (current) => {
+        const list = Array.isArray(current) ? current : [];
+        const exists = list.some((r) => r.id === updatedReservation.id);
+        if (!exists) return [...list, updatedReservation];
+        return list.map((r) =>
+          r.id === updatedReservation.id ? updatedReservation : r,
+        );
+      });
+    },
+  });
+
+  const deleteReservationMutation = useMutation({
+    mutationFn: (reservationId) => apiService.deleteReservation(reservationId),
+    onSuccess: (_, reservationId) => {
+      queryClient.setQueryData(reservationsRangeKey, (current) => {
+        const list = Array.isArray(current) ? current : [];
+        return list.filter((r) => r.id !== reservationId);
+      });
+    },
+  });
+
+  const handlePrev = () => setCurrentDate((prev) => subWeeks(prev, 1));
+  const handleNext = () => setCurrentDate((prev) => addWeeks(prev, 1));
+  const handleToday = () => setCurrentDate(new Date());
+
+  const handleBook = async (date, slot, extraData = {}) => {
+    try {
+      if (!deviceId) return;
+
+      const formattedDate = format(date, "yyyy-MM-dd");
+      const payload = {
+        date: formattedDate,
+        timeSlot: slot,
+        title: extraData.title ?? "",
+        description: extraData.description ?? "",
+        color: extraData.color ?? "default",
+      };
+
+      if (extraData.id) {
+        await updateReservationMutation.mutateAsync({
+          reservationId: extraData.id,
+          updates: payload,
         });
-    };
+        showToast("预约已更新");
+        return;
+      }
 
-    const hideToast = () => {
-        setToastState(prev => ({ ...prev, isVisible: false }));
-    };
-
-    useEffect(() => {
-        loadDevice();
-        loadReservations();
-    }, [id]);
-
-    const loadDevice = async () => {
+      const created = await createReservationMutation.mutateAsync(payload);
+      showToast("预约已保存", "撤销", async () => {
         try {
-            const data = await apiService.getDevice(id);
-            setDevice(data);
-        } catch (error) {
-            console.error('Failed to load device:', error);
-        } finally {
-            setLoading(false);
+          await deleteReservationMutation.mutateAsync(created.id);
+          hideToast();
+        } catch (err) {
+          console.error("Undo failed", err);
+          showToast("撤销失败，请刷新后重试");
+          invalidateWeekReservations();
         }
-    };
-
-    const loadReservations = async () => {
-        try {
-            const allRes = await apiService.getReservations();
-            const deviceRes = allRes.filter(r => r.deviceId === id);
-            setReservations(deviceRes);
-        } catch (error) {
-            console.error('Failed to load reservations:', error);
-        }
-    };
-
-    // 实时同步：当有人预约时，自动更新
-    const handleReservationCreated = useCallback((newReservation) => {
-        if (newReservation.deviceId === id) {
-            console.log('📡 收到新预约（实时）:', newReservation);
-            setReservations(prev => [...prev, newReservation]);
-        }
-    }, [id]);
-
-    const handleReservationUpdated = useCallback((updatedReservation) => {
-        if (updatedReservation.deviceId === id) {
-            console.log('📡 预约已更新（实时）:', updatedReservation);
-            setReservations(prev =>
-                prev.map(r => r.id === updatedReservation.id ? updatedReservation : r)
-            );
-        }
-    }, [id]);
-
-    const handleReservationDeleted = useCallback((data) => {
-        console.log('📡 预约已删除（实时）:', data);
-        setReservations(prev => prev.filter(r => r.id !== data.id));
-    }, []);
-
-    // 启用实时同步
-    useReservationSync(
-        handleReservationCreated,
-        handleReservationUpdated,
-        handleReservationDeleted
-    );
-
-    const handlePrev = () => setCurrentDate(subWeeks(currentDate, 1));
-    const handleNext = () => setCurrentDate(addWeeks(currentDate, 1));
-    const handleToday = () => setCurrentDate(new Date());
-
-    const handleBook = async (date, slot, extraData = {}) => {
-        try {
-            // Check if this is an update (if extraData has an id)
-            // But currently the flow is: Create New OR Update Existing.
-            // If extraData has id, it's an update?
-            // WeeklyCalendar passes { title, description, color, ... } from Popover.
-            // Popover initialData might have ID.
-
-            let result;
-            if (extraData.id) {
-                const { id: reservationId, ...reservationUpdates } = extraData;
-                // Update
-                result = await apiService.updateReservation(reservationId, {
-                    date: format(date, 'yyyy-MM-dd'),
-                    timeSlot: slot,
-                    ...reservationUpdates
-                });
-                // No Undo for Update implemented yet for simplicity, or we can stash old data.
-                showToast('预约已更新');
-            } else {
-                // Create
-                result = await apiService.createReservation({
-                    deviceId: device.id,
-                    userId: user.id,
-                    date: format(date, 'yyyy-MM-dd'),
-                    timeSlot: slot,
-                    ...extraData
-                });
-
-                showToast('Event saved', 'Undo', async () => {
-                    try {
-                        await apiService.deleteReservation(result.id);
-                        hideToast();
-                    } catch (err) {
-                        console.error('Undo failed', err);
-                        alert('Undo failed: ' + err.message);
-                    }
-                });
-            }
-        } catch (error) {
-            alert(error.message);
-        }
-    };
-
-    const handleDelete = async (reservationId) => {
-        try {
-            const resToDelete = reservations.find(r => r.id === reservationId);
-
-            // Optimistic update: Remove immediately from UI
-            setReservations(prev => prev.filter(r => r.id !== reservationId));
-
-            await apiService.deleteReservation(reservationId);
-
-            showToast('Event deleted', 'Undo', async () => {
-                try {
-                    // Restore
-                    if (resToDelete) {
-                        // We need to strip ID? Or allow backend to generate new ID?
-                        // Usually create new with same data.
-                        const { id: _id, ...rest } = resToDelete;
-                        await apiService.createReservation(rest);
-                        hideToast();
-                    }
-                } catch (err) {
-                    console.error('Undo delete failed', err);
-                    // Revert optimistic delete if undo fails (though this is "undoing the undo", so re-fetch is safer)
-                    loadReservations();
-                }
-            });
-        } catch (error) {
-            console.error('Delete failed:', error);
-            alert('Delete failed: ' + error.message);
-            // Revert optimistic delete on error
-            loadReservations();
-        }
-    };
-
-    if (loading) {
-        return <div className="min-h-[200px]" />;
+      });
+    } catch (error) {
+      if (error?.status === 409) {
+        showToast("该时间段已被其他人预约，请刷新后重试");
+        invalidateWeekReservations();
+        return;
+      }
+      alert(error.message);
     }
+  };
 
-    if (!device) return <div>Device not found</div>;
+  const handleDelete = async (reservationId) => {
+    const resToDelete = reservations.find((r) => r.id === reservationId);
+    if (!resToDelete) return;
 
-    return (
-        <div ref={containerRef} className="h-full flex flex-col relative">
-            <div className="mb-2 -mt-[8px] grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                {/* Left buttons */}
-                <div className="flex items-center gap-4 justify-self-start">
-                    <Button
-                        variant="text"
-                        onClick={() => navigate('/devices')}
-                        className="pl-0 hover:bg-transparent text-text-secondary hover:text-text-primary"
-                    >
-                        <ArrowLeft size={28} className="mr-2" />
-                        Back
-                    </Button>
+    try {
+      // Optimistic update: Remove immediately from UI
+      queryClient.setQueryData(reservationsRangeKey, (current) => {
+        const list = Array.isArray(current) ? current : [];
+        return list.filter((r) => r.id !== reservationId);
+      });
 
-                    <Button variant="secondary" onClick={handleToday} className="px-4 py-1.5 text-sm border border-border rounded-md">
-                        Today
-                    </Button>
-                    {/* Calendar switch */}
-                    <div className="flex items-center gap-1">
-                        <button onClick={handlePrev} className="p-1.5 hover:bg-bg-100 rounded-full">
-                            <ChevronLeft size={20} className="text-text-secondary" />
-                        </button>
-                        <button onClick={handleNext} className="p-1.5 hover:bg-bg-100 rounded-full">
-                            <ChevronRight size={20} className="text-text-secondary" />
-                        </button>
-                    </div>
-                    {/* Calendar Date */}
-                    <h2 className="text-xl font-normal text-text-primary ml-2 min-w-[120px] text-center">
-                        {format(currentDate, 'yyyy年M月', { locale: zhCN })}
-                    </h2>
-                </div>
+      await deleteReservationMutation.mutateAsync(reservationId);
 
-                {/*Device Name - Centered */}
-                <h1 className="text-2xl font-serif font-medium text-text-primary justify-self-center whitespace-nowrap flex items-center gap-2">
-                    {device.name}
-                    {highlightUserName && (
-                        <span className="text-lg text-text-secondary font-normal">
-                            - {highlightUserName}
-                        </span>
-                    )}
-                </h1>
+      showToast("预约已删除", "撤销", async () => {
+        try {
+          await createReservationMutation.mutateAsync({
+            date: resToDelete.date,
+            timeSlot: resToDelete.timeSlot,
+            title: resToDelete.title || "",
+            description: resToDelete.description || "",
+            color: resToDelete.color || "default",
+          });
+          hideToast();
+        } catch (err) {
+          if (err?.status === 409) {
+            showToast("撤销失败：该时间段已被其他人预约");
+          } else {
+            console.error("Undo delete failed", err);
+            showToast("撤销失败，请刷新后重试");
+          }
+          invalidateWeekReservations();
+        }
+      });
+    } catch (error) {
+      console.error("Delete failed:", error);
+      showToast("删除失败，请刷新后重试");
+      invalidateWeekReservations();
+    }
+  };
 
-                {/* Right Side Controls */}
-                <div className="flex items-center gap-2 justify-self-end">
-                    {/* Layout Toggle */}
-                    <div className="flex items-center bg-bg-100 rounded-lg p-0.5">
-                        <button
-                            onClick={() => setLayoutMode('grid')}
-                            className={`p-1.5 rounded-md transition-colors ${layoutMode === 'grid' ? 'bg-white shadow-sm text-accent' : 'text-text-secondary hover:text-text-primary'}`}
-                            title="网格视图"
-                        >
-                            <LayoutGrid size={18} />
-                        </button>
-                        <button
-                            onClick={() => setLayoutMode('list')}
-                            className={`p-1.5 rounded-md transition-colors ${layoutMode === 'list' ? 'bg-white shadow-sm text-accent' : 'text-text-secondary hover:text-text-primary'}`}
-                            title="列表视图"
-                        >
-                            <List size={18} />
-                        </button>
-                    </div>
-                    <Dropdown
-                        options={[
-                            { label: 'Weeks', value: 'Weeks' },
-                            { label: 'Days', value: 'Days' },
-                            { label: 'Month', value: 'Month' },
-                        ]}
-                        value={viewMode}
-                        onChange={setViewMode}
-                        className=""
-                        align="right"
-                        zIndex={50}
-                        id="view-mode-dropdown"
-                        popupClassName="min-w-[8.75rem]"
-                    />
-                </div>
-            </div>
+  const loading = deviceQuery.isLoading || reservationsQuery.isLoading;
+  if (loading) return <div className="min-h-[200px]" />;
+  if (!device) return <div>Device not found</div>;
 
-            <WeeklyCalendar
-                device={device}
-                reservations={reservations}
-                onBook={handleBook}
-                onDelete={handleDelete}
-                currentUserId={user.id}
-                currentDate={currentDate}
-                layoutMode={layoutMode}
-                className="flex-1 min-h-0"
-            />
+  const isSavingReservation =
+    createReservationMutation.isPending || updateReservationMutation.isPending;
 
-            <Toast
-                isVisible={toastState.isVisible}
-                message={toastState.message}
-                actionText={toastState.actionText}
-                onAction={toastState.onAction}
-                onClose={hideToast}
-                containerRef={containerRef}
-            />
+  return (
+    <div ref={containerRef} className="h-full flex flex-col relative">
+      <div className="mb-2 -mt-[8px] grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+        {/* Left buttons */}
+        <div className="flex items-center gap-4 justify-self-start">
+          <Button
+            variant="text"
+            onClick={() => navigate("/devices")}
+            className="pl-0 hover:bg-transparent text-text-secondary hover:text-text-primary"
+          >
+            <ArrowLeft size={28} className="mr-2" />
+            返回
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={handleToday}
+            className="px-4 py-1.5 text-sm border border-border rounded-md"
+          >
+            今天
+          </Button>
+          {/* Calendar switch */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handlePrev}
+              className="p-1.5 hover:bg-bg-100 rounded-full"
+              aria-label="上一周"
+            >
+              <ChevronLeft size={20} className="text-text-secondary" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="p-1.5 hover:bg-bg-100 rounded-full"
+              aria-label="下一周"
+            >
+              <ChevronRight size={20} className="text-text-secondary" />
+            </button>
+          </div>
+          {/* Calendar Date */}
+          <h2 className="text-xl font-normal text-text-primary ml-2 min-w-[120px] text-center">
+            {format(currentDate, "yyyy年M月", { locale: zhCN })}
+          </h2>
         </div>
-    );
+
+        {/* Device Name - Centered */}
+        <h1 className="text-2xl font-serif font-medium text-text-primary justify-self-center whitespace-nowrap flex items-center gap-2">
+          {device.name}
+          {highlightUserName && (
+            <span className="text-lg text-text-secondary font-normal">
+              - {highlightUserName}
+            </span>
+          )}
+        </h1>
+
+        {/* Right Side Controls */}
+        <div className="flex items-center gap-2 justify-self-end">
+          {/* Layout Toggle */}
+          <div className="flex items-center bg-bg-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setLayoutMode("grid")}
+              className={`p-1.5 rounded-md transition-colors ${layoutMode === "grid" ? "bg-white shadow-sm text-accent" : "text-text-secondary hover:text-text-primary"}`}
+              title="网格视图"
+              aria-label="网格视图"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => setLayoutMode("list")}
+              className={`p-1.5 rounded-md transition-colors ${layoutMode === "list" ? "bg-white shadow-sm text-accent" : "text-text-secondary hover:text-text-primary"}`}
+              title="列表视图"
+              aria-label="列表视图"
+            >
+              <List size={18} />
+            </button>
+          </div>
+          <Dropdown
+            options={[
+              { label: "周", value: "Weeks" },
+              { label: "日", value: "Days" },
+              { label: "月", value: "Month" },
+            ]}
+            value={viewMode}
+            onChange={setViewMode}
+            className=""
+            align="right"
+            zIndex={50}
+            id="view-mode-dropdown"
+            popupClassName="min-w-[8.75rem]"
+          />
+        </div>
+      </div>
+
+      <WeeklyCalendar
+        device={device}
+        reservations={reservations}
+        onBook={handleBook}
+        onDelete={handleDelete}
+        currentUserId={user.id}
+        currentDate={currentDate}
+        layoutMode={layoutMode}
+        isSaving={isSavingReservation}
+        className="flex-1 min-h-0"
+      />
+
+      <Toast
+        isVisible={toastState.isVisible}
+        message={toastState.message}
+        actionText={toastState.actionText}
+        onAction={toastState.onAction}
+        onClose={hideToast}
+        containerRef={containerRef}
+      />
+    </div>
+  );
 };
 
 export default DeviceBooking;

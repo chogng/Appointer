@@ -1,21 +1,25 @@
-import { db } from './db-adapter.js';
+import { db } from "../src/db/db-adapter.js";
 
-console.log('=== Checking Inventory Data ===\n');
+console.log("=== Checking Inventory Data ===\n");
 
 // Initialize database
 await db.init();
 
 // Check users table
-console.log('SUPER_ADMIN users:');
-const admins = db.query("SELECT id, username, name, role FROM users WHERE role = 'SUPER_ADMIN'");
+console.log("SUPER_ADMIN users:");
+const admins = await db.query(
+  "SELECT id, username, name, role FROM users WHERE role = 'SUPER_ADMIN'",
+);
 console.log(admins);
 
-console.log('\n=== Inventory Items ===');
-const inventory = db.query('SELECT * FROM inventory ORDER BY date DESC LIMIT 5');
+console.log("\n=== Inventory Items ===");
+const inventory = await db.query(
+  "SELECT * FROM inventory ORDER BY date DESC LIMIT 5",
+);
 console.log(inventory);
 
-console.log('\n=== Inventory with JOIN (as returned by API) ===');
-const inventoryWithJoin = db.query(`
+console.log("\n=== Inventory with JOIN (as returned by API) ===");
+const inventoryWithJoin = await db.query(`
     SELECT
         i.*,
         COALESCE(uById.name, uByUsername.name, i.requesterName, 'System') AS requesterDisplayName,

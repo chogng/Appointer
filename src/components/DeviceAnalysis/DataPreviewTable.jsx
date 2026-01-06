@@ -1,26 +1,22 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 const DataPreviewTable = ({ processedData }) => {
   const [activeFileId, setActiveFileId] = useState(
     processedData?.[0]?.fileId ?? null,
   );
 
-  useEffect(() => {
-    if (!processedData?.length) {
-      setActiveFileId(null);
-      return;
+  const effectiveActiveFileId = useMemo(() => {
+    if (!processedData?.length) return null;
+    if (activeFileId && processedData.some((f) => f.fileId === activeFileId)) {
+      return activeFileId;
     }
-    if (
-      !activeFileId ||
-      !processedData.find((f) => f.fileId === activeFileId)
-    ) {
-      setActiveFileId(processedData[0].fileId);
-    }
+    return processedData[0].fileId;
   }, [activeFileId, processedData]);
 
   const activeFile = useMemo(
-    () => processedData?.find((f) => f.fileId === activeFileId) ?? null,
-    [activeFileId, processedData],
+    () =>
+      processedData?.find((f) => f.fileId === effectiveActiveFileId) ?? null,
+    [effectiveActiveFileId, processedData],
   );
 
   const xRangeLabel = useMemo(() => {
@@ -30,26 +26,23 @@ const DataPreviewTable = ({ processedData }) => {
     return `${start}-${end}`;
   }, [activeFile]);
 
-  const [activeSeriesId, setActiveSeriesId] = useState(
-    activeFile?.series?.[0]?.id ?? null,
-  );
+  const [activeSeriesId, setActiveSeriesId] = useState(null);
 
-  useEffect(() => {
-    if (!activeFile?.series?.length) {
-      setActiveSeriesId(null);
-      return;
-    }
+  const effectiveActiveSeriesId = useMemo(() => {
+    if (!activeFile?.series?.length) return null;
     if (
-      !activeSeriesId ||
-      !activeFile.series.find((s) => s.id === activeSeriesId)
+      activeSeriesId &&
+      activeFile.series.some((s) => s.id === activeSeriesId)
     ) {
-      setActiveSeriesId(activeFile.series[0].id);
+      return activeSeriesId;
     }
+    return activeFile.series[0].id;
   }, [activeFile, activeSeriesId]);
 
   const activeSeries = useMemo(
-    () => activeFile?.series?.find((s) => s.id === activeSeriesId) ?? null,
-    [activeFile, activeSeriesId],
+    () =>
+      activeFile?.series?.find((s) => s.id === effectiveActiveSeriesId) ?? null,
+    [activeFile, effectiveActiveSeriesId],
   );
 
   if (!processedData || processedData.length === 0) {
@@ -73,7 +66,7 @@ const DataPreviewTable = ({ processedData }) => {
             className={`
               px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
               ${
-                activeFileId === file.fileId
+                effectiveActiveFileId === file.fileId
                   ? "bg-accent/10 text-accent ring-1 ring-accent/20"
                   : "text-text-secondary hover:text-text-primary hover:bg-bg-page"
               }
@@ -97,7 +90,7 @@ const DataPreviewTable = ({ processedData }) => {
         </div>
 
         <select
-          value={activeSeriesId ?? ""}
+          value={effectiveActiveSeriesId ?? ""}
           onChange={(e) => setActiveSeriesId(e.target.value)}
           disabled={!activeFile?.series?.length}
           className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent max-w-[260px]"

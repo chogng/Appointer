@@ -1,18 +1,21 @@
 {
   "name": "device_reservation_system",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "prod": "npm run build && cd server && npm run start",
     "server": "cd server && npm run dev",
     "server:init": "cd server && npm install && npm run init-db"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.16",
     "date-fns": "^4.1.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.554.0",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",

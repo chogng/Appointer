@@ -17,7 +17,7 @@ export default {
           surface: '#FFFFFF',
           subtle: '#F0F0F0',
           0: '#FFFFFF', // Claude bg-000
-          100: '#F5F4EF', // Claude bg-100
+          100: '#F0EEE6', // Claude bg-100
           150: '#E8E6DC',
           200: '#F0F0F0', // Claude bg-200 (approx)
           300: '#E5E5E5', // Claude bg-300 (approx)
@@ -46,6 +46,7 @@ export default {
           hover: '#000000',
           focus: '#2C84DB',
         },
+        terracotta: '#D97757',
       },
       fontFamily: {
         sans: ['Inter', 'Arial', 'sans-serif'],

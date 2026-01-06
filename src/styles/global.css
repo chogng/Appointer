@@ -14,7 +14,6 @@ body {
     @apply bg-bg-page text-text-primary antialiased;
 }
 
-
 * {
     box-sizing: border-box;
     margin: 0;
@@ -78,7 +77,9 @@ textarea {
 }
 
 .hover-lift {
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    transition:
+        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
@@ -135,6 +136,19 @@ textarea {
 }
 
 @layer utilities {
+
+    /* Hide number input spinners (Chrome/Safari/Edge + Firefox) */
+    .no-spinner::-webkit-outer-spin-button,
+    .no-spinner::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .no-spinner {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
     .can-focus {
         @apply focus:outline-none focus:ring-2 focus:ring-accent-focus focus:ring-offset-2 focus:ring-offset-bg-100;
     }
@@ -195,8 +209,6 @@ textarea {
         }
     }
 
-
-
     .animate-slide-in-right {
         animation: slideInRight 0.9s ease-out forwards;
     }
@@ -246,4 +258,25 @@ textarea {
     .animate-float-slower {
         animation: float-slow 30s ease-in-out infinite reverse;
     }
+}
+
+/* Fix: Remove default focus outline from Recharts wrapper and internals */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-responsive-container {
+    outline: none !important;
+    border: none !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-wrapper:active,
+.recharts-surface:focus,
+.recharts-surface:active {
+    outline: none !important;
+    border: none !important;
+}
+
+/* Specific fix for the SVG element causing focus rings */
+*:focus:not(:focus-visible) {
+    outline: none !important;
 }

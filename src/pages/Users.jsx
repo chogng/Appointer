@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/useAuth";
-import { useLanguage } from "../context/useLanguage";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 import {
   Trash2,
   Edit2,
@@ -33,13 +33,13 @@ const Users = () => {
   });
   const containerRef = useRef(null);
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ isVisible: true, message, type });
-  };
+  }, []);
 
-  const closeToast = () => {
+  const closeToast = useCallback(() => {
     setToast((prev) => ({ ...prev, isVisible: false }));
-  };
+  }, []);
 
   const [editForm, setEditForm] = useState({
     username: "",
@@ -63,11 +63,7 @@ const Users = () => {
     expiryType: "permanent", // 'permanent' | 'limited'
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const data = await apiService.getUsers();
       setUsers(data);
@@ -77,7 +73,11 @@ const Users = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, t]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleDelete = async (userId) => {
     try {

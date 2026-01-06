@@ -1,10 +1,10 @@
-import { db } from "./db-adapter.js";
+import { db } from "../src/db/db-adapter.js";
 
 const verify = async () => {
   await db.init();
   console.log("🛡️ Verifying security...");
 
-  const users = db.query("SELECT * FROM users");
+  const users = await db.query("SELECT * FROM users");
   let issues = 0;
 
   for (const user of users) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useAuth } from "../context/useAuth";
-import { useTheme } from "../context/useTheme";
-import { useLanguage } from "../context/useLanguage";
+import { useAuth } from "../hooks/useAuth";
+import { useTheme } from "../hooks/useTheme";
+import { useLanguage } from "../hooks/useLanguage";
 import { apiService } from "../services/apiService";
 import Card from "../components/ui/Card";
 import Toast from "../components/ui/Toast";
@@ -17,7 +17,6 @@ import {
   Database,
   Trash2,
 } from "lucide-react";
-
 function Section({ title, icon, children }) {
   const Icon = icon;
   return (

@@ -32,26 +32,35 @@ export const authenticateToken = (req, res, next) => {
   const token = cookieToken || headerToken;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, async (err, user) => {
     if (err) return res.status(401).json({ error: "Invalid or expired token" });
 
-    const dbUser = db.queryOne(
-      "SELECT id, username, role, status, expiryDate FROM users WHERE id = ?",
-      [user?.id],
-    );
-    if (!dbUser)
-      return res.status(401).json({ error: "Invalid or expired token" });
-    if (dbUser.status !== "ACTIVE") {
-      return res.status(401).json({ error: "Account is not active" });
-    }
-    if (dbUser.expiryDate) {
-      const today = new Date().toISOString().slice(0, 10);
-      if (dbUser.expiryDate < today) {
-        return res.status(401).json({ error: "Account has expired" });
+    try {
+      const dbUser = await db.queryOne(
+        "SELECT id, username, role, status, expiryDate FROM users WHERE id = ?",
+        [user?.id],
+      );
+      if (!dbUser)
+        return res.status(401).json({ error: "Invalid or expired token" });
+      if (dbUser.status !== "ACTIVE") {
+        return res.status(401).json({ error: "Account is not active" });
       }
-    }
+      if (dbUser.expiryDate) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (dbUser.expiryDate < today) {
+          return res.status(401).json({ error: "Account has expired" });
+        }
+      }
 
-    req.user = { id: dbUser.id, username: dbUser.username, role: dbUser.role };
-    next();
+      req.user = {
+        id: dbUser.id,
+        username: dbUser.username,
+        role: dbUser.role,
+      };
+      next();
+    } catch (error) {
+      console.error("[auth] token verification DB lookup failed", error);
+      return res.status(500).json({ error: "Auth lookup failed" });
+    }
   });
 };

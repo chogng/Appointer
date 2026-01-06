@@ -1,14 +1,16 @@
 ﻿import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 import { db } from "../config/db.js";
 import { JWT_SECRET } from "../config/env.js";
 
 const genericError = { error: "Invalid credentials" };
+const makeId = (prefix) => `${prefix}_${randomUUID()}`;
 
 export async function login(req, res) {
   try {
     const { username, password } = req.body;
-    const user = db.queryOne("SELECT * FROM users WHERE username = ?", [
+    const user = await db.queryOne("SELECT * FROM users WHERE username = ?", [
       username,
     ]);
 
@@ -32,10 +34,10 @@ export async function login(req, res) {
     }
     if (!passwordMatch) return res.status(401).json(genericError);
 
-    db.execute(
+    await db.execute(
       "INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)",
       [
-        "log_" + Date.now(),
+        makeId("log"),
         user.id,
         "LOGIN",
         "User logged in",
@@ -68,9 +70,9 @@ export function logout(req, res) {
   res.json({ success: true });
 }
 
-export function getMe(req, res) {
+export async function getMe(req, res) {
   try {
-    const user = db.queryOne(
+    const user = await db.queryOne(
       "SELECT id, username, role, status, name, email, expiryDate FROM users WHERE id = ?",
       [req.user.id],
     );

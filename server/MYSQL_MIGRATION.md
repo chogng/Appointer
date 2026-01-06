@@ -108,7 +108,7 @@ export function getMySQLPool() {
 
 ### 3. 更新数据库适配器
 
-修改 `server/db-adapter.js`：
+修改 `server/src/db/db-adapter.js`：
 
 ```javascript
 import { initDatabase, getDatabase, saveDatabase } from './database.js';

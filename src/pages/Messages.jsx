@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { useAuth } from "../context/useAuth";
-import { useLanguage } from "../context/useLanguage";
+import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 import Card from "../components/ui/Card";
 import Modal from "../components/ui/Modal";
 import { apiService } from "../services/apiService";

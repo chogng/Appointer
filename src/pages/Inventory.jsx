@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { useLanguage } from "../context/useLanguage";
+import { useLanguage } from "../hooks/useLanguage";
 import { usePermission } from "../hooks/usePermission";
 import {
   Plus,
@@ -22,7 +22,7 @@ import { apiService } from "../services/apiService";
 import Toast from "../components/ui/Toast";
 import { useRealtimeSync } from "../hooks/useRealtimeSync";
 
-import { useAuth } from "../context/useAuth";
+import { useAuth } from "../hooks/useAuth";
 
 const Inventory = () => {
   const containerRef = useRef(null);

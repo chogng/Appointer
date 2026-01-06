@@ -1,6 +1,6 @@
 # 设备预约系统后端
 
-基于 Node.js + Express + SQLite 的后端 API 服务。
+基于 Node.js + Express 的后端 API 服务，数据库默认使用 **MySQL**（也可通过 `DB_TYPE=sqlite` 切回 SQLite）。
 
 ## 快速开始
 
@@ -17,9 +17,7 @@ npm install
 npm run init-db
 ```
 
-这会创建 `drms.db` 数据库文件，并插入初始数据：
-- 3 个测试用户（admin/manager/user，密码都是 123）
-- 2 个测试设备
+这会根据 `server/.env` 中的数据库配置初始化数据表（MySQL 会自动建表；SQLite 会创建/加载 `drms.db`）。
 
 ### 3. 启动服务器
 
@@ -30,6 +28,7 @@ npm run dev
 服务器将运行在 `http://localhost:3001`
 
 > 可选：复制 `server/.env.example` 为 `server/.env`，配置 `PORT` / `CORS_ORIGIN` / `DB_PATH`（会自动加载）。
+> 如需使用 MySQL，请在 `server/.env` 中配置 `DB_TYPE=mysql` 与 `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME` 等参数。
 
 ## API 接口
 
@@ -74,6 +73,40 @@ npm run dev
 ## 生产部署
 
 1. 设置环境变量 `CORS_ORIGIN`（或 `CLIENT_ORIGIN`，支持逗号分隔多个 origin）
-2. 设置环境变量 `PORT`（默认 3001）与 `DB_PATH`（默认 `server/drms.db`，可选）
+2. 设置环境变量 `PORT`（默认 3001）与数据库连接配置（MySQL：`DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`；或 SQLite：`DB_TYPE=sqlite` + `DB_PATH`）
 3. 添加身份验证中间件（JWT）
 4. 使用 PM2 或 Docker 部署
+
+## SQLite → MySQL 迁移
+
+如果你已经有 SQLite 数据文件（默认 `server/drms.db`），可以用脚本把数据导入到 MySQL：
+
+```bash
+cd server
+
+# 如 MySQL 中已存在数据，确认要覆盖时使用 --force
+npm run migrate-sqlite-to-mysql -- --force
+
+# 指定 SQLite 文件路径
+npm run migrate-sqlite-to-mysql -- --sqlite ./drms.db
+```
+
+> 提示：生产环境建议设置 `NODE_ENV=production` 或 `DB_SEED_DATA=0`，以禁用示例数据的自动播种。
+
+## 生产环境模拟（前后端一体）
+
+目标：前端页面与 `/api`、`/socket.io` 同源（更接近生产环境），避免本地跨域/Cookie 问题。
+
+```bash
+# 项目根目录：构建前端到 dist/
+npm run build
+
+# 启动后端（会托管 ../dist）
+cd server
+npm run start
+```
+
+确保 `server/.env` 中设置了 `SERVE_CLIENT=1`（可参考 `server/.env.docker.example`）。
+浏览器访问：`http://localhost:3001`。
+
+开发模式仍然可以 `npm run dev`（前端）+ `npm run server`（后端）；Vite 已配置把 `/api`、`/socket.io` 代理到 3001，所以前端依然用相对路径 `/api`。
