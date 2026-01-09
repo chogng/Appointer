@@ -29,6 +29,326 @@ Appointer 是一个面向团队/实验室的设备预约与协作管理系统：
 - 数据库：MySQL（默认，推荐生产）/SQLite（可选：sql.js 内存加载 + 导出持久化到 `server/drms.db`）
 - 认证：JWT（HttpOnly Cookie `token`；前端 `fetch` 默认 `credentials: include`；后端也支持 `Authorization: Bearer <token>` 便于脚本/调试）
 
+## 项目架构（Architecture）
+
+本项目采用「前端单页应用（React）+ 后端 API（Express）+ 数据库（MySQL/SQLite）」的典型结构，并通过 Socket.IO 在多端之间做实时同步；其中 Device Analysis 功能使用 Web Worker 在浏览器侧完成 CSV 解析与曲线抽取，避免阻塞 UI。
+
+### 1）系统总览
+
+```mermaid
+flowchart LR
+  subgraph FE[Frontend · React (Vite)]
+    UI[Pages / Components]
+    API[apiService (HTTP /api)]
+    WS[socketService (WebSocket /socket.io)]
+    W[deviceAnalysis.worker.js<br/>CSV preview & processing]
+    UI --> API
+    UI --> WS
+    UI --> W
+  end
+
+  subgraph BE[Backend · Express + Socket.IO]
+    REST[REST APIs]
+    AUTH[Auth middleware<br/>(JWT + Cookie)]
+    RT[Socket.IO events<br/>(broadcast)]
+    DBL[DB Adapter<br/>(mysql2 / sql.js)]
+    REST --> AUTH
+    REST --> DBL
+    RT --> DBL
+  end
+
+  DB[(MySQL / SQLite)]
+
+  API -->|HTTP| REST
+  WS <--> |WebSocket| RT
+  DBL --> DB
+```
+
+开发模式下，前端由 Vite 提供（默认 `5173`），通过 `vite.config.js` 将 `/api` 与 `/socket.io` 代理到后端（默认 `3001`）。生产模式下可先构建 `dist/`，再由后端同源托管（见「部署提示」）。
+
+### 2）目录结构与职责
+
+```text
+/
+├─ src/                      # 前端源码（React）
+│  ├─ pages/                 # 路由页面（业务入口）
+│  ├─ components/            # 可复用组件（含 DeviceAnalysis 子模块）
+│  ├─ routes/                # 路由与鉴权包装（PrivateRoute/AdminRoute）
+│  ├─ context/               # 全局状态（Auth/Theme/Language）
+│  ├─ services/              # 与后端/WS 交互（apiService/socketService）
+│  ├─ workers/               # Web Worker（Device Analysis CSV 处理）
+│  ├─ styles/ utils/ hooks/  # 样式/工具/自定义 hooks
+│  └─ main.jsx / App.jsx     # 前端入口
+├─ server/                   # 后端（Express + Socket.IO）
+│  ├─ server.js              # 服务入口（路由 + socket + 静态托管）
+│  ├─ src/config/            # 环境变量加载、DB 连接封装
+│  ├─ src/db/                # SQLite(schema/migrate/seed) 与适配层
+│  ├─ src/middleware/        # 鉴权、限流等中间件
+│  ├─ scripts/               # init-db、迁移、验证脚本
+│  └─ *.md / docker-compose  # 部署/迁移文档
+├─ public/                   # 前端静态资源
+└─ dist/                     # 前端构建产物（npm run build）
+```
+
+### 3）前端模块关系（React）
+
+- 入口链路：`src/main.jsx` → `src/App.jsx`（Provider 组合）→ `src/routes/AppRoutes.jsx`（路由表）
+- 全局状态：
+  - `src/context/AuthContext`：登录态/用户信息（配合后端 HttpOnly Cookie）
+  - `src/context/ThemeContext`、`src/context/LanguageContext`
+- 与后端通信：
+  - `src/services/apiService.js`：REST 调用（`/api/*`，默认携带 cookie）
+  - `src/services/socketService.js`：WebSocket 连接与事件订阅（`/socket.io`）
+- 典型业务页面：`src/pages/Devices.jsx`、`src/pages/DeviceBooking.jsx`、`src/pages/Users.jsx`、`src/pages/Inventory.jsx` 等
+
+### 4）Device Analysis 子系统（浏览器侧 Worker）
+
+Device Analysis 的核心是：把「CSV 解析/采样/分组/图例生成」这类 CPU 密集任务放到 Web Worker。
+
+- UI/编排：`src/pages/DeviceAnalysis.jsx`
+  - 预览 worker：读取 CSV 生成 preview 表格（选择范围/列时用）
+  - 处理 worker：按模板配置逐文件抽取曲线 → 产出 `processedData`
+- Worker 实现：`src/workers/deviceAnalysis.worker.js`
+  - 解析 CSV，生成 X/Y 数据、分组（points/group）、legend labels
+  - 输出 `xLabel`（来自 Var1）、series `name`（可拼接 Var2 前缀）
+- 展示组件：`src/components/DeviceAnalysis/AnalysisCharts.jsx`、`src/components/DeviceAnalysis/DataPreviewTable.jsx` 等
+
+### 5）后端模块关系（Express）
+
+- 入口：`server/server.js`
+  - REST API：`/api/*`（大部分接口在该文件内直接定义）
+  - Socket.IO：连接管理 + 广播事件（用于多端实时同步）
+  - 鉴权：`server/src/middleware/authMiddleware.js`
+  - 运行期任务：`server/src/retention.js`（保留策略/定时清理）
+- 数据访问：
+  - MySQL：`server/src/db/mysql-adapter.js`（`mysql2`）
+  - SQLite：`server/src/db/database.js`（`sql.js`，运行期 schema/migrate/seed）
+  - 统一入口：`server/src/config/db.js`
+
+### 6）认证与权限（AuthN/AuthZ）
+
+#### 登录态（JWT + HttpOnly Cookie）
+
+- 登录：`POST /api/auth/login`（带 `loginLimiter` 限流）→ 后端签发 JWT（24h）→ 写入 HttpOnly Cookie：`token`
+- 会话检查：前端启动时 `GET /api/auth/me` 校验 cookie，并把用户信息写入 `AuthContext`
+- 鉴权中间件：`authenticateToken`
+  - 支持从 Cookie `token` 或 `Authorization: Bearer <token>` 读取
+  - 通过后还会做一次 DB 反查并校验：`status === ACTIVE`、`expiryDate` 未过期
+
+#### 角色与权限
+
+- 角色：`USER` / `ADMIN` / `SUPER_ADMIN`
+- 权限门禁：
+  - `requireAdmin`：`ADMIN` 或 `SUPER_ADMIN`
+  - `requireSuperAdmin`：仅 `SUPER_ADMIN`
+- 用户生命周期：注册默认 `PENDING`，需要管理员把状态改为 `ACTIVE` 才能登录/使用
+
+#### WebSocket 鉴权
+
+- Socket.IO 握手阶段必须携带有效 token（Cookie/Bearer/`socket.handshake.auth.token` 任一）
+- 通过后才会接收服务器的广播事件（用于多端实时同步）
+
+### 7）实时同步（Socket.IO + React Query）
+
+#### 服务端：广播模型
+
+后端在数据变更处调用 `broadcast(event, payload)`，把变化广播给所有已鉴权连接：
+
+- device：`device:created` / `device:updated` / `device:deleted`
+- reservation：`reservation:created` / `reservation:updated` / `reservation:deleted`
+- user：`user:created` / `user:updated` / `user:deleted`
+- request：`request:created` / `request:approved` / `request:rejected` / `request:deleted`
+
+#### 前端：订阅与缓存更新策略
+
+- 连接与订阅：`src/hooks/useRealtimeSync.js`（登录后自动 `socketService.connect()` 并按需订阅事件）
+- 缓存策略（React Query）：
+  - 设备列表：`src/hooks/useDevicesRealtimeSync.js` 直接 `setQueryData()` 增量更新
+  - 预约列表：`src/hooks/useReservationsRealtimeSync.js` 针对 `reservations/range` query 做“按范围增量维护”
+  - 请求/消息等：部分页面直接在事件到来时触发 `load*()` 重新拉取（如 `Inventory.jsx`/`Messages.jsx`）
+
+### 8）核心业务流程（从 UI 到 DB）
+
+#### 8.1 注册与账号审核
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User (Browser)
+  participant FE as Frontend
+  participant BE as Backend (Express)
+  participant DB as DB
+
+  U->>FE: Register form
+  FE->>BE: POST /api/users
+  BE->>DB: INSERT users(status=PENDING, role=USER)
+  BE-->>FE: 201 created (no session)
+  Note over U,BE: 管理员在 Users 页面把 status 改为 ACTIVE
+  FE->>BE: PATCH /api/users/:id (admin)
+  BE->>DB: UPDATE users SET status='ACTIVE'
+  BE-->>FE: 200 updated
+```
+
+#### 8.2 登录与会话恢复
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant FE as Frontend
+  participant BE as Backend
+  participant DB as DB
+
+  FE->>BE: POST /api/auth/login
+  BE->>DB: SELECT users + password verify + status/expiry check
+  BE-->>FE: Set-Cookie token=JWT (HttpOnly)
+  FE->>BE: GET /api/auth/me (credentials: include)
+  BE->>DB: SELECT user by id (status/expiry check)
+  BE-->>FE: user payload
+```
+
+#### 8.3 预约创建/冲突检测/禁用与拉黑
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant FE as Frontend
+  participant BE as Backend
+  participant DB as DB
+
+  U->>FE: pick device/date/timeSlot
+  FE->>BE: POST /api/reservations
+  BE->>DB: SELECT devices(isEnabled)
+  alt device disabled
+    BE-->>FE: 403 Device is disabled
+  else enabled
+    BE->>DB: SELECT blocklist(userId, deviceId)
+    alt blocked
+      BE-->>FE: 403 banned
+    else not blocked
+      BE->>DB: SELECT reservations for same device/date/timeSlot (status!=CANCELLED)
+      alt conflict exists
+        BE-->>FE: 409 Time slot already booked
+      else ok
+        BE->>DB: INSERT reservations(status=CONFIRMED)
+        BE-->>FE: 201 reservation
+        BE-->>FE: broadcast reservation:created
+      end
+    end
+  end
+```
+
+一致性保障：
+- 逻辑层：创建预约前显式查冲突
+- DB 层：SQLite 模式下会创建唯一索引（`reservations_unique_active`）防止并发双写
+
+#### 8.4 库存“申请-审批”工作流
+
+普通用户对库存的新增/修改不会直接写 `inventory`，而是写入 `requests`，由管理员审批后落库：
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant FE as Frontend
+  participant BE as Backend
+  participant DB as DB
+
+  U->>FE: submit inventory change
+  FE->>BE: POST /api/requests (INVENTORY_ADD / INVENTORY_UPDATE)
+  BE->>DB: INSERT requests(status=PENDING)
+  BE-->>FE: 201 request
+  BE-->>FE: broadcast request:created
+
+  Note over FE,BE: 管理员审批
+  FE->>BE: POST /api/requests/:id/approve
+  BE->>DB: APPLY (INSERT/UPDATE inventory)
+  BE->>DB: UPDATE requests SET status=APPROVED
+  BE-->>FE: 200 success
+  BE-->>FE: broadcast request:approved
+```
+
+#### 8.5 数据保留策略（Retention）
+
+- 设置存储：`system_settings`（key/value）
+- 清理对象：
+  - `logs`：按 `timestamp` 删除过期记录
+  - `requests`：仅删除 `APPROVED/REJECTED` 且过期的记录
+- 触发方式：
+  - 启动时：`startRetentionScheduler(db)` 会检查是否到期并尝试执行
+  - 手动：`POST /api/admin/retention/run`（仅 `SUPER_ADMIN`）
+
+### 9）数据模型（ER & 关键约束）
+
+> 详细字段列表见下方「数据模型（MySQL/SQLite）」章节；这里给出关系与约束的总览。
+
+```mermaid
+erDiagram
+  USERS ||--o{ RESERVATIONS : books
+  DEVICES ||--o{ RESERVATIONS : has
+  USERS ||--o{ LOGS : writes
+  USERS ||--o{ REQUESTS : submits
+  USERS ||--o{ DEVICE_ANALYSIS_TEMPLATES : owns
+  USERS ||--|| DEVICE_ANALYSIS_SETTINGS : config
+  USERS ||--|| LITERATURE_RESEARCH_SETTINGS : config
+  USERS ||--o{ BLOCKLIST : blocks
+  DEVICES ||--o{ BLOCKLIST : blocked_on
+```
+
+关键一致性/约束点：
+- 预约防重复：同一 `deviceId + date + timeSlot`（且 `status != CANCELLED`）不能重复
+- 拉黑防重复：同一 `userId + deviceId` 不能重复
+- 请求保留：只对 `APPROVED/REJECTED` 的历史请求执行自动清理，避免影响待办
+
+### 10）运行模式与配置（Dev / Prod / Mock）
+
+#### 开发模式（推荐）
+
+- 前端：`npm run dev`（Vite，默认 `http://localhost:5173`）
+- 后端：`npm run server`（默认 `http://localhost:3001`）
+- 代理：`vite.config.js` 将 `/api` 与 `/socket.io` 代理到 `3001`（同源体验，Cookie 可用）
+
+#### 生产/同源模式（前后端一体）
+
+- 构建前端：`npm run build` 生成 `dist/`
+- 启动后端并托管 `dist/`：`cd server && SERVE_CLIENT=1 npm run start`
+
+#### Mock 模式（前端脱离后端）
+
+- 设置 `VITE_MOCK_API=true`
+  - 前端 Auth 与 ApiService 会走本地 Mock（localStorage），并禁用 WebSocket 同步
+  - 适合 UI 走查与无后端环境的演示
+
+#### 常用环境变量
+
+前端（Vite）：
+- `VITE_API_BASE_URL`：API Base（默认 `/api`）
+- `VITE_WS_URL`：WebSocket URL（默认同源）
+- `VITE_MOCK_API`：是否启用 Mock（`true/false`）
+
+后端（Express）：
+- `PORT`：端口（默认 `3001`）
+- `CORS_ORIGIN` / `CLIENT_ORIGIN`：允许的前端 Origin（逗号分隔）
+- `JWT_SECRET`：JWT 密钥（生产必须修改）
+- `DB_TYPE`：`mysql`（默认）或 `sqlite`
+- `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`：MySQL 连接参数
+- `DB_PATH`：SQLite 文件路径（默认 `server/drms.db`）
+- `DB_SEED_DATA`：是否播种示例数据（生产建议 `0`）
+- `SERVE_CLIENT`：是否托管 `dist/`（生产默认开启）
+
+### 11）功能模块索引（快速定位代码）
+
+- 路由表：`src/routes/AppRoutes.jsx`
+- 登录/注册：`src/pages/Login.jsx`、`src/pages/Register.jsx`；后端 `server/src/routes/authRoutes.js`
+- 设备与开放规则：`src/pages/Devices.jsx`、`src/pages/CreateDevice.jsx`；后端 `server/server.js` 的 `/api/devices*`
+- 预约周视图：`src/pages/DeviceBooking.jsx`、`src/pages/MyReservations.jsx`；后端 `/api/reservations*`
+- 权限/用户管理：`src/pages/Users.jsx`；后端 `/api/users*`
+- 库存与申请审批：`src/pages/Inventory.jsx`、`src/pages/Messages.jsx`；后端 `/api/inventory*`、`/api/requests*`
+- 实时同步：`src/services/socketService.js`、`src/hooks/useRealtimeSync.js`、`server/server.js` 的 `broadcast()`
+- Device Analysis：`src/pages/DeviceAnalysis.jsx`、`src/workers/deviceAnalysis.worker.js`、`src/components/DeviceAnalysis/*`
+  - Var1 → `xLabel`（横坐标标题），Var2 → series legend 前缀（如 `Vg=0.5`）
+- Literature Research：`src/pages/LiteratureResearch.jsx`；后端 `server/src/literatureService.js` + `/api/literature/*`
+
 ## 运行环境
 
 - Node.js >= 18（建议 20+）

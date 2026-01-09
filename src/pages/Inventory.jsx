@@ -253,7 +253,7 @@ const Inventory = () => {
     return (
       <div
         ref={containerRef}
-        className="max-w-[1500px] mx-auto min-h-screen relative"
+        className="w-full min-h-screen relative"
       >
         <div className="text-text-secondary">Loading...</div>
       </div>
@@ -263,7 +263,7 @@ const Inventory = () => {
   return (
     <div
       ref={containerRef}
-      className="max-w-[1500px] mx-auto min-h-screen relative"
+      className="w-full min-h-screen relative"
     >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addWeeks, subWeeks, startOfWeek, addDays } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { enUS, zhCN } from "date-fns/locale";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { apiService } from "../services/apiService";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 import WeeklyCalendar from "../components/WeeklyCalendar";
 import Button from "../components/ui/Button";
 import Toast from "../components/ui/Toast";
@@ -27,6 +28,8 @@ const DeviceBooking = () => {
   const queryClient = useQueryClient();
 
   const { user } = useAuth();
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? zhCN : enUS;
   const highlightUserName = location.state?.highlightUserName;
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -166,24 +169,24 @@ const DeviceBooking = () => {
           reservationId: extraData.id,
           updates: payload,
         });
-        showToast("预约已更新");
+        showToast(t("bookingUpdated"));
         return;
       }
 
       const created = await createReservationMutation.mutateAsync(payload);
-      showToast("预约已保存", "撤销", async () => {
+      showToast(t("bookingSaved"), t("undo"), async () => {
         try {
           await deleteReservationMutation.mutateAsync(created.id);
           hideToast();
         } catch (err) {
           console.error("Undo failed", err);
-          showToast("撤销失败，请刷新后重试");
+          showToast(t("undoFailedRefresh"));
           invalidateWeekReservations();
         }
       });
     } catch (error) {
       if (error?.status === 409) {
-        showToast("该时间段已被其他人预约，请刷新后重试");
+        showToast(t("slotAlreadyBookedRefresh"));
         invalidateWeekReservations();
         return;
       }
@@ -204,7 +207,7 @@ const DeviceBooking = () => {
 
       await deleteReservationMutation.mutateAsync(reservationId);
 
-      showToast("预约已删除", "撤销", async () => {
+      showToast(t("bookingDeleted"), t("undo"), async () => {
         try {
           await createReservationMutation.mutateAsync({
             date: resToDelete.date,
@@ -216,24 +219,24 @@ const DeviceBooking = () => {
           hideToast();
         } catch (err) {
           if (err?.status === 409) {
-            showToast("撤销失败：该时间段已被其他人预约");
+            showToast(t("undoFailedSlotBooked"));
           } else {
             console.error("Undo delete failed", err);
-            showToast("撤销失败，请刷新后重试");
+            showToast(t("undoFailedRefresh"));
           }
           invalidateWeekReservations();
         }
       });
     } catch (error) {
       console.error("Delete failed:", error);
-      showToast("删除失败，请刷新后重试");
+      showToast(t("deleteFailedRefresh"));
       invalidateWeekReservations();
     }
   };
 
   const loading = deviceQuery.isLoading || reservationsQuery.isLoading;
   if (loading) return <div className="min-h-[200px]" />;
-  if (!device) return <div>Device not found</div>;
+  if (!device) return <div>{t("deviceNotFound")}</div>;
 
   const isSavingReservation =
     createReservationMutation.isPending || updateReservationMutation.isPending;
@@ -249,7 +252,7 @@ const DeviceBooking = () => {
             className="pl-0 hover:bg-transparent text-text-secondary hover:text-text-primary"
           >
             <ArrowLeft size={28} className="mr-2" />
-            返回
+            {t("back")}
           </Button>
 
           <Button
@@ -257,28 +260,30 @@ const DeviceBooking = () => {
             onClick={handleToday}
             className="px-4 py-1.5 text-sm border border-border rounded-md"
           >
-            今天
+            {t("today")}
           </Button>
           {/* Calendar switch */}
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrev}
               className="p-1.5 hover:bg-bg-100 rounded-full"
-              aria-label="上一周"
+              aria-label={t("prevWeek")}
             >
               <ChevronLeft size={20} className="text-text-secondary" />
             </button>
             <button
               onClick={handleNext}
               className="p-1.5 hover:bg-bg-100 rounded-full"
-              aria-label="下一周"
+              aria-label={t("nextWeek")}
             >
               <ChevronRight size={20} className="text-text-secondary" />
             </button>
           </div>
           {/* Calendar Date */}
           <h2 className="text-xl font-normal text-text-primary ml-2 min-w-[120px] text-center">
-            {format(currentDate, "yyyy年M月", { locale: zhCN })}
+            {format(currentDate, language === "zh" ? "yyyy年M月" : "MMM yyyy", {
+              locale,
+            })}
           </h2>
         </div>
 
@@ -299,25 +304,25 @@ const DeviceBooking = () => {
             <button
               onClick={() => setLayoutMode("grid")}
               className={`p-1.5 rounded-md transition-colors ${layoutMode === "grid" ? "bg-white shadow-sm text-accent" : "text-text-secondary hover:text-text-primary"}`}
-              title="网格视图"
-              aria-label="网格视图"
+              title={t("gridView")}
+              aria-label={t("gridView")}
             >
               <LayoutGrid size={18} />
             </button>
             <button
               onClick={() => setLayoutMode("list")}
               className={`p-1.5 rounded-md transition-colors ${layoutMode === "list" ? "bg-white shadow-sm text-accent" : "text-text-secondary hover:text-text-primary"}`}
-              title="列表视图"
-              aria-label="列表视图"
+              title={t("listView")}
+              aria-label={t("listView")}
             >
               <List size={18} />
             </button>
           </div>
           <Dropdown
             options={[
-              { label: "周", value: "Weeks" },
-              { label: "日", value: "Days" },
-              { label: "月", value: "Month" },
+              { label: t("viewModeWeek"), value: "Weeks" },
+              { label: t("viewModeDay"), value: "Days" },
+              { label: t("viewModeMonth"), value: "Month" },
             ]}
             value={viewMode}
             onChange={setViewMode}

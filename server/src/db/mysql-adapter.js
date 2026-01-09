@@ -222,10 +222,47 @@ async function ensureSchema(db) {
     CREATE TABLE IF NOT EXISTS device_analysis_settings (
       userId VARCHAR(64) PRIMARY KEY,
       yUnit VARCHAR(8) NOT NULL DEFAULT 'A',
+      ssMethodDefault VARCHAR(16) NOT NULL DEFAULT 'auto',
+      ssDiagnosticsEnabled TINYINT(1) NOT NULL DEFAULT 1,
+      ssIdLow DOUBLE NOT NULL DEFAULT 1e-11,
+      ssIdHigh DOUBLE NOT NULL DEFAULT 1e-9,
       updatedAt VARCHAR(30) NOT NULL,
       INDEX device_analysis_settings_updatedAt_idx (updatedAt)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  // Runtime migrations for existing MySQL schemas.
+  // MySQL lacks a portable "ADD COLUMN IF NOT EXISTS" across versions, so we ignore ER_DUP_FIELDNAME.
+  const ensureColumn = async (table, column, definition) => {
+    try {
+      await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      return true;
+    } catch (error) {
+      if (error?.code === "ER_DUP_FIELDNAME") return false;
+      throw error;
+    }
+  };
+
+  await ensureColumn(
+    "device_analysis_settings",
+    "ssMethodDefault",
+    "VARCHAR(16) NOT NULL DEFAULT 'auto'",
+  );
+  await ensureColumn(
+    "device_analysis_settings",
+    "ssDiagnosticsEnabled",
+    "TINYINT(1) NOT NULL DEFAULT 1",
+  );
+  await ensureColumn(
+    "device_analysis_settings",
+    "ssIdLow",
+    "DOUBLE NOT NULL DEFAULT 1e-11",
+  );
+  await ensureColumn(
+    "device_analysis_settings",
+    "ssIdHigh",
+    "DOUBLE NOT NULL DEFAULT 1e-9",
+  );
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS literature_research_settings (

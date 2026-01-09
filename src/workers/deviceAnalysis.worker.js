@@ -488,10 +488,151 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
   const yCols = Array.isArray(config?.yCols) ? config.yCols.map(Number) : [];
   const groupSizeCell = config?.groupSizeCell ?? null;
   const yLegendStartCell = config?.yLegendStartCell ?? null;
+  const yLegendStartValueRaw = config?.yLegendStartValue ?? null;
   const yLegendCountCell = config?.yLegendCountCell ?? null;
   const yLegendStepCell = config?.yLegendStepCell ?? null;
   const yLegendCountRaw = config?.yLegendCount ?? null;
   const yLegendStepRaw = config?.yLegendStep ?? null;
+  /* New helper to read specific cell as string */
+  const readCsvCellString = async (file, rowIndex, colIndex) => {
+    const targetRow = Number(rowIndex);
+    const targetCol = Number(colIndex);
+    if (!Number.isInteger(targetRow) || targetRow < 0) throw new Error("Invalid cell row index");
+    if (!Number.isInteger(targetCol) || targetCol < 0) throw new Error("Invalid cell column index");
+
+    return await new Promise((resolve, reject) => {
+      let currentRowIndex = -1;
+      let done = false;
+
+      Papa.parse(file, {
+        header: false,
+        skipEmptyLines: true,
+        step: (results, parser) => {
+          if (done) return;
+          currentRowIndex += 1;
+
+          if (currentRowIndex < targetRow) return;
+          if (currentRowIndex > targetRow) {
+            done = true;
+            parser.abort();
+            reject(new Error("Cell row not found"));
+            return;
+          }
+
+          const row = Array.isArray(results?.data) ? results.data : [];
+          const raw = row[targetCol];
+          done = true;
+          parser.abort();
+          resolve(raw === null || raw === undefined ? "" : String(raw).trim());
+        },
+        complete: () => {
+          if (done) return;
+          done = true;
+          reject(new Error("Cell row not found"));
+        },
+        error: (err) => {
+          if (done) return;
+          done = true;
+          reject(err);
+        },
+      });
+    });
+  };
+
+  /* Helper to resolve keyword from config (literal or cell ref) */
+  const resolveKeyword = async (input) => {
+    const raw = String(input || "").trim();
+    if (!raw) return "";
+
+    // Check for A1-style cell reference (e.g., "A1", "AB12", etc.)
+    const match = raw.match(/^([A-Z]+)([1-9][0-9]*)$/);
+    if (!match) return raw; // Treat as literal keyword
+
+    const colStr = match[1];
+    const rowStr = match[2];
+
+    // Decode column label to 0-based index
+    let colIndex = 0;
+    for (let i = 0; i < colStr.length; i++) {
+      colIndex = colIndex * 26 + (colStr.charCodeAt(i) - 64);
+    }
+    colIndex -= 1; // 0-based
+
+    const rowIndex = Number(rowStr) - 1; // 0-based
+
+    try {
+      return await readCsvCellString(file, rowIndex, colIndex);
+    } catch {
+      return raw; // Fallback to treating as literal on read error
+    }
+  };
+
+  const bottomTitleRaw = config?.bottomTitle;
+  const leftTitleRaw = config?.leftTitle;
+  const legendPrefixRaw = config?.legendPrefix;
+  const fileNameVgKeywordsRaw = config?.fileNameVgKeywords;
+  const fileNameVdKeywordsRaw = config?.fileNameVdKeywords;
+
+  const splitKeywordList = (raw) =>
+    String(raw ?? "")
+      .split(/[,;\n]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+  const fileNameVgKeywords = splitKeywordList(fileNameVgKeywordsRaw).map((t) =>
+    t.toLowerCase(),
+  );
+  const fileNameVdKeywords = splitKeywordList(fileNameVdKeywordsRaw).map((t) =>
+    t.toLowerCase(),
+  );
+  const useFileNameMapping =
+    fileNameVgKeywords.length > 0 || fileNameVdKeywords.length > 0;
+
+  // Resolve potentially dynamic keywords
+  const bottomTitle = await resolveKeyword(bottomTitleRaw);
+  const leftTitle = await resolveKeyword(leftTitleRaw);
+  const legendPrefix = await resolveKeyword(legendPrefixRaw);
+  const detectVarToken = (raw) => {
+    const text = String(raw ?? "").trim().toLowerCase();
+    if (!text) return null;
+    const hasVg = /(^|[^a-z0-9])v[_-]?g(s|[^a-z0-9]|$)/.test(text);
+    const hasVd = /(^|[^a-z0-9])v[_-]?d(s|[^a-z0-9]|$)/.test(text);
+    if (hasVg && !hasVd) return "vg";
+    if (hasVd && !hasVg) return "vd";
+    return null;
+  };
+
+  const formatVarToken = (token) => {
+    if (token === "vg") return "Vg";
+    if (token === "vd") return "Vd";
+    return "";
+  };
+
+  const isA1CellRef = (value) =>
+    typeof value === "string" && /^([A-Z]+)([1-9][0-9]*)$/.test(value.trim().toUpperCase());
+  const isSimpleVarToken = (value) =>
+    typeof value === "string" && /^v[_-]?[gd]s?$/i.test(value.trim());
+
+  // Var1/Var2 are often stored in fixed cells, but some CSV exports swap their positions.
+  // So: treat Var1/Var2 as *hints*, and prefer inferring the X variable (curveType) from the region
+  // right above the X data start (startRow/xCol) when possible.
+  const var1Token = detectVarToken(bottomTitle);
+  const var2Token = detectVarToken(legendPrefix);
+
+  let curveType = null;
+  let inferredXToken = null;
+  let inferredXTokenScore = Infinity;
+  const scanXToken = (rowIndex, colIndex, token, startRowIndex, xColIndex) => {
+    if (!token) return;
+    const targetRow = Math.max(0, startRowIndex - 1);
+    const rowWeight = 100;
+    const score =
+      Math.abs(rowIndex - targetRow) * rowWeight + Math.abs(colIndex - xColIndex);
+    if (score < inferredXTokenScore) {
+      inferredXTokenScore = score;
+      inferredXToken = token;
+    }
+  };
 
   const endRowIsEnd =
     typeof endRowRaw === "string" && endRowRaw.trim().toLowerCase() === "end";
@@ -721,8 +862,8 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
         const defaultStep = mode === "group" ? groupSize : 1;
         yLegendGenerateStep =
           Number.isFinite(desiredStep) &&
-          desiredStep > 0 &&
-          !Number.isInteger(desiredStep)
+            desiredStep > 0 &&
+            !Number.isInteger(desiredStep)
             ? desiredStep
             : null;
         yLegendStep =
@@ -738,10 +879,110 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
         }
       }
     }
+  } else if (
+    yLegendStartValueRaw !== null &&
+    yLegendStartValueRaw !== undefined &&
+    String(yLegendStartValueRaw).trim()
+  ) {
+    const countFromCell = await tryReadPositiveIntegerCell(yLegendCountCell);
+    const stepFromCell = await tryReadPositiveNumberCell(yLegendStepCell);
+
+    const countFromRaw = normalizePositiveInteger(yLegendCountRaw);
+    const stepFromRaw = normalizePositiveNumber(yLegendStepRaw);
+
+    const desiredCount = countFromCell ?? countFromRaw;
+    const desiredStep = stepFromCell ?? stepFromRaw;
+
+    const yCount = yCols.length;
+    const gCount = groups;
+
+    let mode = null;
+    let count = desiredCount;
+
+    if (Number.isInteger(count) && count > 0) {
+      if (count === yCount && count !== gCount) mode = "yCol";
+      else if (count === gCount && count !== yCount) mode = "group";
+      else if (yCount === 1 && gCount > 1) mode = "group";
+      else if (gCount === 1 && yCount > 1) mode = "yCol";
+      else mode = yCount >= gCount ? "yCol" : "group";
+    } else {
+      if (gCount === 1) {
+        mode = "yCol";
+        count = yCount;
+      } else if (yCount === 1) {
+        mode = "group";
+        count = gCount;
+      } else {
+        mode = "yCol";
+        count = yCount;
+      }
+    }
+
+    const maxCount = mode === "group" ? gCount : yCount;
+    const finalCount =
+      Number.isInteger(count) && count > 0 ? Math.min(count, maxCount) : 0;
+
+    const startValue = parseNumberStrict(yLegendStartValueRaw);
+    const stepValue =
+      Number.isFinite(desiredStep) && desiredStep > 0 ? desiredStep : 1;
+
+    if (finalCount > 0 && startValue !== null) {
+      yLegendMode = mode;
+      yLegendLabels = new Array(finalCount).fill(null);
+      for (let i = 0; i < finalCount; i++) {
+        const value = startValue + stepValue * i;
+        const label = formatGeneratedLegendValue(value);
+        if (label !== null) yLegendLabels[i] = label;
+      }
+    }
   }
 
   let seenRowsInRange = 0;
   let currentRowIndex = -1;
+
+  const scanRowsBeforeStart = 40;
+  const scanStartRow = Math.max(0, startRow - scanRowsBeforeStart);
+  const scanColRadius = 40;
+  const scanColAnchors = [xCol];
+  const scanAnchorCols = [];
+  if (isA1CellRef(bottomTitleRaw)) {
+    const match = String(bottomTitleRaw).trim().toUpperCase().match(/^([A-Z]+)([1-9][0-9]*)$/);
+    if (match) {
+      const colStr = match[1];
+      let colIndex = 0;
+      for (let i = 0; i < colStr.length; i++) {
+        colIndex = colIndex * 26 + (colStr.charCodeAt(i) - 64);
+      }
+      scanColAnchors.push(colIndex - 1);
+    }
+  }
+  if (isA1CellRef(legendPrefixRaw)) {
+    const match = String(legendPrefixRaw).trim().toUpperCase().match(/^([A-Z]+)([1-9][0-9]*)$/);
+    if (match) {
+      const colStr = match[1];
+      let colIndex = 0;
+      for (let i = 0; i < colStr.length; i++) {
+        colIndex = colIndex * 26 + (colStr.charCodeAt(i) - 64);
+      }
+      scanColAnchors.push(colIndex - 1);
+    }
+  }
+  for (const anchor of scanColAnchors) {
+    const col = Math.max(0, Math.floor(Number(anchor) || 0));
+    scanAnchorCols.push(col);
+  }
+  scanAnchorCols.sort((a, b) => a - b);
+  const scanRanges = [];
+  for (const col of scanAnchorCols) {
+    const start = Math.max(0, col - scanColRadius);
+    const end = col + scanColRadius;
+    const prev = scanRanges[scanRanges.length - 1];
+    if (prev && start <= prev.end + 1) {
+      prev.end = Math.max(prev.end, end);
+    } else {
+      scanRanges.push({ start, end });
+    }
+  }
 
   await new Promise((resolve, reject) => {
     Papa.parse(file, {
@@ -792,6 +1033,26 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
               const label = formatLegendValue(row[yLegendStartCol]);
               if (label !== null) yLegendLabels[idx] = label;
               yLegendRowToIndex.delete(currentRowIndex);
+            }
+          }
+        }
+
+        // Best-effort: infer X variable token (Vg/Vd) near the X data start.
+        if (
+          !useFileNameMapping &&
+          currentRowIndex < startRow &&
+          currentRowIndex >= scanStartRow
+        ) {
+          const maxCol = row.length - 1;
+          if (maxCol >= 0 && scanRanges.length > 0) {
+            for (const range of scanRanges) {
+              const start = Math.max(0, range.start);
+              const end = Math.min(maxCol, range.end);
+              for (let c = start; c <= end; c++) {
+                const token = detectVarToken(row[c]);
+                if (!token) continue;
+                scanXToken(currentRowIndex, c, token, startRow, xCol);
+              }
             }
           }
         }
@@ -849,6 +1110,97 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
     throw new Error(
       `${fileName}: X end row (${endRow + 1}) exceeds total parsed rows (${currentRowIndex + 1}).`,
     );
+  }
+
+  // Finalize curveType and labels.
+  // Modes:
+  // - file-name mapping: ONLY use user-provided keywords (exclusive)
+  // - otherwise: infer from file content/Var hints (exclusive; no filename fallback)
+  const hasVarConfig =
+    Boolean(String(bottomTitleRaw ?? "").trim()) ||
+    Boolean(String(legendPrefixRaw ?? "").trim());
+
+  if (useFileNameMapping) {
+    if (fileNameVgKeywords.length === 0 || fileNameVdKeywords.length === 0) {
+      throw new Error(
+        `${fileName}: Invalid template config: file-name keywords must be provided for both Vg and Vd.`,
+      );
+    }
+
+    const lowerName = String(fileName ?? "").toLowerCase();
+    const vgHits = fileNameVgKeywords.filter(
+      (token) => token && lowerName.includes(token),
+    );
+    const vdHits = fileNameVdKeywords.filter(
+      (token) => token && lowerName.includes(token),
+    );
+
+    if (vgHits.length > 0 && vdHits.length === 0) {
+      curveType = "vg";
+    } else if (vdHits.length > 0 && vgHits.length === 0) {
+      curveType = "vd";
+    } else if (vgHits.length > 0 && vdHits.length > 0) {
+      throw new Error(
+        `${fileName}: File-name tagging is ambiguous (matches both Vg and Vd). Vg hits: ${vgHits.join(
+          ", ",
+        )}; Vd hits: ${vdHits.join(", ")}.`,
+      );
+    } else {
+      throw new Error(
+        `${fileName}: Unable to tag curve type from file name. Please add keywords for Vg/Vd in the template.`,
+      );
+    }
+  } else {
+    // Priority:
+    // 1) inferred token from the X region (handles Var1/Var2 swaps)
+    // 2) Var1 token (back-compat)
+    // 3) Var2 token inverted (last resort)
+    curveType = inferredXToken ?? null;
+    if (!curveType) {
+      if (var1Token) {
+        curveType = var1Token;
+      } else if (var2Token) {
+        curveType = var2Token === "vd" ? "vg" : "vd";
+      }
+    }
+
+    if (!curveType && hasVarConfig) {
+      throw new Error(
+        `${fileName}: Unable to determine curve type from Var1/Var2 or nearby headers. Please check the template, or use file-name keywords.`,
+      );
+    }
+  }
+
+  const legendVarToken =
+    curveType && var1Token && var2Token && var1Token !== var2Token
+      ? curveType === var1Token
+        ? var2Token
+        : var1Token
+      : null;
+
+  let effectiveBottomTitle = bottomTitle;
+  if (!effectiveBottomTitle && curveType) {
+    effectiveBottomTitle = formatVarToken(curveType);
+  }
+  if (
+    curveType &&
+    (isA1CellRef(bottomTitleRaw) || isSimpleVarToken(bottomTitle)) &&
+    detectVarToken(bottomTitle) !== curveType
+  ) {
+    effectiveBottomTitle = formatVarToken(curveType);
+  }
+
+  let effectiveLegendPrefix = legendPrefix;
+  if (!effectiveLegendPrefix && useFileNameMapping && curveType) {
+    const other = curveType === "vg" ? "vd" : curveType === "vd" ? "vg" : null;
+    if (other) effectiveLegendPrefix = formatVarToken(other);
+  }
+  if (
+    legendVarToken &&
+    (isA1CellRef(legendPrefixRaw) || isSimpleVarToken(legendPrefix)) &&
+    detectVarToken(legendPrefix) !== legendVarToken
+  ) {
+    effectiveLegendPrefix = formatVarToken(legendVarToken);
   }
 
   const targetPoints = Math.min(
@@ -921,12 +1273,21 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
       const seriesName = (() => {
         if (!legendLabel) return `${yLabel} #${g + 1}`;
 
+        // Format: "Var2=Value" if Var2 is present, else just Value
+        // Use legendPrefix directly (it is the resolved string from Var2)
+        const prefix = effectiveLegendPrefix ? `${effectiveLegendPrefix}=` : "";
+        const labelValue = legendLabel;
+
         if (yLegendMode === "yCol") {
-          return groups > 1 ? `${legendLabel} #${g + 1}` : legendLabel;
+          return groups > 1
+            ? `${prefix}${labelValue} #${g + 1}`
+            : `${prefix}${labelValue}`;
         }
 
         // yLegendMode === "group"
-        return yCols.length > 1 ? `${yLabel} @ ${legendLabel}` : legendLabel;
+        return yCols.length > 1
+          ? `${yLabel} @ ${prefix}${labelValue}`
+          : `${prefix}${labelValue}`;
       })();
 
       series.push({
@@ -953,15 +1314,24 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
 
   const domain = { x: [x0, x1], y: [y0, y1] };
 
+  // Use Var1 as X Label, fallback to column label
+  // Use bottomTitle directly (resolved string from Var1)
+  const xLabel = effectiveBottomTitle || getExcelColumnLabel(xCol);
+  const yLabel = leftTitle || "";
+
+
   return {
     fileId,
     fileName,
     legend: yLegendMode
       ? {
-          mode: yLegendMode,
-          labels: yLegendLabels,
-        }
+        mode: yLegendMode,
+        labels: yLegendLabels,
+      }
       : null,
+    curveType,
+    xLabel, // New field
+    yLabel,
     x: {
       col: xCol,
       colLabel: getExcelColumnLabel(xCol),

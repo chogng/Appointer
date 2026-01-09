@@ -113,10 +113,22 @@ const ExpandedCard = ({
 };
 
 const CsvImporter = forwardRef(
-  ({ onDataImported, onDataRemoved, onFileSelected, selectedFileId }, ref) => {
+  (
+    {
+      files: externalFiles,
+      onDataImported,
+      onDataRemoved,
+      onFileSelected,
+      selectedFileId,
+    },
+    ref,
+  ) => {
     const fileInputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [files, setFiles] = useState([]);
+    const isControlled = Array.isArray(externalFiles);
+    const [internalFiles, setInternalFiles] = useState([]);
+    const files = isControlled ? externalFiles : internalFiles;
+    const setFiles = isControlled ? null : setInternalFiles;
     const [error, setError] = useState(null);
 
     // State for the expanded card animation
@@ -168,21 +180,25 @@ const CsvImporter = forwardRef(
     const processFiles = (newFiles) => {
       setError(null);
 
-      // Filter out duplicates based on already loaded files
-      // Note: This relies on 'files' state being up to date.
-      // Ideally we should also check against currently processing files if async,
-      // but for this use case, checking against state is sufficient for sequential drops/selects.
-      const uniqueFiles = newFiles.filter((newFile) => {
-        const isDuplicate = files.some(
-          (existing) =>
-            existing.file.name === newFile.name &&
-            existing.file.size === newFile.size,
-        );
-        if (isDuplicate) {
-          console.log(`Skipping duplicate file: ${newFile.name}`);
+      const buildFileKey = (file) =>
+        file && typeof file === "object" ? `${file.name}::${file.size}` : "";
+
+      // Filter out duplicates (based on already loaded files + within this batch).
+      const seenKeys = new Set(
+        files.map((entry) => buildFileKey(entry?.file)).filter(Boolean),
+      );
+
+      const uniqueFiles = [];
+      for (const newFile of newFiles) {
+        const key = buildFileKey(newFile);
+        if (!key) continue;
+        if (seenKeys.has(key)) {
+          console.log(`Skipping duplicate file: ${newFile?.name || ""}`);
+          continue;
         }
-        return !isDuplicate;
-      });
+        seenKeys.add(key);
+        uniqueFiles.push(newFile);
+      }
 
       if (uniqueFiles.length === 0 && newFiles.length > 0) {
         // If all files were duplicates (and we had some input)
@@ -197,18 +213,20 @@ const CsvImporter = forwardRef(
         const fileId = createFileId();
         const fileEntry = { fileId, file };
 
-        setFiles((prev) => {
-          if (
-            prev.some(
-              (existing) =>
-                existing.file.name === file.name &&
-                existing.file.size === file.size,
-            )
-          ) {
-            return prev;
-          }
-          return [...prev, fileEntry];
-        });
+        if (setFiles) {
+          setFiles((prev) => {
+            if (
+              prev.some(
+                (existing) =>
+                  existing.file.name === file.name &&
+                  existing.file.size === file.size,
+              )
+            ) {
+              return prev;
+            }
+            return [...prev, fileEntry];
+          });
+        }
 
         onDataImported?.({
           fileId,
@@ -281,7 +299,9 @@ const CsvImporter = forwardRef(
     };
 
     const removeFile = (fileId) => {
-      setFiles((prev) => prev.filter((entry) => entry.fileId !== fileId));
+      if (setFiles) {
+        setFiles((prev) => prev.filter((entry) => entry.fileId !== fileId));
+      }
       if (activeFile?.fileId === fileId) {
         handleCloseExpanded();
       }
@@ -295,7 +315,7 @@ const CsvImporter = forwardRef(
       onFileSelected?.(fileEntry?.fileId ?? null);
     };
 
-    const handleShowFullName = (fileEntry, e) => {
+    const _handleShowFullName = (fileEntry, e) => {
       e.stopPropagation();
       const rect = e.currentTarget.getBoundingClientRect();
       setOriginRect(rect);
@@ -314,6 +334,7 @@ const CsvImporter = forwardRef(
       <div className="mb-6">
         <div
           ref={containerRef}
+          aria-label="csv-container"
           className={`
                     border-2 border-dashed rounded-xl pl-6 pr-[18px] text-center transition-all duration-300 relative
                     h-[300px] overflow-y-auto custom-scrollbar
@@ -358,24 +379,19 @@ const CsvImporter = forwardRef(
                 {files.map((fileEntry) => (
                   <div
                     key={fileEntry.fileId}
+                    aria-label="csv-file-item"
                     onClick={() => handleSelectFile(fileEntry)}
                     className={`
-                                        flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg
-                                        group shadow-sm hover:shadow-md transition-all cursor-pointer relative
-                                        ${selectedFileId === fileEntry.fileId ? "ring-1 ring-accent/25 bg-accent/5" : ""}
+                                         flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg
+                                        group shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer relative
+                                        ${selectedFileId === fileEntry.fileId ? "border-black bg-black/5" : ""}
                                         ${activeFile?.fileId === fileEntry.fileId ? "invisible" : ""}
-                                    `}
+                                     `}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <button
-                        type="button"
-                        title="Show full file name"
-                        aria-label="Show full file name"
-                        onClick={(e) => handleShowFullName(fileEntry, e)}
-                        className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center text-green-500 shrink-0 hover:bg-green-500/15 transition-colors"
-                      >
+                      <div className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center text-green-500 shrink-0">
                         <FileText size={16} />
-                      </button>
+                      </div>
                       <span className="text-sm text-text-primary truncate">
                         {fileEntry.file.name}
                       </span>

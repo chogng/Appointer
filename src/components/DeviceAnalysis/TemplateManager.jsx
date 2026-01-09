@@ -19,8 +19,15 @@ import {
 } from "lucide-react";
 import { apiService } from "../../services/apiService";
 import { useAuth } from "../../hooks/useAuth";
+import { useLanguage } from "../../hooks/useLanguage";
 import Toast from "../ui/Toast";
+import ToggleButton from "../ui/ToggleButton";
 import { formatNumber } from "./analysisMath";
+import {
+  validateTemplateForApply,
+  validateTemplateForSave,
+  validateVarPair,
+} from "./templateValidation";
 
 const formatPreviewCell = (value) => {
   if (value === null || value === undefined) return "";
@@ -36,6 +43,21 @@ const formatPreviewCell = (value) => {
   return formatNumber(num, { digits: 4 });
 };
 
+const lowerBound = (arr, value) => {
+  let lo = 0;
+  let hi = Array.isArray(arr) ? arr.length : 0;
+  const target = Number(value);
+  if (!Number.isFinite(target) || hi === 0) return 0;
+
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (Number(arr[mid]) < target) lo = mid + 1;
+    else hi = mid;
+  }
+
+  return lo;
+};
+
 const TemplateManager = ({
   previewFile,
   previewStatus,
@@ -44,7 +66,9 @@ const TemplateManager = ({
   onTemplateApplied,
 }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [templates, setTemplates] = useState([]);
+  const [, setInputSources] = useState({}); // { [fieldName]: 'manual' | 'picked' }
 
   // Default config
   const [config, setConfig] = useState({
@@ -58,6 +82,11 @@ const TemplateManager = ({
     yCount: "",
     yStep: "",
     stopOnError: false,
+    bottomTitle: "",
+    leftTitle: "",
+    legendPrefix: "",
+    fileNameVgKeywords: "",
+    fileNameVdKeywords: "",
     selectedColumns: [], // Array of indices
   });
 
@@ -69,7 +98,6 @@ const TemplateManager = ({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [templateMode, setTemplateMode] = useState("select"); // "select" | "save"
-  const [hoverMode, setHoverMode] = useState(null); // null | "select" | "save"
   const dropdownRef = useRef(null);
   const isSelectMode = templateMode === "select";
 
@@ -91,6 +119,48 @@ const TemplateManager = ({
     setToast((prev) => ({ ...prev, isVisible: false }));
   }, []);
 
+  const varPairValidation = validateVarPair(
+    config?.bottomTitle,
+    config?.legendPrefix,
+    t,
+  );
+  const hasVarInputs =
+    Boolean(String(config?.bottomTitle ?? "").trim()) ||
+    Boolean(String(config?.legendPrefix ?? "").trim());
+  const hasFileNameInputs =
+    Boolean(String(config?.fileNameVgKeywords ?? "").trim()) ||
+    Boolean(String(config?.fileNameVdKeywords ?? "").trim());
+  const curveTaggingConflict = hasVarInputs && hasFileNameInputs;
+  const disableVarInputs = hasFileNameInputs && !hasVarInputs;
+  const disableFileNameInputs = hasVarInputs && !hasFileNameInputs;
+  const lastVarPairToastRef = useRef("");
+
+  const toastVarPairIfInvalid = useCallback(() => {
+    if (varPairValidation.ok) {
+      lastVarPairToastRef.current = "";
+      return;
+    }
+
+    const message =
+      varPairValidation.message || t("da_invalidVarPair");
+    if (lastVarPairToastRef.current === message) return;
+    lastVarPairToastRef.current = message;
+    showToast(message, "warning");
+  }, [showToast, t, varPairValidation.ok, varPairValidation.message]);
+
+  const markFieldSource = useCallback((field, source) => {
+    if (!field || (source !== "manual" && source !== "picked")) return;
+    setInputSources((prev) => ({ ...(prev || {}), [field]: source }));
+  }, []);
+
+  const writeFieldFromPreview = useCallback(
+    (field, value) => {
+      setConfig((prev) => ({ ...prev, [field]: value }));
+      markFieldSource(field, "picked");
+    },
+    [markFieldSource],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -106,65 +176,12 @@ const TemplateManager = ({
 
         const remoteTemplates = Array.isArray(remote) ? remote : [];
         setTemplates(remoteTemplates);
-
-        const saved = localStorage.getItem("deviceAnalysisTemplates");
-        if (!saved) return;
-
-        let localTemplates = [];
-        try {
-          localTemplates = JSON.parse(saved);
-        } catch {
-          localTemplates = [];
-        }
-
-        if (!Array.isArray(localTemplates) || localTemplates.length === 0) {
-          localStorage.removeItem("deviceAnalysisTemplates");
-          return;
-        }
-
-        const shouldImport =
-          typeof window !== "undefined" &&
-          typeof window.confirm === "function" &&
-          window.confirm(
-            "检测到旧版本的本地模板，是否导入到当前账号并开启多设备同步？",
-          );
-
-        if (!shouldImport) return;
-
-        const remoteNames = new Set(
-          remoteTemplates
-            .map((t) => String(t?.name || "").trim())
-            .filter(Boolean),
-        );
-
-        const toImport = localTemplates.filter((t) => {
-          const name = String(t?.name || "").trim();
-          return name && !remoteNames.has(name);
-        });
-
-        if (toImport.length > 0) {
-          await apiService.bulkCreateDeviceAnalysisTemplates(toImport);
-        }
-
-        localStorage.removeItem("deviceAnalysisTemplates");
-
-        const refreshed = await apiService.getDeviceAnalysisTemplates();
-        if (cancelled) return;
-        setTemplates(Array.isArray(refreshed) ? refreshed : []);
       } catch (err) {
-        const saved = localStorage.getItem("deviceAnalysisTemplates");
-        if (saved) {
-          try {
-            const local = JSON.parse(saved);
-            if (!cancelled && Array.isArray(local)) setTemplates(local);
-          } catch {
-            // ignore
-          }
-        }
-
         if (!cancelled) {
           showToast(
-            `Failed to load templates: ${err.message || "Unknown error"}`,
+            t("da_loadTemplatesFailed", {
+              error: err?.message || t("unknownError"),
+            }),
           );
         }
       }
@@ -174,7 +191,7 @@ const TemplateManager = ({
     return () => {
       cancelled = true;
     };
-  }, [showToast, user?.id]);
+  }, [showToast, t, user?.id]);
 
   const [selections, setSelections] = useState([]);
   const gridRef = useRef(null);
@@ -192,6 +209,8 @@ const TemplateManager = ({
   const isDraggingRef = useRef(false);
   const rafRef = useRef(0);
   const pendingPointRef = useRef(null);
+  const containerRef = useRef(null);
+  // Intentionally no persistent "last template" storage; session is memory-only.
 
   const PREVIEW_ROW_HEIGHT_PX = 28; // tailwind h-7 ~= 28px
   const PREVIEW_OVERSCAN_ROWS = 12;
@@ -202,11 +221,15 @@ const TemplateManager = ({
   const PREVIEW_COL_PADDING_PX = 44;
   const PREVIEW_COL_RESIZE_MIN_PX = 80;
   const PREVIEW_COL_RESIZE_MAX_PX = 800;
+  const PREVIEW_COL_OVERSCAN_PX = 240;
 
   const previewScrollTopRef = useRef(0);
+  const previewScrollLeftRef = useRef(0);
   const previewScrollRafRef = useRef(0);
   const [previewStartRow, setPreviewStartRow] = useState(0);
+  const [previewScrollLeft, setPreviewScrollLeft] = useState(0);
   const [previewViewportHeight, setPreviewViewportHeight] = useState(0);
+  const [previewViewportWidth, setPreviewViewportWidth] = useState(0);
   const [isColumnResizing, setIsColumnResizing] = useState(false);
 
   const [columnWidthOverridesByFile, setColumnWidthOverridesByFile] = useState(
@@ -220,9 +243,10 @@ const TemplateManager = ({
     tableWidth: 0,
   });
 
-  const handlePreviewScrollTop = useCallback(
-    (scrollTop) => {
+  const handlePreviewScroll = useCallback(
+    (scrollTop, scrollLeft) => {
       previewScrollTopRef.current = scrollTop;
+      previewScrollLeftRef.current = scrollLeft;
       if (previewScrollRafRef.current) return;
       previewScrollRafRef.current = requestAnimationFrame(() => {
         previewScrollRafRef.current = 0;
@@ -231,6 +255,9 @@ const TemplateManager = ({
         );
         const nextStart = Math.max(0, scrollRow - PREVIEW_OVERSCAN_ROWS);
         setPreviewStartRow((prev) => (prev === nextStart ? prev : nextStart));
+
+        const nextLeft = Math.max(0, previewScrollLeftRef.current || 0);
+        setPreviewScrollLeft((prev) => (prev === nextLeft ? prev : nextLeft));
       });
     },
     [PREVIEW_OVERSCAN_ROWS, PREVIEW_ROW_HEIGHT_PX],
@@ -241,7 +268,7 @@ const TemplateManager = ({
     if (!el) return;
 
     const handleScroll = () => {
-      handlePreviewScrollTop(el.scrollTop);
+      handlePreviewScroll(el.scrollTop, el.scrollLeft);
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
@@ -249,13 +276,16 @@ const TemplateManager = ({
     return () => {
       el.removeEventListener("scroll", handleScroll);
     };
-  }, [handlePreviewScrollTop, previewFile?.fileId]);
+  }, [handlePreviewScroll, previewFile?.fileId]);
 
   useEffect(() => {
     const el = previewScrollRef.current;
     if (!el) return;
 
-    const updateSize = () => setPreviewViewportHeight(el.clientHeight || 0);
+    const updateSize = () => {
+      setPreviewViewportHeight(el.clientHeight || 0);
+      setPreviewViewportWidth(el.clientWidth || 0);
+    };
     updateSize();
 
     if (typeof ResizeObserver === "undefined") {
@@ -287,18 +317,33 @@ const TemplateManager = ({
 
     requestAnimationFrame(() => {
       const top = el.scrollTop || 0;
+      const left = el.scrollLeft || 0;
       previewScrollTopRef.current = top;
-      handlePreviewScrollTop(top);
+      previewScrollLeftRef.current = left;
+      handlePreviewScroll(top, left);
     });
-  }, [handlePreviewScrollTop, previewFile?.fileId, previewFile?.rowCount]);
+  }, [getPreviewRow, writeFieldFromPreview, previewFile?.columnCount]);
 
   const handleSaveTemplate = async () => {
     const name = config.name.trim();
     if (!name) return;
 
+    const previewReady =
+      previewStatus?.state === "ready" && Boolean(previewFile?.fileId);
+    if (!previewReady) {
+      showToast("Please load a file first.", "warning");
+      return;
+    }
+
+    const validation = validateTemplateForSave(config, t);
+    if (!validation.ok) {
+      showToast(validation.message || "Invalid configuration", "warning");
+      return;
+    }
+
     try {
       const created = await apiService.createDeviceAnalysisTemplate({
-        ...config,
+        ...validation.normalized,
         name,
       });
 
@@ -315,6 +360,7 @@ const TemplateManager = ({
       });
       setConfig((prev) => ({ ...prev, name: "" }));
       showToast("Template saved", "success");
+      setTemplateMode("select");
     } catch (err) {
       showToast(err.message || "Failed to save template", "warning");
     }
@@ -345,45 +391,75 @@ const TemplateManager = ({
     }
   }, [config.xDataEnd, config.xDataStart]);
 
-  const loadTemplate = (template) => {
-    const rest = {
-      name: template?.name ?? "",
-      xDataStart: template?.xDataStart ?? "",
-      xDataEnd: template?.xDataEnd ?? "",
-      xPoints: template?.xPoints ?? "",
-      yDataStart: template?.yDataStart ?? "",
-      yDataEnd: template?.yDataEnd ?? "",
-      yPoints: template?.yPoints ?? "",
-      yCount: template?.yCount ?? "",
-      yStep: template?.yStep ?? "",
-      stopOnError: Boolean(template?.stopOnError),
-      selectedColumns: Array.isArray(template?.selectedColumns)
-        ? template.selectedColumns
-        : null,
-    };
+  const loadTemplate = useCallback(
+    (template) => {
+      setInputSources({});
 
-    const startCell = String(rest.xDataStart ?? "").trim();
-    const xDataEndRaw = String(rest.xDataEnd ?? "").trim();
-    const xDataEnd = !xDataEndRaw
-      ? startCell
-        ? "End"
-        : ""
-      : xDataEndRaw.toLowerCase() === "end"
-        ? "End"
-        : rest.xDataEnd;
-    setConfig((prev) => ({
-      ...prev,
-      ...rest,
-      xDataEnd,
-      selectedColumns: Array.isArray(rest.selectedColumns)
-        ? rest.selectedColumns
-        : prev.selectedColumns,
-    }));
-    setIsDropdownOpen(false);
-  };
+      const rest = {
+        name: template?.name ?? "",
+        xDataStart: template?.xDataStart ?? "",
+        xDataEnd: template?.xDataEnd ?? "",
+        xPoints: template?.xPoints ?? "",
+        yDataStart: template?.yDataStart ?? "",
+        yDataEnd: template?.yDataEnd ?? "",
+        yPoints: template?.yPoints ?? "",
+        yCount: template?.yCount ?? "",
+        yStep: template?.yStep ?? "",
+        stopOnError: Boolean(template?.stopOnError),
+        bottomTitle: template?.bottomTitle ?? template?.vgKeyword ?? "",
+        leftTitle: template?.leftTitle ?? "",
+        legendPrefix: template?.legendPrefix ?? template?.vdKeyword ?? "",
+        fileNameVgKeywords:
+          template?.fileNameVgKeywords ?? template?.vgFileKeywords ?? "",
+        fileNameVdKeywords:
+          template?.fileNameVdKeywords ?? template?.vdFileKeywords ?? "",
+        selectedColumns: Array.isArray(template?.selectedColumns)
+          ? template.selectedColumns
+          : null,
+      };
+
+      const startCell = String(rest.xDataStart ?? "").trim();
+      const xDataEndRaw = String(rest.xDataEnd ?? "").trim();
+      const xDataEnd = !xDataEndRaw
+        ? startCell
+          ? "End"
+          : ""
+        : xDataEndRaw.toLowerCase() === "end"
+          ? "End"
+          : rest.xDataEnd;
+      setConfig((prev) => ({
+        ...prev,
+        ...rest,
+        xDataEnd,
+        selectedColumns: Array.isArray(rest.selectedColumns)
+          ? rest.selectedColumns
+          : prev.selectedColumns,
+      }));
+      setIsDropdownOpen(false);
+    },
+    [],
+  );
+
+  // No auto-load from browser storage.
 
   const applyConfiguration = () => {
-    const result = onTemplateApplied?.(config);
+    const validation = validateTemplateForApply(config, t);
+    if (!validation.ok) {
+      showToast(validation.message || "Invalid configuration", "warning");
+      return;
+    }
+
+    // Keep UI state in sync (e.g. when user types "a1" we store "A1").
+    if (
+      validation.normalized.bottomTitle !== config.bottomTitle ||
+      validation.normalized.legendPrefix !== config.legendPrefix ||
+      validation.normalized.fileNameVgKeywords !== config.fileNameVgKeywords ||
+      validation.normalized.fileNameVdKeywords !== config.fileNameVdKeywords
+    ) {
+      setConfig(validation.normalized);
+    }
+
+    const result = onTemplateApplied?.(validation.normalized);
     if (result && typeof result === "object") {
       if (result.ok === false) {
         showToast(result.message || "Invalid configuration", result.type);
@@ -426,11 +502,6 @@ const TemplateManager = ({
     return 0;
   }, [previewFile]);
 
-  const columnIndices = useMemo(
-    () => Array.from({ length: columnCount }, (_, idx) => idx),
-    [columnCount],
-  );
-
   const selectedColumnsSet = useMemo(
     () => new Set(config.selectedColumns),
     [config.selectedColumns],
@@ -459,20 +530,46 @@ const TemplateManager = ({
     return widths;
   }, [previewFile]);
 
-  const columnWidthOverrides = previewFile?.fileId
-    ? (columnWidthOverridesByFile[previewFile.fileId] ?? {})
-    : {};
+  const columnWidthOverrides = useMemo(() => {
+    const fileId = previewFile?.fileId;
+    if (!fileId) return {};
+    return columnWidthOverridesByFile[fileId] ?? {};
+  }, [columnWidthOverridesByFile, previewFile?.fileId]);
+
+  const columnWidthsPx = useMemo(() => {
+    const widths = new Array(columnCount);
+    for (let i = 0; i < columnCount; i++) {
+      const override = Number(columnWidthOverrides?.[i]);
+      if (Number.isFinite(override) && override > 0) {
+        widths[i] = clampNumber(
+          override,
+          PREVIEW_COL_RESIZE_MIN_PX,
+          PREVIEW_COL_RESIZE_MAX_PX,
+        );
+        continue;
+      }
+      widths[i] = autoColumnWidthsPx[i] ?? PREVIEW_COL_MIN_PX;
+    }
+    return widths;
+  }, [autoColumnWidthsPx, columnCount, columnWidthOverrides]);
+
+  const columnStartOffsetsPx = useMemo(() => {
+    const offsets = new Array(columnCount + 1);
+    let total = 0;
+    offsets[0] = 0;
+    for (let i = 0; i < columnCount; i++) {
+      const w = Number(columnWidthsPx[i]) || PREVIEW_COL_MIN_PX;
+      total += w;
+      offsets[i + 1] = total;
+    }
+    return offsets;
+  }, [columnCount, columnWidthsPx]);
+
+  const totalDataWidthPx = columnStartOffsetsPx[columnCount] ?? 0;
+  const previewTableWidthPx = PREVIEW_ROW_INDEX_COL_PX + totalDataWidthPx;
 
   const getColumnWidthPx = (colIndex) => {
-    const override = Number(columnWidthOverrides?.[colIndex]);
-    if (Number.isFinite(override) && override > 0) {
-      return clampNumber(
-        override,
-        PREVIEW_COL_RESIZE_MIN_PX,
-        PREVIEW_COL_RESIZE_MAX_PX,
-      );
-    }
-    return autoColumnWidthsPx[colIndex] ?? PREVIEW_COL_MIN_PX;
+    return columnWidthsPx[colIndex] ?? PREVIEW_COL_MIN_PX;
   };
 
   const initLiveColumnLayout = (fileId) => {
@@ -481,35 +578,61 @@ const TemplateManager = ({
       return liveColumnLayoutRef.current;
     }
 
-    const widths = new Array(columnCount);
-    let tableWidth = PREVIEW_ROW_INDEX_COL_PX;
-    for (let i = 0; i < columnCount; i++) {
-      const w = getColumnWidthPx(i);
-      widths[i] = w;
-      tableWidth += w;
-    }
+    const widths = columnWidthsPx.slice(0, columnCount);
+    const tableWidth = previewTableWidthPx;
 
     const next = { fileId, widths, tableWidth };
     liveColumnLayoutRef.current = next;
     return next;
   };
 
-  const previewTableWidthPx = useMemo(() => {
-    let total = PREVIEW_ROW_INDEX_COL_PX;
-    for (let i = 0; i < columnCount; i++) {
-      const override = Number(columnWidthOverrides?.[i]);
-      const colWidth =
-        Number.isFinite(override) && override > 0
-          ? clampNumber(
-              override,
-              PREVIEW_COL_RESIZE_MIN_PX,
-              PREVIEW_COL_RESIZE_MAX_PX,
-            )
-          : (autoColumnWidthsPx[i] ?? PREVIEW_COL_MIN_PX);
-      total += colWidth;
+  const previewColWindow = useMemo(() => {
+    if (!columnCount) {
+      return { startCol: 0, endCol: 0, leftSpacerPx: 0, rightSpacerPx: 0 };
     }
-    return total;
-  }, [autoColumnWidthsPx, columnCount, columnWidthOverrides]);
+
+    const viewportWidth = previewViewportWidth || 0;
+    const dataViewportWidth = Math.max(0, viewportWidth - PREVIEW_ROW_INDEX_COL_PX);
+    const scrollLeft = Math.max(0, previewScrollLeft || 0);
+
+    const left = Math.max(0, scrollLeft - PREVIEW_COL_OVERSCAN_PX);
+    const right = Math.min(
+      totalDataWidthPx,
+      scrollLeft + dataViewportWidth + PREVIEW_COL_OVERSCAN_PX,
+    );
+
+    let startCol = lowerBound(columnStartOffsetsPx, left);
+    if (startCol > 0) startCol -= 1;
+    startCol = Math.max(0, Math.min(columnCount - 1, startCol));
+
+    let endCol = lowerBound(columnStartOffsetsPx, right);
+    endCol = Math.max(startCol + 1, Math.min(columnCount, endCol));
+
+    return {
+      startCol,
+      endCol,
+      leftSpacerPx: Math.max(0, Number(columnStartOffsetsPx[startCol]) || 0),
+      rightSpacerPx: Math.max(
+        0,
+        totalDataWidthPx - (Number(columnStartOffsetsPx[endCol]) || 0),
+      ),
+    };
+  }, [
+    PREVIEW_COL_OVERSCAN_PX,
+    PREVIEW_ROW_INDEX_COL_PX,
+    columnCount,
+    columnStartOffsetsPx,
+    previewScrollLeft,
+    previewViewportWidth,
+    totalDataWidthPx,
+  ]);
+
+  const visibleColumnIndices = useMemo(() => {
+    const start = Math.max(0, Math.floor(Number(previewColWindow.startCol) || 0));
+    const end = Math.max(start, Math.floor(Number(previewColWindow.endCol) || 0));
+    const len = Math.max(0, end - start);
+    return Array.from({ length: len }, (_, i) => start + i);
+  }, [previewColWindow.endCol, previewColWindow.startCol]);
 
   const applyColumnWidthToDom = (fileId, colIndex, width) => {
     if (!fileId) return;
@@ -693,6 +816,14 @@ const TemplateManager = ({
     };
   })();
 
+  const hasLeftColSpacer = previewColWindow.leftSpacerPx > 0;
+  const hasRightColSpacer = previewColWindow.rightSpacerPx > 0;
+  const previewRenderColCount =
+    1 +
+    (hasLeftColSpacer ? 1 : 0) +
+    visibleColumnIndices.length +
+    (hasRightColSpacer ? 1 : 0);
+
   useEffect(() => {
     if (!previewFile?.fileId) return;
     if (typeof ensurePreviewRows !== "function") return;
@@ -811,72 +942,61 @@ const TemplateManager = ({
           "yPoints",
           "yCount",
           "yStep",
+          "yStep",
+          "bottomTitle",
+          "leftTitle",
+          "legendPrefix",
         ].includes(activeElement.name)
       ) {
         event.preventDefault(); // Prevent input blur
         if (activeElement.name === "templateName") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            name: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("name", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "xDataStart") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            xDataStart: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("xDataStart", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "xDataEnd") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            xDataEnd: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("xDataEnd", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "xPoints") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            xPoints: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("xPoints", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "yDataStart") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            yDataStart: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("yDataStart", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "yDataEnd") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            yDataEnd: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("yDataEnd", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "yPoints") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            yPoints: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("yPoints", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "yCount") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            yCount: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("yCount", `${colLabel}${rowLabel}`);
         } else if (activeElement.name === "yStep") {
           const colLabel = getExcelColumnLabel(colIndex);
           const rowLabel = rowIndex + 1;
-          setConfig((prev) => ({
-            ...prev,
-            yStep: `${colLabel}${rowLabel}`,
-          }));
+          writeFieldFromPreview("yStep", `${colLabel}${rowLabel}`);
+        } else if (activeElement.name === "bottomTitle") {
+          const colLabel = getExcelColumnLabel(colIndex);
+          const rowLabel = rowIndex + 1;
+          writeFieldFromPreview("bottomTitle", `${colLabel}${rowLabel}`);
+        } else if (activeElement.name === "leftTitle") {
+          const colLabel = getExcelColumnLabel(colIndex);
+          const rowLabel = rowIndex + 1;
+          writeFieldFromPreview("leftTitle", `${colLabel}${rowLabel}`);
+        } else if (activeElement.name === "legendPrefix") {
+          const colLabel = getExcelColumnLabel(colIndex);
+          const rowLabel = rowIndex + 1;
+          writeFieldFromPreview("legendPrefix", `${colLabel}${rowLabel}`);
         }
         return;
       }
@@ -898,7 +1018,7 @@ const TemplateManager = ({
 
       renderDragOverlay(cellEl, cellEl);
     },
-    [getExcelColumnLabel, renderDragOverlay],
+    [getExcelColumnLabel, renderDragOverlay, writeFieldFromPreview],
   );
 
   useEffect(() => {
@@ -1074,50 +1194,35 @@ const TemplateManager = ({
         </h2>
       </div>
 
-      <div className="bg-bg-surface border border-border rounded-xl p-8 shadow-sm">
+      <div
+        ref={containerRef}
+        className="bg-bg-surface border border-border rounded-xl p-8 shadow-sm"
+      >
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Configuration Panel */}
           <div className="lg:col-span-1 space-y-4">
             <div>
               <div className="flex items-center justify-start gap-3 mb-2">
-                <div className="bg-bg-page rounded-lg p-1 flex items-center border border-transparent">
-                  <button
-                    onClick={() => setTemplateMode("select")}
-                    onMouseEnter={() => setHoverMode("select")}
-                    onMouseLeave={() => setHoverMode(null)}
-                    className={`flex items-center justify-center gap-2 px-4 h-[38px] rounded-md text-sm font-medium transition-all w-24 ${
-                      (hoverMode || templateMode) === "select"
-                        ? "bg-white text-black shadow-sm"
-                        : "text-gray-500 hover:text-gray-900"
-                    }`}
-                  >
-                    <List size={16} />
-                    Select
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTemplateMode("save");
-                      setIsDropdownOpen(false);
-                    }}
-                    onMouseEnter={() => setHoverMode("save")}
-                    onMouseLeave={() => setHoverMode(null)}
-                    className={`flex items-center justify-center gap-2 px-4 h-[38px] rounded-md text-sm font-medium transition-all w-24 ${
-                      (hoverMode || templateMode) === "save"
-                        ? "bg-white text-black shadow-sm"
-                        : "text-gray-500 hover:text-gray-900"
-                    }`}
-                  >
-                    <Save size={16} />
-                    Save
-                  </button>
-                </div>
+                <ToggleButton
+                  value={templateMode}
+                  onChange={(val) => {
+                    setTemplateMode(val);
+                    if (val === "save") setIsDropdownOpen(false);
+                  }}
+                  a11yVariant="tabs"
+                  groupLabel="Template mode"
+                  options={[
+                    { value: "select", label: "Select", icon: List },
+                    { value: "save", label: "Save", icon: Save },
+                  ]}
+                />
               </div>
               <label className="block text-sm font-medium text-text-secondary mb-2">
                 General Template
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1 min-w-0" ref={dropdownRef}>
-                  <div className="flex items-center p-1 bg-bg-page border border-border rounded-lg shadow-sm transition-all relative z-10 focus-within:ring-2 focus-within:ring-accent/5 focus-within:border-accent">
+                  <div className="flex items-center p-1 bg-bg-page border border-border rounded-lg shadow-sm transition-all relative z-10">
                     <input
                       type="text"
                       name="templateName"
@@ -1125,7 +1230,9 @@ const TemplateManager = ({
                       spellCheck={false}
                       value={config.name}
                       onChange={(e) => {
-                        setConfig({ ...config, name: e.target.value });
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, name: next }));
+                        markFieldSource("name", "manual");
                         if (templateMode === "select" && !isDropdownOpen) {
                           setIsDropdownOpen(true);
                         }
@@ -1134,7 +1241,7 @@ const TemplateManager = ({
                         if (templateMode === "select") setIsDropdownOpen(true);
                       }}
                       placeholder="Template Name"
-                      className={`flex-1 min-w-0 pl-2 py-1.5 bg-transparent border-none text-text-primary text-sm focus:outline-none focus:ring-0 placeholder:text-text-secondary ${templateMode === "select" ? "pr-8" : "pr-2"}`}
+                      className={`flex-1 min-w-0 pl-2 py-1.5 bg-transparent border-none text-text-primary text-sm focus:outline-none focus:ring-0 placeholder:text-text-secondary no-focus-outline ${templateMode === "select" ? "pr-8" : "pr-2"}`}
                     />
 
                     {templateMode === "select" && (
@@ -1153,23 +1260,26 @@ const TemplateManager = ({
                     {templateMode === "save" && (
                       <button
                         onClick={handleSaveTemplate}
-                        disabled={!config.name.trim()}
-                        className="flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-md hover:scale-102 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 disabled:hover:scale-100 shadow-sm ml-2"
+                        disabled={
+                          !config.name.trim()
+                        }
+                        className="group relative flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-md active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 shadow-sm ml-2 before:content-[''] before:absolute before:inset-0 before:rounded-md before:bg-black before:pointer-events-none before:transition-transform hover:before:scale-[1.02] disabled:hover:before:scale-100"
                         title="Save Template"
                       >
-                        <span>Save</span>
-                        <ArrowUp size={16} />
+                        <span className="relative z-10">Save</span>
+                        <ArrowUp size={16} className="relative z-10" />
                       </button>
                     )}
                   </div>
 
                   {templateMode === "select" && isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto p-1.5 ring-1 ring-black/5">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto p-1.5">
                       <div
                         className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-1 text-accent"
                         onClick={() => {
                           setTemplateMode("save");
                           setIsDropdownOpen(false);
+                          setInputSources({});
                           setConfig({
                             name: "",
                             xDataStart: "",
@@ -1181,6 +1291,9 @@ const TemplateManager = ({
                             yCount: "",
                             yStep: "",
                             stopOnError: false,
+                            bottomTitle: "",
+                            leftTitle: "",
+                            legendPrefix: "",
                             selectedColumns: [],
                           });
                         }}
@@ -1207,7 +1320,7 @@ const TemplateManager = ({
                                 e.stopPropagation();
                                 handleDeleteTemplate(t.id);
                               }}
-                              className="p-1 text-gray-400 hover:text-red-500 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
+                              className="p-1 text-text-primary hover:text-red-500 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
                               title="Delete template"
                             >
                               <Trash2 size={14} />
@@ -1225,207 +1338,328 @@ const TemplateManager = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">
-                X Data
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <input
-                    type="text"
-                    name="xDataStart"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={config.xDataStart}
-                    disabled={isSelectMode}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        xDataStart: e.target.value,
-                      })
-                    }
-                    placeholder="Start"
-                    className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="xDataEnd"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={config.xDataEnd}
-                    disabled={isSelectMode}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        xDataEnd: e.target.value,
-                      })
-                    }
-                    onBlur={(e) => {
-                      const value = String(e.target.value ?? "").trim();
-                      if (!value) {
-                        const startCell = String(
-                          config.xDataStart ?? "",
-                        ).trim();
-                        setConfig((prev) => ({
-                          ...prev,
-                          xDataEnd: startCell ? "End" : "",
-                        }));
-                        return;
-                      }
-                      if (value.toLowerCase() === "end" && value !== "End") {
-                        setConfig((prev) => ({ ...prev, xDataEnd: "End" }));
-                      }
-                    }}
-                    placeholder="End"
-                    className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="xPoints"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={config.xPoints}
-                    disabled={isSelectMode}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        xPoints: e.target.value,
-                      })
-                    }
-                    placeholder="Points"
-                    className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
+            {templateMode === "save" && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  X data
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <input
+                      type="text"
+                      name="xDataStart"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={config.xDataStart}
+                      disabled={isSelectMode}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, xDataStart: next }));
+                        markFieldSource("xDataStart", "manual");
+                      }}
+                      placeholder="Start"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="xDataEnd"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={config.xDataEnd}
+                      disabled={isSelectMode}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, xDataEnd: next }));
+                        markFieldSource("xDataEnd", "manual");
+                      }}
+                      onBlur={(e) => {
+                        const value = String(e.target.value ?? "").trim();
+                        if (!value) {
+                          const startCell = String(
+                            config.xDataStart ?? "",
+                          ).trim();
+                          setConfig((prev) => ({
+                            ...prev,
+                            xDataEnd: startCell ? "End" : "",
+                          }));
+                          return;
+                        }
+                        if (value.toLowerCase() === "end" && value !== "End") {
+                          setConfig((prev) => ({ ...prev, xDataEnd: "End" }));
+                        }
+                      }}
+                      placeholder="End"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="xPoints"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={config.xPoints}
+                      disabled={isSelectMode}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, xPoints: next }));
+                        markFieldSource("xPoints", "manual");
+                      }}
+                      placeholder="Points"
+                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">
-                Y Data
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
-                <div className="sm:col-span-2">
-                  <input
-                    type="text"
-                    readOnly
-                    disabled
-                    value={
-                      config.selectedColumns.length > 0
-                        ? config.selectedColumns
+            {templateMode === "save" && (
+              <div className="mt-2">
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
+                      Var1
+                    </label>
+                    <input
+                      type="text"
+                      value={config.bottomTitle || ""}
+                      name="bottomTitle"
+                      autoComplete="off"
+                      disabled={disableVarInputs}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, bottomTitle: next }));
+                        markFieldSource("bottomTitle", "manual");
+                      }}
+                      onBlur={toastVarPairIfInvalid}
+                      placeholder="Curve type"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
+                      Var2
+                    </label>
+                    <input
+                      type="text"
+                      value={config.legendPrefix || ""}
+                      name="legendPrefix"
+                      autoComplete="off"
+                      disabled={disableVarInputs}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, legendPrefix: next }));
+                        markFieldSource("legendPrefix", "manual");
+                      }}
+                      onBlur={toastVarPairIfInvalid}
+                      placeholder="Legend"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
+                      Var3
+                    </label>
+                    <input
+                      type="text"
+                      value={config.leftTitle || ""}
+                      name="leftTitle"
+                      autoComplete="off"
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, leftTitle: next }));
+                        markFieldSource("leftTitle", "manual");
+                      }}
+                      placeholder="Left Title"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all no-focus-outline"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                    Match file name
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <input
+                        type="text"
+                        value={config.fileNameVgKeywords || ""}
+                        name="fileNameVgKeywords"
+                        autoComplete="off"
+                        disabled={disableFileNameInputs}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setConfig((prev) => ({
+                            ...prev,
+                            fileNameVgKeywords: next,
+                          }));
+                          markFieldSource("fileNameVgKeywords", "manual");
+                        }}
+                        placeholder="Transfer"
+                        className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={config.fileNameVdKeywords || ""}
+                        name="fileNameVdKeywords"
+                        autoComplete="off"
+                        disabled={disableFileNameInputs}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setConfig((prev) => ({
+                            ...prev,
+                            fileNameVdKeywords: next,
+                          }));
+                          markFieldSource("fileNameVdKeywords", "manual");
+                        }}
+                        placeholder="Output"
+                        className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      />
+                    </div>
+                  </div>
+                  {curveTaggingConflict && (
+                    <p className="text-xs text-red-600 mt-1">
+                      Var1/Var2 and file-name keywords cannot be used together.
+                      Please clear one.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {templateMode === "save" && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  Y data
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={
+                        config.selectedColumns.length > 0
+                          ? config.selectedColumns
                             .slice()
                             .sort((a, b) => a - b)
                             .map((col) => getExcelColumnLabel(col))
                             .join(", ")
-                        : ""
-                    }
-                    placeholder="Check columns"
-                    className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm focus:outline-none disabled:opacity-70 disabled:bg-gray-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="yPoints"
-                    value={config.xPoints || config.yPoints}
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={isSelectMode || !!config.xPoints}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        yPoints: e.target.value,
-                      })
-                    }
-                    placeholder="Points"
-                    className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="yDataStart"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={config.yDataStart}
-                    disabled={isSelectMode}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        yDataStart: e.target.value,
-                      })
-                    }
-                    placeholder="Start"
-                    className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="yCount"
-                    value={config.yCount}
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={isSelectMode}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        yCount: e.target.value,
-                      })
-                    }
-                    placeholder="Count"
-                    className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="yStep"
-                    value={config.yStep}
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={isSelectMode}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        yStep: e.target.value,
-                      })
-                    }
-                    placeholder="Step"
-                    className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent/5 focus:border-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
+                          : ""
+                      }
+                      placeholder="Check columns"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm focus:outline-none disabled:opacity-70 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="yPoints"
+                      value={config.xPoints || config.yPoints}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={isSelectMode || !!config.xPoints}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, yPoints: next }));
+                        markFieldSource("yPoints", "manual");
+                      }}
+                      placeholder="Points"
+                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="yDataStart"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={config.yDataStart}
+                      disabled={isSelectMode}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, yDataStart: next }));
+                        markFieldSource("yDataStart", "manual");
+                      }}
+                      placeholder="Start"
+                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="yCount"
+                      value={config.yCount}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={isSelectMode}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, yCount: next }));
+                        markFieldSource("yCount", "manual");
+                      }}
+                      placeholder="Count"
+                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="yStep"
+                      value={config.yStep}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={isSelectMode}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setConfig((prev) => ({ ...prev, yStep: next }));
+                        markFieldSource("yStep", "manual");
+                      }}
+                      placeholder="Step"
+                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <button
-              onClick={applyConfiguration}
-              className="w-full py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover active:scale-[0.98] transition-all shadow-lg shadow-accent/20 mt-4 hover:-translate-y-0.5"
-            >
-              Apply to All Files
-            </button>
+            {templateMode !== "save" && (
+              <button
+                onClick={applyConfiguration}
+                className="w-full py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover active:scale-[0.98] transition-all shadow-lg shadow-accent/20 mt-4 hover:-translate-y-0.5"
+              >
+                Apply to All Files
+              </button>
+            )}
 
-            <div
-              onClick={() =>
-                setConfig((prev) => ({
-                  ...prev,
-                  stopOnError: !prev.stopOnError,
-                }))
-              }
-              className="mt-3 flex items-center gap-2 text-sm text-text-secondary select-none cursor-pointer group w-fit"
-            >
-              {config.stopOnError ? (
-                <div className="w-[18px] h-[18px] rounded bg-terracotta border-2 border-terracotta flex items-center justify-center transition-all">
-                  <Check size={14} className="text-white" strokeWidth={3} />
-                </div>
-              ) : (
-                <div className="w-[18px] h-[18px] rounded border-2 border-gray-300 group-hover:border-terracotta/50 transition-colors bg-white" />
-              )}
-              <span>Stop on first invalid file</span>
-            </div>
+            {templateMode === "select" && (
+              <div
+                onClick={() =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    stopOnError: !prev.stopOnError,
+                  }))
+                }
+                className="mt-3 flex items-center gap-2 text-sm text-text-secondary select-none cursor-pointer group w-fit"
+              >
+                {config.stopOnError ? (
+                  <div className="w-[18px] h-[18px] rounded bg-terracotta border-2 border-terracotta flex items-center justify-center transition-all">
+                    <Check size={14} className="text-white" strokeWidth={3} />
+                  </div>
+                ) : (
+                  <div className="w-[18px] h-[18px] rounded border-2 border-gray-300 group-hover:border-terracotta/50 transition-colors bg-white" />
+                )}
+                <span>Stop on first invalid file</span>
+              </div>
+            )}
+
+
           </div>
 
           {/* Preview Panel */}
@@ -1496,19 +1730,31 @@ const TemplateManager = ({
                   >
                     <colgroup>
                       <col style={{ width: PREVIEW_ROW_INDEX_COL_PX }} />
-                      {columnIndices.map((idx) => (
+                      {hasLeftColSpacer && (
+                        <col style={{ width: previewColWindow.leftSpacerPx }} />
+                      )}
+                      {visibleColumnIndices.map((idx) => (
                         <col
                           key={idx}
                           style={{
-                            width: `var(--da-preview-col-${idx}-w, ${getColumnWidthPx(idx)}px)`,
+                            width: `var(--da-preview-col-${idx}-w, ${columnWidthsPx[idx] ?? PREVIEW_COL_MIN_PX}px)`,
                           }}
                         />
                       ))}
+                      {hasRightColSpacer && (
+                        <col style={{ width: previewColWindow.rightSpacerPx }} />
+                      )}
                     </colgroup>
                     <thead className="bg-bg-surface sticky top-0 z-30 shadow-sm">
                       <tr>
                         <th className="p-1 border-b border-r border-border bg-bg-surface w-12 text-center font-bold text-xs text-text-secondary select-none sticky left-0 top-0 z-40"></th>
-                        {columnIndices.map((idx) => {
+                        {hasLeftColSpacer && (
+                          <th
+                            aria-hidden="true"
+                            className="p-0 border-b border-r border-border bg-bg-surface"
+                          />
+                        )}
+                        {visibleColumnIndices.map((idx) => {
                           const isSelected = selectedColumnsSet.has(idx);
                           return (
                             <th
@@ -1558,13 +1804,19 @@ const TemplateManager = ({
                             </th>
                           );
                         })}
+                        {hasRightColSpacer && (
+                          <th
+                            aria-hidden="true"
+                            className="p-0 border-b border-border bg-bg-surface"
+                          />
+                        )}
                       </tr>
                     </thead>
                     <tbody>
                       {previewWindow.topSpacerHeight > 0 && (
                         <tr aria-hidden="true">
                           <td
-                            colSpan={columnIndices.length + 1}
+                            colSpan={previewRenderColCount}
                             className="p-0 border-0"
                             style={{ height: previewWindow.topSpacerHeight }}
                           />
@@ -1594,7 +1846,13 @@ const TemplateManager = ({
                             <td className="p-1 h-7 border-b border-r border-border font-mono text-xs text-center select-none bg-bg-surface text-text-secondary w-12 align-middle sticky left-0 z-10">
                               {rowLabel}
                             </td>
-                            {columnIndices.map((idx) => {
+                            {hasLeftColSpacer && (
+                              <td
+                                aria-hidden="true"
+                                className="p-0 h-7 border-b border-r border-border bg-transparent"
+                              />
+                            )}
+                            {visibleColumnIndices.map((idx) => {
                               const cell = rowCells[idx] ?? "";
                               const raw = isRowLoaded ? String(cell) : "";
                               const display = isRowLoaded
@@ -1617,13 +1875,19 @@ const TemplateManager = ({
                                 </td>
                               );
                             })}
+                            {hasRightColSpacer && (
+                              <td
+                                aria-hidden="true"
+                                className="p-0 h-7 border-b border-border bg-transparent"
+                              />
+                            )}
                           </tr>
                         );
                       })}
                       {previewWindow.bottomSpacerHeight > 0 && (
                         <tr aria-hidden="true">
                           <td
-                            colSpan={columnIndices.length + 1}
+                            colSpan={previewRenderColCount}
                             className="p-0 border-0"
                             style={{ height: previewWindow.bottomSpacerHeight }}
                           />
@@ -1658,10 +1922,11 @@ const TemplateManager = ({
           isVisible={toast.isVisible}
           onClose={closeToast}
           type={toast.type}
-          position="fixed"
+          containerRef={containerRef}
+          position="absolute"
         />
       </div>
-    </div>
+    </div >
   );
 };
 

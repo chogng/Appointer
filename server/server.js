@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import bcrypt from "bcrypt";
@@ -11,6 +11,8 @@ import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Readable } from "stream";
+import net from "net";
+import { lookup as dnsLookup } from "dns/promises";
 
 import { db } from "./src/config/db.js";
 import { DEFAULT_CLIENT_ORIGIN, JWT_SECRET } from "./src/config/env.js";
@@ -88,9 +90,33 @@ function sanitizeDeviceAnalysisTemplateConfig(input) {
 
   const selectedColumns = Array.isArray(src.selectedColumns)
     ? src.selectedColumns
-        .map((value) => Number(value))
-        .filter((value) => Number.isInteger(value) && value >= 0)
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value >= 0)
     : [];
+
+  const vgKeywordRaw = src.vgKeyword == null ? "" : String(src.vgKeyword).trim();
+  const vdKeywordRaw = src.vdKeyword == null ? "" : String(src.vdKeyword).trim();
+
+  // Back-compat: some clients send Var1/Var2 as bottomTitle/legendPrefix instead of vgKeyword/vdKeyword.
+  const bottomTitleRaw = src.bottomTitle == null ? "" : String(src.bottomTitle).trim();
+  const legendPrefixRaw = src.legendPrefix == null ? "" : String(src.legendPrefix).trim();
+  const bottomTitle = bottomTitleRaw || vgKeywordRaw;
+  const legendPrefix = legendPrefixRaw || vdKeywordRaw;
+
+  const leftTitle = src.leftTitle == null ? "" : String(src.leftTitle).trim();
+  const matchPattern = src.matchPattern == null ? "" : String(src.matchPattern).trim();
+  const fileNameVgKeywords =
+    src.fileNameVgKeywords == null
+      ? src.vgFileKeywords == null
+        ? ""
+        : String(src.vgFileKeywords).trim()
+      : String(src.fileNameVgKeywords).trim();
+  const fileNameVdKeywords =
+    src.fileNameVdKeywords == null
+      ? src.vdFileKeywords == null
+        ? ""
+        : String(src.vdFileKeywords).trim()
+      : String(src.fileNameVdKeywords).trim();
 
   return {
     name,
@@ -103,18 +129,60 @@ function sanitizeDeviceAnalysisTemplateConfig(input) {
     yCount: src.yCount == null ? "" : String(src.yCount),
     yStep: src.yStep == null ? "" : String(src.yStep),
     stopOnError: Boolean(src.stopOnError),
+    bottomTitle,
+    legendPrefix,
+    leftTitle,
+    matchPattern,
+    fileNameVgKeywords,
+    fileNameVdKeywords,
+    vgKeyword: bottomTitle,
+    vdKeyword: legendPrefix,
     selectedColumns,
   };
 }
 
 function sanitizeDeviceAnalysisSettings(input) {
   const src = isPlainObject(input) ? input : {};
-  const yUnitRaw = src.yUnit;
-  const yUnit =
-    yUnitRaw === "A" || yUnitRaw === "uA" || yUnitRaw === "nA"
-      ? yUnitRaw
-      : null;
-  return { yUnit };
+  const patch = {};
+  const errors = [];
+
+  const has = (key) => Object.prototype.hasOwnProperty.call(src, key);
+
+  if (has("yUnit")) {
+    const yUnitRaw = src.yUnit;
+    const yUnit =
+      yUnitRaw === "A" || yUnitRaw === "uA" || yUnitRaw === "nA"
+        ? yUnitRaw
+        : null;
+    if (!yUnit) errors.push("yUnit");
+    else patch.yUnit = yUnit;
+  }
+
+  if (has("ssMethodDefault")) {
+    const raw = src.ssMethodDefault;
+    const method = typeof raw === "string" ? raw.trim() : String(raw || "").trim();
+    const allowed = new Set(["auto", "manual", "idWindow", "legacy"]);
+    if (!allowed.has(method)) errors.push("ssMethodDefault");
+    else patch.ssMethodDefault = method;
+  }
+
+  if (has("ssDiagnosticsEnabled")) {
+    patch.ssDiagnosticsEnabled = src.ssDiagnosticsEnabled ? 1 : 0;
+  }
+
+  if (has("ssIdLow")) {
+    const n = typeof src.ssIdLow === "number" ? src.ssIdLow : Number(src.ssIdLow);
+    if (!Number.isFinite(n) || n <= 0) errors.push("ssIdLow");
+    else patch.ssIdLow = n;
+  }
+
+  if (has("ssIdHigh")) {
+    const n = typeof src.ssIdHigh === "number" ? src.ssIdHigh : Number(src.ssIdHigh);
+    if (!Number.isFinite(n) || n <= 0) errors.push("ssIdHigh");
+    else patch.ssIdHigh = n;
+  }
+
+  return { patch, errors };
 }
 
 function sanitizeLiteratureSettings(input) {
@@ -122,10 +190,10 @@ function sanitizeLiteratureSettings(input) {
 
   const seedUrls = Array.isArray(src.seedUrls)
     ? src.seedUrls
-        .map((value) => (value == null ? "" : String(value)))
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .slice(0, 50)
+      .map((value) => (value == null ? "" : String(value)))
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, 50)
     : [];
 
   const startDate = isValidDateString(src.startDate) ? src.startDate : "";
@@ -138,7 +206,157 @@ function sanitizeLiteratureSettings(input) {
     ? Math.max(1, Math.min(100, Math.trunc(maxResultsNumber)))
     : 100;
 
-  return { seedUrls, startDate, endDate, maxResults };
+  const translationApiKeyRaw = Object.prototype.hasOwnProperty.call(src, "translationApiKey")
+    ? src.translationApiKey
+    : src.bigmodelApiKey;
+  const translationApiKey =
+    typeof translationApiKeyRaw === "string"
+      ? translationApiKeyRaw.trim()
+      : translationApiKeyRaw == null
+        ? ""
+        : String(translationApiKeyRaw).trim();
+
+  const translationModelRaw = Object.prototype.hasOwnProperty.call(src, "translationModel")
+    ? src.translationModel
+    : src.bigmodelModel;
+  const translationModel =
+    typeof translationModelRaw === "string"
+      ? translationModelRaw.trim()
+      : translationModelRaw == null
+        ? ""
+        : String(translationModelRaw).trim();
+
+  const translationProviderRaw = src.translationProvider;
+  const translationProvider =
+    typeof translationProviderRaw === "string"
+      ? translationProviderRaw.trim()
+      : translationProviderRaw == null
+        ? ""
+        : String(translationProviderRaw).trim();
+
+  const translationBaseUrlRaw = src.translationBaseUrl;
+  const translationBaseUrl =
+    typeof translationBaseUrlRaw === "string"
+      ? translationBaseUrlRaw.trim()
+      : translationBaseUrlRaw == null
+        ? ""
+        : String(translationBaseUrlRaw).trim();
+
+  return {
+    seedUrls,
+    startDate,
+    endDate,
+    maxResults,
+    translationApiKey: translationApiKey || null,
+    translationProvider: translationProvider ? translationProvider.toLowerCase() : null,
+    translationModel: translationModel || null,
+    translationBaseUrl: translationBaseUrl || null,
+  };
+}
+
+function mergeLiteratureSettings(existingSettings, patchInput) {
+  const existing = isPlainObject(existingSettings) ? existingSettings : {};
+  const patch = isPlainObject(patchInput) ? patchInput : {};
+  const sanitized = sanitizeLiteratureSettings(patch);
+
+  const next = { ...existing };
+
+  if (!Object.prototype.hasOwnProperty.call(next, "translationApiKey")) {
+    const legacyKey =
+      typeof next.bigmodelApiKey === "string" ? next.bigmodelApiKey.trim() : "";
+    if (legacyKey) next.translationApiKey = legacyKey;
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(next, "translationModel")) {
+    const legacyModel =
+      typeof next.bigmodelModel === "string" ? next.bigmodelModel.trim() : "";
+    if (legacyModel) next.translationModel = legacyModel;
+  }
+
+  delete next.bigmodelApiKey;
+  delete next.bigmodelModel;
+
+  if (Object.prototype.hasOwnProperty.call(patch, "seedUrls")) {
+    next.seedUrls = sanitized.seedUrls;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "startDate")) {
+    next.startDate = sanitized.startDate;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "endDate")) {
+    next.endDate = sanitized.endDate;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "maxResults")) {
+    next.maxResults = sanitized.maxResults;
+  }
+  const wantsTranslationApiKey =
+    Object.prototype.hasOwnProperty.call(patch, "translationApiKey") ||
+    Object.prototype.hasOwnProperty.call(patch, "bigmodelApiKey");
+  if (wantsTranslationApiKey) {
+    next.translationApiKey = sanitized.translationApiKey;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, "translationProvider")) {
+    next.translationProvider = sanitized.translationProvider;
+  }
+
+  const wantsTranslationModel =
+    Object.prototype.hasOwnProperty.call(patch, "translationModel") ||
+    Object.prototype.hasOwnProperty.call(patch, "bigmodelModel");
+  if (wantsTranslationModel) {
+    next.translationModel = sanitized.translationModel;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, "translationBaseUrl")) {
+    next.translationBaseUrl = sanitized.translationBaseUrl;
+  }
+
+  if (!Array.isArray(next.seedUrls)) next.seedUrls = [];
+  if (typeof next.startDate !== "string") next.startDate = "";
+  if (typeof next.endDate !== "string") next.endDate = "";
+  const maxResultsNumber = Number(next.maxResults);
+  next.maxResults = Number.isFinite(maxResultsNumber)
+    ? Math.max(1, Math.min(100, Math.trunc(maxResultsNumber)))
+    : 100;
+
+  if (typeof next.translationApiKey !== "string") {
+    next.translationApiKey = next.translationApiKey ? String(next.translationApiKey) : null;
+  }
+  if (typeof next.translationApiKey === "string") {
+    const trimmed = next.translationApiKey.trim();
+    next.translationApiKey = trimmed ? trimmed : null;
+  }
+
+  if (typeof next.translationProvider !== "string") {
+    next.translationProvider = next.translationProvider ? String(next.translationProvider) : null;
+  }
+  if (typeof next.translationProvider === "string") {
+    const trimmed = next.translationProvider.trim().toLowerCase();
+    if (!trimmed) {
+      next.translationProvider = null;
+    } else {
+      if (trimmed.length > 100) throw new Error("translationProvider is too long");
+      if (/[\r\n]/.test(trimmed)) throw new Error("translationProvider must be single-line");
+      next.translationProvider = trimmed;
+    }
+  }
+
+  if (typeof next.translationModel !== "string") {
+    next.translationModel = next.translationModel ? String(next.translationModel) : null;
+  }
+  if (typeof next.translationModel === "string") {
+    const trimmed = next.translationModel.trim();
+    next.translationModel = trimmed ? trimmed : null;
+  }
+
+  if (typeof next.translationBaseUrl !== "string") {
+    next.translationBaseUrl = next.translationBaseUrl ? String(next.translationBaseUrl) : null;
+  }
+  if (typeof next.translationBaseUrl === "string") {
+    const trimmed = next.translationBaseUrl.trim();
+    next.translationBaseUrl = trimmed ? trimmed : null;
+  }
+
+  return next;
 }
 
 function makeId(prefix) {
@@ -147,6 +365,400 @@ function makeId(prefix) {
 
 const LITERATURE_DOWNLOAD_TTL_MS = 60 * 60 * 1000;
 const literatureDownloadTokens = new Map();
+
+const LITERATURE_TRANSLATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const literatureTranslationCache = new Map();
+
+const SYSTEM_SETTINGS_KEYS = {
+  literatureDefaultTranslationApiKey: "literature.translationApiKeyDefault",
+  literatureDefaultTranslationModel: "literature.translationModelDefault",
+  literatureDefaultTranslationBaseUrl: "literature.translationBaseUrlDefault",
+  literatureTranslationProvider: "literature.translationProvider",
+};
+
+const LEGACY_SYSTEM_SETTINGS_KEYS = {
+  literatureDefaultTranslationApiKey: "literature.bigmodelApiKeyDefault",
+  literatureDefaultTranslationModel: "literature.bigmodelModelDefault",
+};
+
+// Built-in providers; any other provider value is treated as OpenAI-compatible and requires a base URL.
+const SUPPORTED_TRANSLATION_PROVIDERS = ["bigmodel", "openai", "openai_compatible"];
+
+function normalizeTranslationBaseUrl(value) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) return null;
+  if (trimmed.length > 2000) throw new Error("translationBaseUrl is too long");
+
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("translationBaseUrl must be a valid URL");
+  }
+
+  if (url.username || url.password) {
+    throw new Error("translationBaseUrl must not include credentials");
+  }
+  if (url.protocol !== "https:") {
+    throw new Error("translationBaseUrl must use https");
+  }
+  if (url.port && url.port !== "443") {
+    throw new Error("translationBaseUrl must use port 443");
+  }
+
+  url.hash = "";
+  url.search = "";
+
+  const normalizedPath = String(url.pathname || "/").replace(/\/+$/, "");
+  const basePath = normalizedPath === "/" ? "" : normalizedPath;
+
+  return `${url.origin}${basePath}`;
+}
+
+function isPrivateOrLocalHostname(hostname) {
+  const host = String(hostname || "").trim().toLowerCase();
+  if (!host) return true;
+  if (host === "localhost") return true;
+  if (host.endsWith(".localhost")) return true;
+  if (host.endsWith(".local")) return true;
+  if (host === "0") return true;
+  return false;
+}
+
+function isPrivateIpAddress(address) {
+  const ip = String(address || "").trim();
+  const ipVersion = net.isIP(ip);
+  if (!ipVersion) return false;
+
+  if (ipVersion === 4) {
+    const parts = ip.split(".").map((p) => Number(p));
+    if (parts.length !== 4 || parts.some((p) => !Number.isFinite(p) || p < 0 || p > 255)) return true;
+    const [a, b, c] = parts;
+
+    if (a === 0) return true;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a === 198 && (b === 18 || b === 19)) return true;
+
+    if (a === 192 && b === 0 && c === 0) return true;
+    if (a === 192 && b === 0 && c === 2) return true;
+    if (a === 198 && b === 51 && c === 100) return true;
+    if (a === 203 && b === 0 && c === 113) return true;
+
+    if (a >= 224) return true;
+    return false;
+  }
+
+  const normalized = ip.toLowerCase();
+  if (normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true; // unique local
+  if (normalized.startsWith("fe80")) return true; // link-local
+  return false;
+}
+
+async function validateTranslationBaseUrl(value) {
+  const normalized = normalizeTranslationBaseUrl(value);
+  if (!normalized) return null;
+
+  const url = new URL(normalized);
+  const hostname = url.hostname;
+  if (isPrivateOrLocalHostname(hostname)) {
+    throw new Error("translationBaseUrl hostname is not allowed");
+  }
+
+  if (net.isIP(hostname)) {
+    if (isPrivateIpAddress(hostname)) throw new Error("translationBaseUrl IP is not allowed");
+    return normalized;
+  }
+
+  const results = await dnsLookup(hostname, { all: true, verbatim: true }).catch(() => null);
+  if (!Array.isArray(results) || results.length === 0) {
+    throw new Error("translationBaseUrl hostname could not be resolved");
+  }
+  for (const entry of results) {
+    const addr = entry?.address;
+    if (!addr) continue;
+    if (isPrivateIpAddress(addr)) {
+      throw new Error("translationBaseUrl resolves to a private IP");
+    }
+  }
+
+  return normalized;
+}
+
+function maskApiKey(value) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return null;
+  if (raw.length <= 8) return "********";
+  return `****${raw.slice(-4)}`;
+}
+
+async function getSystemSettingValue(db, key) {
+  const row = await db.queryOne(
+    "SELECT value, updatedAt FROM system_settings WHERE `key` = ?",
+    [key],
+  );
+  return row ? { value: row.value ?? null, updatedAt: row.updatedAt ?? null } : null;
+}
+
+async function upsertSystemSettingValue(db, key, value, nowIso) {
+  const val = String(value ?? "");
+
+  if (db.dialect === "mysql") {
+    await db.execute(
+      "INSERT INTO system_settings (`key`, value, updatedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = ?, updatedAt = ?",
+      [key, val, nowIso, val, nowIso],
+    );
+    return;
+  }
+
+  await db.execute(
+    "INSERT OR REPLACE INTO system_settings (key, value, updatedAt) VALUES (?, ?, ?)",
+    [key, val, nowIso],
+  );
+}
+
+async function deleteSystemSetting(db, key) {
+  await db.execute("DELETE FROM system_settings WHERE `key` = ?", [key]);
+}
+
+async function getDefaultTranslationApiKey(db) {
+  const row = await getSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey,
+  );
+  const raw = typeof row?.value === "string" ? row.value.trim() : "";
+  if (raw) {
+    return {
+      key: raw,
+      hasKey: Boolean(raw),
+      updatedAt: row?.updatedAt || null,
+    };
+  }
+
+  const legacyRow = await getSystemSettingValue(
+    db,
+    LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey,
+  );
+  const legacyRaw = typeof legacyRow?.value === "string" ? legacyRow.value.trim() : "";
+  if (!legacyRaw) {
+    if (legacyRow) {
+      await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey);
+    }
+    return {
+      key: "",
+      hasKey: false,
+      updatedAt: row?.updatedAt || legacyRow?.updatedAt || null,
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  await upsertSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey,
+    legacyRaw,
+    nowIso,
+  );
+  await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey);
+
+  return {
+    key: legacyRaw,
+    hasKey: true,
+    updatedAt: legacyRow?.updatedAt || nowIso,
+  };
+}
+
+async function setDefaultTranslationApiKey(db, value, nowIso) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) {
+    await deleteSystemSetting(db, SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey);
+    await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey);
+    return { hasKey: false, masked: null, updatedAt: nowIso };
+  }
+
+  await upsertSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey,
+    trimmed,
+    nowIso,
+  );
+  await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationApiKey);
+  return { hasKey: true, masked: maskApiKey(trimmed), updatedAt: nowIso };
+}
+
+async function getDefaultTranslationModel(db) {
+  const row = await getSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel,
+  );
+  const raw = typeof row?.value === "string" ? row.value.trim() : "";
+  if (raw) {
+    return {
+      model: raw,
+      hasModel: Boolean(raw),
+      updatedAt: row?.updatedAt || null,
+    };
+  }
+
+  const legacyRow = await getSystemSettingValue(
+    db,
+    LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel,
+  );
+  const legacyRaw = typeof legacyRow?.value === "string" ? legacyRow.value.trim() : "";
+  if (!legacyRaw) {
+    if (legacyRow) {
+      await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel);
+    }
+    return {
+      model: "",
+      hasModel: false,
+      updatedAt: row?.updatedAt || legacyRow?.updatedAt || null,
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  await upsertSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel,
+    legacyRaw,
+    nowIso,
+  );
+  await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel);
+
+  return {
+    model: legacyRaw,
+    hasModel: true,
+    updatedAt: legacyRow?.updatedAt || nowIso,
+  };
+}
+
+async function setDefaultTranslationModel(db, value, nowIso) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) {
+    await deleteSystemSetting(db, SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel);
+    await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel);
+    return { hasModel: false, model: null, updatedAt: nowIso };
+  }
+
+  await upsertSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel,
+    trimmed,
+    nowIso,
+  );
+  await deleteSystemSetting(db, LEGACY_SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationModel);
+  return { hasModel: true, model: trimmed, updatedAt: nowIso };
+}
+
+async function getDefaultTranslationBaseUrl(db) {
+  const row = await getSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationBaseUrl,
+  );
+  const raw = typeof row?.value === "string" ? row.value.trim() : "";
+  return {
+    baseUrl: raw,
+    hasBaseUrl: Boolean(raw),
+    updatedAt: row?.updatedAt || null,
+  };
+}
+
+async function setDefaultTranslationBaseUrl(db, value, nowIso) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) {
+    await deleteSystemSetting(db, SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationBaseUrl);
+    return { hasBaseUrl: false, baseUrl: null, updatedAt: nowIso };
+  }
+
+  const validated = await validateTranslationBaseUrl(trimmed);
+  await upsertSystemSettingValue(
+    db,
+    SYSTEM_SETTINGS_KEYS.literatureDefaultTranslationBaseUrl,
+    validated,
+    nowIso,
+  );
+  return { hasBaseUrl: true, baseUrl: validated, updatedAt: nowIso };
+}
+
+async function getTranslationProvider(db) {
+  const row = await getSystemSettingValue(db, SYSTEM_SETTINGS_KEYS.literatureTranslationProvider);
+  const raw = typeof row?.value === "string" ? row.value.trim().toLowerCase() : "";
+  const provider = raw || "bigmodel";
+  return {
+    provider,
+    hasProvider: Boolean(raw),
+    updatedAt: row?.updatedAt || null,
+    supportedProviders: SUPPORTED_TRANSLATION_PROVIDERS.slice(),
+  };
+}
+
+async function setTranslationProvider(db, value, nowIso) {
+  const trimmed = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (!trimmed) {
+    throw new Error("translationProvider is required");
+  }
+  if (trimmed.length > 100) {
+    throw new Error("translationProvider is too long");
+  }
+  if (/[\r\n]/.test(trimmed)) {
+    throw new Error("translationProvider must be single-line");
+  }
+
+  await upsertSystemSettingValue(db, SYSTEM_SETTINGS_KEYS.literatureTranslationProvider, trimmed, nowIso);
+  return {
+    provider: trimmed,
+    hasProvider: true,
+    updatedAt: nowIso,
+    supportedProviders: SUPPORTED_TRANSLATION_PROVIDERS.slice(),
+  };
+}
+
+function cleanupLiteratureTranslationCache() {
+  const now = Date.now();
+  for (const [key, entry] of literatureTranslationCache.entries()) {
+    if (!entry?.createdAt) {
+      literatureTranslationCache.delete(key);
+      continue;
+    }
+    if (now - entry.createdAt > LITERATURE_TRANSLATION_TTL_MS) {
+      literatureTranslationCache.delete(key);
+    }
+  }
+}
+
+function makeLiteratureTranslationCacheKey({ userId, id, text, model, targetLang, provider, baseUrl }) {
+  const normalizedUserId = String(userId || "");
+  const normalizedId = typeof id === "string" && id.trim() ? id.trim() : "";
+  const normalizedText = typeof text === "string" ? text.trim() : "";
+  const normalizedModel = typeof model === "string" && model.trim()
+    ? model.trim()
+    : "glm-4.5-flash";
+  const normalizedProvider = typeof provider === "string" && provider.trim()
+    ? provider.trim().toLowerCase()
+    : "bigmodel";
+  const normalizedBaseUrl = typeof baseUrl === "string" ? baseUrl.trim() : "";
+  const normalizedTargetLang = String(targetLang || "").trim().toLowerCase();
+  const target = normalizedTargetLang.startsWith("en") ? "en" : "zh";
+
+  const stableTextHash = createHash("sha256")
+    .update(normalizedText, "utf8")
+    .digest("hex")
+    .slice(0, 16);
+
+  const stableBaseHash = normalizedBaseUrl
+    ? createHash("sha256")
+      .update(normalizedBaseUrl, "utf8")
+      .digest("hex")
+      .slice(0, 12)
+    : "none";
+
+  const itemKey = normalizedId ? `id:${normalizedId}` : `h:${stableTextHash}`;
+  return `${normalizedUserId}|${itemKey}|to:${target}|p:${normalizedProvider}|model:${normalizedModel}|base:${stableBaseHash}`;
+}
 
 function cleanupLiteratureDownloadTokens() {
   const now = Date.now();
@@ -161,7 +773,7 @@ function cleanupLiteratureDownloadTokens() {
   }
 }
 
-function sanitizeFilename(value) {
+function _sanitizeFilename(value) {
   const raw = typeof value === "string" ? value : String(value || "");
   const sanitized = raw
     .replace(/[\\/:*?"<>|]+/g, "_")
@@ -170,7 +782,7 @@ function sanitizeFilename(value) {
   return sanitized || "article";
 }
 
-function createLiteratureDownloadToken({ url, filename }) {
+function _createLiteratureDownloadToken({ url, filename }) {
   cleanupLiteratureDownloadTokens();
   const token = randomUUID();
   literatureDownloadTokens.set(token, {
@@ -191,7 +803,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 12_000) {
   }
 }
 
-async function probePdfUrl(pdfUrl) {
+async function _probePdfUrl(pdfUrl) {
   if (typeof pdfUrl !== "string" || !pdfUrl) {
     return { ok: false, status: 0, contentType: "" };
   }
@@ -220,7 +832,360 @@ async function probePdfUrl(pdfUrl) {
   }
 }
 
-async function mapWithConcurrency(items, concurrency, mapper) {
+const BIGMODEL_CHAT_COMPLETIONS_URL =
+  "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
+const BIGMODEL_TRANSLATION_MODEL = "glm-4.5-flash";
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterToMs(retryAfter) {
+  if (retryAfter == null) return null;
+  const raw = String(retryAfter).trim();
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) {
+    const seconds = Number(raw);
+    if (!Number.isFinite(seconds) || seconds < 0) return null;
+    return seconds * 1000;
+  }
+  const date = new Date(raw);
+  const time = date.getTime();
+  if (!Number.isFinite(time)) return null;
+  const diff = time - Date.now();
+  return diff > 0 ? diff : 0;
+}
+
+function isRetryableBigModelError(error) {
+  const status = Number(error?.status);
+  if (
+    status === 408 ||
+    status === 409 ||
+    status === 425 ||
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  ) {
+    return true;
+  }
+
+  const message = String(error?.message || "");
+  if (message.includes("请求过多") || message.toLowerCase().includes("rate")) {
+    return true;
+  }
+
+  if (error?.name === "AbortError") return true;
+  return false;
+}
+
+function isRetryableOpenAIError(error) {
+  const status = Number(error?.status);
+  if (
+    status === 408 ||
+    status === 409 ||
+    status === 425 ||
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  ) {
+    return true;
+  }
+
+  const message = String(error?.message || "");
+  if (message.toLowerCase().includes("rate") || message.includes("请求过多")) {
+    return true;
+  }
+
+  if (error?.name === "AbortError") return true;
+  return false;
+}
+
+async function translateWithBigModel(apiKey, text, targetLang = "zh", model = BIGMODEL_TRANSLATION_MODEL) {
+  const key = typeof apiKey === "string" ? apiKey.trim() : "";
+  if (!key) throw new Error("BigModel API key is not configured");
+
+  const inputText = typeof text === "string" ? text.trim() : "";
+  if (!inputText) throw new Error("text is required");
+
+  const normalizedTargetLang = String(targetLang || "").trim().toLowerCase();
+  const target = normalizedTargetLang.startsWith("en") ? "en" : "zh";
+  const resolvedModel =
+    typeof model === "string" && model.trim() ? model.trim() : BIGMODEL_TRANSLATION_MODEL;
+
+  const systemPrompt =
+    target === "zh"
+      ? "You are a translation engine. Translate the user's text to Simplified Chinese only. Output only the translated text. Preserve DOIs, citations, units, symbols, and equations. Do not add any explanations."
+      : "You are a translation engine. Translate the user's text to English only. Output only the translated text. Preserve DOIs, citations, units, symbols, and equations. Do not add any explanations.";
+
+  const maxAttempts = 3;
+  const baseDelayMs = 800;
+  const maxDelayMs = 10_000;
+
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const res = await fetchWithTimeout(
+        BIGMODEL_CHAT_COMPLETIONS_URL,
+        {
+          method: "POST",
+          redirect: "follow",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+            "User-Agent":
+              "AppointerLiterature/0.1 (+https://localhost; purpose=abstract-translation)",
+          },
+           body: JSON.stringify({
+            model: resolvedModel,
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt,
+              },
+              { role: "user", content: inputText },
+            ],
+            temperature: 0.2,
+            stream: false,
+          }),
+        },
+        25_000,
+      );
+
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => null)
+        : { raw: await res.text().catch(() => "") };
+
+      if (!res.ok) {
+        const upstreamMessage =
+          data?.error?.message ||
+          data?.message ||
+          data?.raw ||
+          `BigModel failed: ${res.status} ${res.statusText}`;
+        const err = new Error(upstreamMessage);
+        err.status = res.status;
+        err.retryAfter = res.headers.get("retry-after") || null;
+        throw err;
+      }
+
+      const translated = data?.choices?.[0]?.message?.content;
+      const result = typeof translated === "string" ? translated.trim() : "";
+      if (!result) throw new Error("BigModel returned empty translation");
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      const shouldRetry = attempt < maxAttempts && isRetryableBigModelError(error);
+      if (!shouldRetry) throw error;
+
+      const jitter = Math.floor(Math.random() * 250);
+      const exponential = baseDelayMs * 2 ** (attempt - 1) + jitter;
+      const retryAfterMs = parseRetryAfterToMs(error?.retryAfter);
+      const delayMs = Math.min(
+        maxDelayMs,
+        Math.max(exponential, retryAfterMs ?? 0),
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError || new Error("BigModel translation failed");
+}
+
+async function translateWithOpenAI(apiKey, text, targetLang = "zh", model) {
+  const key = typeof apiKey === "string" ? apiKey.trim() : "";
+  if (!key) throw new Error("OpenAI API key is not configured");
+
+  const resolvedModel = typeof model === "string" ? model.trim() : "";
+  if (!resolvedModel) throw new Error("OpenAI model is not configured");
+
+  const inputText = typeof text === "string" ? text.trim() : "";
+  if (!inputText) throw new Error("text is required");
+
+  const normalizedTargetLang = String(targetLang || "").trim().toLowerCase();
+  const target = normalizedTargetLang.startsWith("en") ? "en" : "zh";
+
+  const systemPrompt =
+    target === "zh"
+      ? "You are a translation engine. Translate the user's text to Simplified Chinese only. Output only the translated text. Preserve DOIs, citations, units, symbols, and equations. Do not add any explanations."
+      : "You are a translation engine. Translate the user's text to English only. Output only the translated text. Preserve DOIs, citations, units, symbols, and equations. Do not add any explanations.";
+
+  const maxAttempts = 3;
+  const baseDelayMs = 800;
+  const maxDelayMs = 10_000;
+
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const res = await fetchWithTimeout(
+        OPENAI_CHAT_COMPLETIONS_URL,
+        {
+          method: "POST",
+          redirect: "follow",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+            "User-Agent":
+              "AppointerLiterature/0.1 (+https://localhost; purpose=abstract-translation)",
+          },
+          body: JSON.stringify({
+            model: resolvedModel,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: inputText },
+            ],
+            temperature: 0.2,
+            stream: false,
+          }),
+        },
+        25_000,
+      );
+
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => null)
+        : { raw: await res.text().catch(() => "") };
+
+      if (!res.ok) {
+        const upstreamMessage =
+          data?.error?.message ||
+          data?.message ||
+          data?.raw ||
+          `OpenAI failed: ${res.status} ${res.statusText}`;
+        const err = new Error(upstreamMessage);
+        err.status = res.status;
+        err.retryAfter = res.headers.get("retry-after") || null;
+        throw err;
+      }
+
+      const translated = data?.choices?.[0]?.message?.content;
+      const result = typeof translated === "string" ? translated.trim() : "";
+      if (!result) throw new Error("OpenAI returned empty translation");
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      const shouldRetry = attempt < maxAttempts && isRetryableOpenAIError(error);
+      if (!shouldRetry) throw error;
+
+      const jitter = Math.floor(Math.random() * 250);
+      const exponential = baseDelayMs * 2 ** (attempt - 1) + jitter;
+      const retryAfterMs = parseRetryAfterToMs(error?.retryAfter);
+      const delayMs = Math.min(
+        maxDelayMs,
+        Math.max(exponential, retryAfterMs ?? 0),
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError || new Error("OpenAI translation failed");
+}
+
+async function translateWithOpenAICompatible(apiKey, text, targetLang = "zh", model, baseUrl) {
+  const key = typeof apiKey === "string" ? apiKey.trim() : "";
+  if (!key) throw new Error("OpenAI-compatible API key is not configured");
+
+  const resolvedModel = typeof model === "string" ? model.trim() : "";
+  if (!resolvedModel) throw new Error("OpenAI-compatible model is not configured");
+
+  const normalizedBaseUrl = typeof baseUrl === "string" ? baseUrl.trim() : "";
+  if (!normalizedBaseUrl) throw new Error("OpenAI-compatible base URL is not configured");
+
+  const inputText = typeof text === "string" ? text.trim() : "";
+  if (!inputText) throw new Error("text is required");
+
+  const normalizedTargetLang = String(targetLang || "").trim().toLowerCase();
+  const target = normalizedTargetLang.startsWith("en") ? "en" : "zh";
+
+  const systemPrompt =
+    target === "zh"
+      ? "You are a translation engine. Translate the user's text to Simplified Chinese only. Output only the translated text. Preserve DOIs, citations, units, symbols, and equations. Do not add any explanations."
+      : "You are a translation engine. Translate the user's text to English only. Output only the translated text. Preserve DOIs, citations, units, symbols, and equations. Do not add any explanations.";
+
+  const endpoint = new URL(
+    "./chat/completions",
+    normalizedBaseUrl.endsWith("/") ? normalizedBaseUrl : `${normalizedBaseUrl}/`,
+  ).toString();
+
+  const maxAttempts = 3;
+  const baseDelayMs = 800;
+  const maxDelayMs = 10_000;
+
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const res = await fetchWithTimeout(
+        endpoint,
+        {
+          method: "POST",
+          redirect: "manual",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+            "User-Agent":
+              "AppointerLiterature/0.1 (+https://localhost; purpose=abstract-translation)",
+          },
+          body: JSON.stringify({
+            model: resolvedModel,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: inputText },
+            ],
+            temperature: 0.2,
+            stream: false,
+          }),
+        },
+        25_000,
+      );
+
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => null)
+        : { raw: await res.text().catch(() => "") };
+
+      if (!res.ok) {
+        const upstreamMessage =
+          data?.error?.message ||
+          data?.message ||
+          data?.raw ||
+          `OpenAI-compatible upstream failed: ${res.status} ${res.statusText}`;
+        const err = new Error(upstreamMessage);
+        err.status = res.status;
+        err.retryAfter = res.headers.get("retry-after") || null;
+        throw err;
+      }
+
+      const translated = data?.choices?.[0]?.message?.content;
+      const result = typeof translated === "string" ? translated.trim() : "";
+      if (!result) throw new Error("OpenAI-compatible returned empty translation");
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      const shouldRetry = attempt < maxAttempts && isRetryableOpenAIError(error);
+      if (!shouldRetry) throw error;
+
+      const jitter = Math.floor(Math.random() * 250);
+      const exponential = baseDelayMs * 2 ** (attempt - 1) + jitter;
+      const retryAfterMs = parseRetryAfterToMs(error?.retryAfter);
+      const delayMs = Math.min(
+        maxDelayMs,
+        Math.max(exponential, retryAfterMs ?? 0),
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError || new Error("OpenAI-compatible translation failed");
+}
+
+async function _mapWithConcurrency(items, concurrency, mapper) {
   const list = Array.isArray(items) ? items : [];
   const limit = Math.max(1, Math.min(10, Number(concurrency) || 6));
   const results = new Array(list.length);
@@ -306,7 +1271,7 @@ io.use((socket, next) => {
     const authHeader = socket.handshake.headers?.authorization;
     const headerToken =
       typeof authHeader === "string" &&
-      authHeader.toLowerCase().startsWith("bearer ")
+        authHeader.toLowerCase().startsWith("bearer ")
         ? authHeader.slice("bearer ".length).trim()
         : null;
 
@@ -1973,7 +2938,7 @@ app.get(
   async (req, res) => {
     try {
       const row = await db.queryOne(
-        "SELECT yUnit, updatedAt FROM device_analysis_settings WHERE userId = ?",
+        "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt FROM device_analysis_settings WHERE userId = ?",
         [req.user.id],
       );
 
@@ -1982,6 +2947,22 @@ app.get(
           row?.yUnit === "A" || row?.yUnit === "uA" || row?.yUnit === "nA"
             ? row.yUnit
             : "A",
+        ssMethodDefault:
+          row?.ssMethodDefault === "auto" ||
+          row?.ssMethodDefault === "manual" ||
+          row?.ssMethodDefault === "idWindow" ||
+          row?.ssMethodDefault === "legacy"
+            ? row.ssMethodDefault
+            : "auto",
+        ssDiagnosticsEnabled:
+          typeof row?.ssDiagnosticsEnabled === "number"
+            ? Boolean(row.ssDiagnosticsEnabled)
+            : row?.ssDiagnosticsEnabled == null
+              ? true
+              : Boolean(row.ssDiagnosticsEnabled),
+        ssIdLow: Number.isFinite(Number(row?.ssIdLow)) ? Number(row.ssIdLow) : 1e-11,
+        ssIdHigh:
+          Number.isFinite(Number(row?.ssIdHigh)) ? Number(row.ssIdHigh) : 1e-9,
         updatedAt: row?.updatedAt || null,
       });
     } catch (error) {
@@ -1995,30 +2976,88 @@ app.patch(
   authenticateToken,
   async (req, res) => {
     try {
-      const settings = sanitizeDeviceAnalysisSettings(req.body);
-      if (!settings.yUnit) {
-        return res.status(400).json({ error: "Invalid yUnit" });
+      const { patch, errors } = sanitizeDeviceAnalysisSettings(req.body);
+      if (errors.length) {
+        return res.status(400).json({ error: `Invalid ${errors.join(", ")}` });
+      }
+      if (!Object.keys(patch).length) {
+        return res.status(400).json({ error: "No valid settings provided" });
       }
 
       const now = new Date().toISOString();
       const existing = await db.queryOne(
-        "SELECT userId FROM device_analysis_settings WHERE userId = ?",
+        "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh FROM device_analysis_settings WHERE userId = ?",
         [req.user.id],
       );
 
-      if (existing?.userId) {
+      const yUnitExisting =
+        existing?.yUnit === "A" || existing?.yUnit === "uA" || existing?.yUnit === "nA"
+          ? existing.yUnit
+          : "A";
+      const ssMethodExisting =
+        existing?.ssMethodDefault === "auto" ||
+        existing?.ssMethodDefault === "manual" ||
+        existing?.ssMethodDefault === "idWindow" ||
+        existing?.ssMethodDefault === "legacy"
+          ? existing.ssMethodDefault
+          : "auto";
+      const ssDiagExisting =
+        typeof existing?.ssDiagnosticsEnabled === "number"
+          ? Boolean(existing.ssDiagnosticsEnabled)
+          : existing?.ssDiagnosticsEnabled == null
+            ? true
+            : Boolean(existing.ssDiagnosticsEnabled);
+      const ssIdLowExisting = Number.isFinite(Number(existing?.ssIdLow))
+        ? Number(existing.ssIdLow)
+        : 1e-11;
+      const ssIdHighExisting = Number.isFinite(Number(existing?.ssIdHigh))
+        ? Number(existing.ssIdHigh)
+        : 1e-9;
+
+      const next = {
+        yUnit: patch.yUnit ?? yUnitExisting,
+        ssMethodDefault: patch.ssMethodDefault ?? ssMethodExisting,
+        ssDiagnosticsEnabled:
+          patch.ssDiagnosticsEnabled == null ? ssDiagExisting : Boolean(patch.ssDiagnosticsEnabled),
+        ssIdLow: patch.ssIdLow ?? ssIdLowExisting,
+        ssIdHigh: patch.ssIdHigh ?? ssIdHighExisting,
+      };
+
+      if (next.ssIdLow > next.ssIdHigh) {
+        const tmp = next.ssIdLow;
+        next.ssIdLow = next.ssIdHigh;
+        next.ssIdHigh = tmp;
+      }
+
+      if (existing) {
         await db.execute(
-          "UPDATE device_analysis_settings SET yUnit = ?, updatedAt = ? WHERE userId = ?",
-          [settings.yUnit, now, req.user.id],
+          "UPDATE device_analysis_settings SET yUnit = ?, ssMethodDefault = ?, ssDiagnosticsEnabled = ?, ssIdLow = ?, ssIdHigh = ?, updatedAt = ? WHERE userId = ?",
+          [
+            next.yUnit,
+            next.ssMethodDefault,
+            next.ssDiagnosticsEnabled ? 1 : 0,
+            next.ssIdLow,
+            next.ssIdHigh,
+            now,
+            req.user.id,
+          ],
         );
       } else {
         await db.execute(
-          "INSERT INTO device_analysis_settings (userId, yUnit, updatedAt) VALUES (?, ?, ?)",
-          [req.user.id, settings.yUnit, now],
+          "INSERT INTO device_analysis_settings (userId, yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [
+            req.user.id,
+            next.yUnit,
+            next.ssMethodDefault,
+            next.ssDiagnosticsEnabled ? 1 : 0,
+            next.ssIdLow,
+            next.ssIdHigh,
+            now,
+          ],
         );
       }
 
-      res.json({ yUnit: settings.yUnit, updatedAt: now });
+      res.json({ ...next, updatedAt: now });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -2026,6 +3065,267 @@ app.patch(
 );
 
 // ============ Literature Research ============
+
+app.get(
+  "/api/admin/literature/translation-key",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const globalKey = await getDefaultTranslationApiKey(db);
+      res.json({
+        hasDefaultTranslationApiKey: globalKey.hasKey,
+        defaultTranslationApiKeyMasked: globalKey.hasKey ? maskApiKey(globalKey.key) : null,
+        updatedAt: globalKey.updatedAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/literature/translation-key",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const body = isPlainObject(req.body) ? req.body : {};
+      const value =
+        typeof body.defaultTranslationApiKey === "string" ? body.defaultTranslationApiKey : "";
+      const updated = await setDefaultTranslationApiKey(db, value, now);
+      res.json({
+        hasDefaultTranslationApiKey: updated.hasKey,
+        defaultTranslationApiKeyMasked: updated.masked,
+        updatedAt: updated.updatedAt,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
+
+app.get(
+  "/api/admin/literature/translation-model",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const globalModel = await getDefaultTranslationModel(db);
+      res.json({
+        hasDefaultTranslationModel: globalModel.hasModel,
+        defaultTranslationModel: globalModel.hasModel ? globalModel.model : null,
+        updatedAt: globalModel.updatedAt,
+        builtinDefaultTranslationModel: BIGMODEL_TRANSLATION_MODEL,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/literature/translation-model",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const body = isPlainObject(req.body) ? req.body : {};
+      const value =
+        typeof body.defaultTranslationModel === "string" ? body.defaultTranslationModel : "";
+      const updated = await setDefaultTranslationModel(db, value, now);
+      res.json({
+        hasDefaultTranslationModel: updated.hasModel,
+        defaultTranslationModel:
+          typeof updated.model === "string" && updated.model.trim() ? updated.model : null,
+        updatedAt: updated.updatedAt,
+        builtinDefaultTranslationModel: BIGMODEL_TRANSLATION_MODEL,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
+
+app.get(
+  "/api/admin/literature/translation-base-url",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const globalBaseUrl = await getDefaultTranslationBaseUrl(db);
+      res.json({
+        hasDefaultTranslationBaseUrl: globalBaseUrl.hasBaseUrl,
+        defaultTranslationBaseUrl: globalBaseUrl.hasBaseUrl ? globalBaseUrl.baseUrl : null,
+        updatedAt: globalBaseUrl.updatedAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/literature/translation-base-url",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const body = isPlainObject(req.body) ? req.body : {};
+      const value =
+        typeof body.defaultTranslationBaseUrl === "string" ? body.defaultTranslationBaseUrl : "";
+      const updated = await setDefaultTranslationBaseUrl(db, value, now);
+      res.json({
+        hasDefaultTranslationBaseUrl: updated.hasBaseUrl,
+        defaultTranslationBaseUrl:
+          typeof updated.baseUrl === "string" && updated.baseUrl.trim() ? updated.baseUrl : null,
+        updatedAt: updated.updatedAt,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
+
+// Legacy endpoints (kept for backwards compatibility)
+app.get(
+  "/api/admin/literature/bigmodel-key",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const globalKey = await getDefaultTranslationApiKey(db);
+      res.json({
+        hasDefaultBigmodelApiKey: globalKey.hasKey,
+        defaultBigmodelApiKeyMasked: globalKey.hasKey ? maskApiKey(globalKey.key) : null,
+        updatedAt: globalKey.updatedAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/literature/bigmodel-key",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const body = isPlainObject(req.body) ? req.body : {};
+      const value =
+        typeof body.defaultBigmodelApiKey === "string" ? body.defaultBigmodelApiKey : "";
+      const updated = await setDefaultTranslationApiKey(db, value, now);
+      res.json({
+        hasDefaultBigmodelApiKey: updated.hasKey,
+        defaultBigmodelApiKeyMasked: updated.masked,
+        updatedAt: updated.updatedAt,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
+
+app.get(
+  "/api/admin/literature/bigmodel-model",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const globalModel = await getDefaultTranslationModel(db);
+      res.json({
+        hasDefaultBigmodelModel: globalModel.hasModel,
+        defaultBigmodelModel: globalModel.hasModel ? globalModel.model : null,
+        updatedAt: globalModel.updatedAt,
+        builtinDefaultBigmodelModel: BIGMODEL_TRANSLATION_MODEL,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/literature/bigmodel-model",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const body = isPlainObject(req.body) ? req.body : {};
+      const value = typeof body.defaultBigmodelModel === "string" ? body.defaultBigmodelModel : "";
+      const updated = await setDefaultTranslationModel(db, value, now);
+      res.json({
+        hasDefaultBigmodelModel: updated.hasModel,
+        defaultBigmodelModel:
+          typeof updated.model === "string" && updated.model.trim() ? updated.model : null,
+        updatedAt: updated.updatedAt,
+        builtinDefaultBigmodelModel: BIGMODEL_TRANSLATION_MODEL,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
+
+app.get(
+  "/api/admin/literature/translation-provider",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const info = await getTranslationProvider(db);
+      res.json({
+        translationProvider: info.provider,
+        hasTranslationProvider: info.hasProvider,
+        supportedProviders: info.supportedProviders,
+        updatedAt: info.updatedAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.patch(
+  "/api/admin/literature/translation-provider",
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const body = isPlainObject(req.body) ? req.body : {};
+      const value = typeof body.translationProvider === "string" ? body.translationProvider : "";
+
+      const current = await getTranslationProvider(db);
+      const nextProvider = String(value || "").trim().toLowerCase();
+      const providerChanged = nextProvider && nextProvider !== current.provider;
+
+      if (providerChanged) {
+        await setDefaultTranslationApiKey(db, "", now);
+        await setDefaultTranslationModel(db, "", now);
+        await setDefaultTranslationBaseUrl(db, "", now);
+        literatureTranslationCache.clear();
+      }
+
+      const updated = await setTranslationProvider(db, value, now);
+      res.json({
+        translationProvider: updated.provider,
+        hasTranslationProvider: updated.hasProvider,
+        supportedProviders: updated.supportedProviders,
+        updatedAt: updated.updatedAt,
+        clearedDefaults: providerChanged,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+);
 
 app.get("/api/literature/settings", authenticateToken, async (req, res) => {
   try {
@@ -2037,9 +3337,9 @@ app.get("/api/literature/settings", authenticateToken, async (req, res) => {
     const config = safeJsonParse(row?.configJson, {});
     const seedUrls = Array.isArray(config?.seedUrls)
       ? config.seedUrls
-          .map((value) => (value == null ? "" : String(value)))
-          .map((value) => value.trim())
-          .filter(Boolean)
+        .map((value) => (value == null ? "" : String(value)))
+        .map((value) => value.trim())
+        .filter(Boolean)
       : [];
 
     const startDate = isValidDateString(config?.startDate)
@@ -2051,11 +3351,48 @@ app.get("/api/literature/settings", authenticateToken, async (req, res) => {
       ? Math.max(1, Math.min(100, Math.trunc(maxResultsNumber)))
       : 100;
 
-    res.json({
-      seedUrls,
-      startDate,
+    const translationApiKey =
+      typeof config?.translationApiKey === "string"
+        ? config.translationApiKey.trim()
+        : typeof config?.bigmodelApiKey === "string"
+          ? config.bigmodelApiKey.trim()
+          : "";
+    const globalKey = await getDefaultTranslationApiKey(db);
+    const hasUserKey = Boolean(translationApiKey);
+    const hasTranslationApiKey = hasUserKey || globalKey.hasKey;
+    const translationApiKeySource = hasUserKey ? "user" : globalKey.hasKey ? "default" : null;
+
+    const translationModel =
+      typeof config?.translationModel === "string"
+        ? config.translationModel.trim()
+        : typeof config?.bigmodelModel === "string"
+          ? config.bigmodelModel.trim()
+          : "";
+
+    const translationProvider =
+      typeof config?.translationProvider === "string" ? config.translationProvider.trim() : "";
+
+    const translationBaseUrl =
+      typeof config?.translationBaseUrl === "string" ? config.translationBaseUrl.trim() : "";
+    const globalBaseUrl = await getDefaultTranslationBaseUrl(db);
+
+	    const provider = await getTranslationProvider(db);
+
+	    res.json({
+	      seedUrls,
+	      startDate,
       endDate,
       maxResults,
+      hasTranslationApiKey,
+      hasDefaultTranslationApiKey: globalKey.hasKey,
+      translationApiKeySource,
+      translationApiKeyMasked: hasUserKey ? maskApiKey(translationApiKey) : null,
+      translationProvider: translationProvider ? translationProvider.toLowerCase() : null,
+      translationModel: translationModel || null,
+      translationBaseUrl: translationBaseUrl || null,
+      hasDefaultTranslationBaseUrl: globalBaseUrl.hasBaseUrl,
+      defaultTranslationProvider: provider.provider,
+      supportedTranslationProviders: provider.supportedProviders,
       updatedAt: row?.updatedAt || null,
     });
   } catch (error) {
@@ -2065,19 +3402,26 @@ app.get("/api/literature/settings", authenticateToken, async (req, res) => {
 
 app.patch("/api/literature/settings", authenticateToken, async (req, res) => {
   try {
-    const settings = sanitizeLiteratureSettings(req.body);
     const now = new Date().toISOString();
 
-    const existing = await db.queryOne(
-      "SELECT userId FROM literature_research_settings WHERE userId = ?",
+    const row = await db.queryOne(
+      "SELECT userId, configJson FROM literature_research_settings WHERE userId = ?",
       [req.user.id],
     );
 
-    const configJson = JSON.stringify(settings);
+	    const existingConfig = safeJsonParse(row?.configJson, {});
+	    const settings = mergeLiteratureSettings(existingConfig, req.body);
 
-    if (existing?.userId) {
-      await db.execute(
-        "UPDATE literature_research_settings SET configJson = ?, updatedAt = ? WHERE userId = ?",
+	    if (Object.prototype.hasOwnProperty.call(req.body || {}, "translationBaseUrl")) {
+	      const validated = await validateTranslationBaseUrl(settings.translationBaseUrl || "");
+	      settings.translationBaseUrl = validated;
+	    }
+
+	    const configJson = JSON.stringify(settings);
+
+	    if (row?.userId) {
+	      await db.execute(
+	        "UPDATE literature_research_settings SET configJson = ?, updatedAt = ? WHERE userId = ?",
         [configJson, now, req.user.id],
       );
     } else {
@@ -2087,11 +3431,39 @@ app.patch("/api/literature/settings", authenticateToken, async (req, res) => {
       );
     }
 
-    res.json({ ...settings, updatedAt: now });
+    const userKey =
+      typeof settings.translationApiKey === "string" ? settings.translationApiKey.trim() : "";
+    const globalKey = await getDefaultTranslationApiKey(db);
+    const globalBaseUrl = await getDefaultTranslationBaseUrl(db);
+    const provider = await getTranslationProvider(db);
+    const hasUserKey = Boolean(userKey);
+    const hasTranslationApiKey = hasUserKey || globalKey.hasKey;
+    const translationApiKeySource = hasUserKey ? "user" : globalKey.hasKey ? "default" : null;
+
+    res.json({
+      seedUrls: Array.isArray(settings.seedUrls) ? settings.seedUrls : [],
+      startDate: settings.startDate || null,
+      endDate: settings.endDate || null,
+      maxResults: settings.maxResults,
+      hasTranslationApiKey,
+      hasDefaultTranslationApiKey: globalKey.hasKey,
+      translationApiKeySource,
+      translationApiKeyMasked: hasUserKey ? maskApiKey(userKey) : null,
+      translationProvider:
+        typeof settings.translationProvider === "string" && settings.translationProvider.trim()
+          ? settings.translationProvider.trim().toLowerCase()
+          : null,
+      translationModel: settings.translationModel || null,
+      translationBaseUrl: settings.translationBaseUrl || null,
+      hasDefaultTranslationBaseUrl: globalBaseUrl.hasBaseUrl,
+      defaultTranslationProvider: provider.provider,
+      supportedTranslationProviders: provider.supportedProviders,
+      updatedAt: now,
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
-});
+	});
 
 app.post("/api/literature/search", authenticateToken, async (req, res) => {
   try {
@@ -2127,64 +3499,296 @@ app.post("/api/literature/search", authenticateToken, async (req, res) => {
       maxResults,
     });
 
-    const enriched = await mapWithConcurrency(items, 6, async (item) => {
-      const pdfUrl = typeof item?.pdfUrl === "string" ? item.pdfUrl : null;
-      if (!pdfUrl) {
-        return { ...item, downloadable: false, downloadUrl: null };
-      }
-
-      const probe = await probePdfUrl(pdfUrl);
-      const isHtml = probe.contentType.includes("text/html");
-      const looksLikePdf =
-        probe.contentType.includes("pdf") ||
-        probe.contentType.includes("octet-stream") ||
-        pdfUrl.toLowerCase().endsWith(".pdf");
-
-      // 1) Publicly fetchable PDF: proxy through backend for stable browser download.
-      if (probe.ok && !isHtml && looksLikePdf) {
-        const datePrefix = item?.publishedDate
-          ? `${item.publishedDate} - `
-          : "";
-        const filename = sanitizeFilename(
-          `${datePrefix}${item?.title || "article"}`,
-        ).slice(0, 160);
-
-        const token = createLiteratureDownloadToken({
-          url: pdfUrl,
-          filename: `${filename}.pdf`,
-        });
-
-        return {
-          ...item,
-          downloadable: true,
-          downloadUrl: `/api/literature/download/${token}`,
-        };
-      }
-
-      // 2) Not proxyable (e.g. 401/403, or returns HTML) but likely exists: let browser handle it directly.
-      if (probe.status === 401 || probe.status === 403 || (probe.ok && isHtml)) {
-        return {
-          ...item,
-          downloadable: true,
-          downloadUrl: pdfUrl,
-        };
-      }
-
-      // 3) Not found / unknown: disable.
-      if (probe.status === 404) {
-        return { ...item, downloadable: false, downloadUrl: null };
-      }
+    // Safety-first: never proxy-download PDFs through the backend (which would concentrate traffic on the server IP).
+    // Instead, always send users to the publisher/article landing page so downloads happen in the browser.
+    const enriched = items.map((item) => {
+      const articleUrl =
+        typeof item?.articleUrl === "string" && item.articleUrl.trim()
+          ? item.articleUrl.trim()
+          : null;
 
       return {
         ...item,
-        downloadable: false,
-        downloadUrl: null,
+        downloadable: Boolean(articleUrl),
+        downloadUrl: articleUrl,
       };
     });
 
     res.json(enriched);
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+app.post("/api/literature/translate", authenticateToken, async (req, res) => {
+  let apiKeySource = null;
+  let targetLang = "zh";
+  let model = null;
+  let modelSource = null;
+  let translationProvider = "bigmodel";
+  let translationProviderSource = null;
+  let translationBaseUrlSource = null;
+  let translationBaseUrlHost = null;
+
+  try {
+    const body = isPlainObject(req.body) ? req.body : {};
+    const id = typeof body.id === "string" ? body.id.trim() : "";
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const rawTargetLang =
+      typeof body.targetLang === "string" ? body.targetLang.trim().toLowerCase() : "";
+    targetLang = rawTargetLang.startsWith("en") ? "en" : "zh";
+    const bypassCache = Boolean(body.bypassCache);
+    const rawForceKeySource =
+      typeof body.forceKeySource === "string"
+        ? body.forceKeySource.trim().toLowerCase()
+        : "";
+    const forceKeySource = rawForceKeySource === "default" ? "default" : null;
+
+    if (forceKeySource && req.user?.role !== "SUPER_ADMIN") {
+      return res.status(403).json({
+        error: "Not allowed to force key source",
+        apiKeySource: null,
+        targetLang,
+      });
+    }
+
+    if (!text) {
+      return res.status(400).json({ error: "text is required" });
+    }
+    if (text.length > 20_000) {
+      return res.status(400).json({ error: "text is too long" });
+    }
+
+    const row = await db.queryOne(
+      "SELECT configJson FROM literature_research_settings WHERE userId = ?",
+      [req.user.id],
+    );
+
+    const config = safeJsonParse(row?.configJson, {});
+    const userApiKey =
+      typeof config?.translationApiKey === "string"
+        ? config.translationApiKey.trim()
+        : typeof config?.bigmodelApiKey === "string"
+          ? config.bigmodelApiKey.trim()
+          : "";
+    const userModel =
+      typeof config?.translationModel === "string"
+        ? config.translationModel.trim()
+        : typeof config?.bigmodelModel === "string"
+          ? config.bigmodelModel.trim()
+          : "";
+    const userProvider =
+      typeof config?.translationProvider === "string" ? config.translationProvider.trim().toLowerCase() : "";
+    const userBaseUrl =
+      typeof config?.translationBaseUrl === "string" ? config.translationBaseUrl.trim() : "";
+
+    const globalKey = await getDefaultTranslationApiKey(db);
+    const globalModel = await getDefaultTranslationModel(db);
+    const globalBaseUrl = await getDefaultTranslationBaseUrl(db);
+    const providerInfo = await getTranslationProvider(db);
+    const defaultProvider = providerInfo.provider;
+    const resolvedGlobalApiKey = globalKey.key || "";
+    apiKeySource = forceKeySource
+      ? "default"
+      : userApiKey
+        ? "user"
+        : globalKey.hasKey
+           ? "default"
+           : null;
+    const apiKey = forceKeySource ? resolvedGlobalApiKey : userApiKey || resolvedGlobalApiKey || "";
+    const useUserProvider = apiKeySource === "user" && Boolean(userProvider);
+    translationProviderSource = useUserProvider ? "user" : "default";
+    translationProvider = useUserProvider ? userProvider : defaultProvider;
+    const translationAdapter =
+      translationProvider === "bigmodel"
+        ? "bigmodel"
+        : translationProvider === "openai"
+          ? "openai"
+          : "openai_compatible";
+    const providerLabel =
+      translationAdapter === "openai"
+        ? "OpenAI"
+        : translationAdapter === "bigmodel"
+          ? "BigModel"
+          : translationProvider === "openai_compatible"
+            ? "OpenAI-compatible"
+            : translationProvider;
+
+    if (!apiKey) {
+      return res.status(400).json({
+        error: forceKeySource
+          ? `Default ${providerLabel} API key is not configured. Please set the default key as SUPER_ADMIN.`
+          : `${providerLabel} API key is not configured. Please set your own key in Literature settings or ask an admin to configure the default key.`,
+        apiKeySource,
+        translationProvider,
+        translationProviderSource,
+        targetLang,
+        model: null,
+        modelSource: null,
+      });
+    }
+
+    const resolvedGlobalModel =
+      typeof globalModel?.model === "string" ? globalModel.model.trim() : "";
+    const hasGlobalModel = Boolean(resolvedGlobalModel);
+
+    if (apiKeySource === "default") {
+      if (!hasGlobalModel) {
+        return res.status(400).json({
+          error:
+            `Default ${providerLabel} model is not configured. Please set the default model as SUPER_ADMIN.`,
+          apiKeySource,
+          translationProvider,
+          translationProviderSource,
+          targetLang,
+          model: null,
+          modelSource: null,
+        });
+      }
+      model = resolvedGlobalModel;
+      modelSource = "default";
+    } else if (userModel) {
+      model = userModel;
+      modelSource = "user";
+    } else {
+      if (!hasGlobalModel) {
+        return res.status(400).json({
+          error:
+            `${providerLabel} model is not configured. Please set your own model in Literature settings or ask an admin to configure the default model.`,
+          apiKeySource,
+          translationProvider,
+          translationProviderSource,
+          targetLang,
+          model: null,
+          modelSource: null,
+        });
+      }
+      model = resolvedGlobalModel;
+      modelSource = "default";
+    }
+
+    let translationBaseUrl = "";
+    if (translationAdapter === "openai_compatible") {
+      const resolvedGlobalBaseUrl =
+        typeof globalBaseUrl?.baseUrl === "string" ? globalBaseUrl.baseUrl.trim() : "";
+
+      if (apiKeySource === "default") {
+        translationBaseUrlSource = globalBaseUrl.hasBaseUrl ? "default" : null;
+        translationBaseUrl = resolvedGlobalBaseUrl;
+      } else if (userBaseUrl) {
+        translationBaseUrlSource = "user";
+        translationBaseUrl = userBaseUrl;
+      } else if (globalBaseUrl.hasBaseUrl) {
+        translationBaseUrlSource = "default";
+        translationBaseUrl = resolvedGlobalBaseUrl;
+      } else {
+        translationBaseUrlSource = null;
+        translationBaseUrl = "";
+      }
+
+      if (!translationBaseUrl) {
+        return res.status(400).json({
+          error:
+            apiKeySource === "default"
+              ? `Default ${providerLabel} base URL is not configured. Please set it as SUPER_ADMIN.`
+              : `${providerLabel} base URL is not configured. Please set your own base URL in Literature settings or ask an admin to configure the default base URL.`,
+          apiKeySource,
+          translationProvider,
+          translationProviderSource,
+          targetLang,
+          model,
+          modelSource,
+          translationBaseUrlSource,
+          translationBaseUrlHost: null,
+        });
+      }
+
+      const validatedBaseUrl = await validateTranslationBaseUrl(translationBaseUrl);
+      translationBaseUrl = validatedBaseUrl || "";
+      translationBaseUrlHost = translationBaseUrl ? new URL(translationBaseUrl).host : null;
+    }
+
+    const cacheKey = makeLiteratureTranslationCacheKey({
+      userId: req.user.id,
+      id,
+      text,
+      model,
+      targetLang,
+      provider: translationProvider,
+      baseUrl: translationBaseUrl,
+    });
+
+    if (!bypassCache) {
+      cleanupLiteratureTranslationCache();
+      const cached = literatureTranslationCache.get(cacheKey);
+      if (cached?.translatedText && cached?.createdAt) {
+        if (Date.now() - cached.createdAt <= LITERATURE_TRANSLATION_TTL_MS) {
+          return res.json({
+            id: id || null,
+            model,
+            modelSource,
+            targetLang,
+            apiKeySource,
+            translationProvider,
+            translationProviderSource,
+            translationBaseUrlSource,
+            translationBaseUrlHost,
+            translatedText: cached.translatedText,
+            cached: true,
+            bypassCache,
+          });
+        }
+        literatureTranslationCache.delete(cacheKey);
+      }
+    }
+
+    const translatedText =
+      translationAdapter === "openai"
+        ? await translateWithOpenAI(apiKey, text, targetLang, model)
+        : translationAdapter === "openai_compatible"
+          ? await translateWithOpenAICompatible(apiKey, text, targetLang, model, translationBaseUrl)
+          : await translateWithBigModel(apiKey, text, targetLang, model);
+    if (!bypassCache) {
+      literatureTranslationCache.set(cacheKey, {
+        translatedText,
+        createdAt: Date.now(),
+      });
+    }
+
+    res.json({
+      id: id || null,
+      model,
+      modelSource,
+      targetLang,
+      apiKeySource,
+      translationProvider,
+      translationProviderSource,
+      translationBaseUrlSource,
+      translationBaseUrlHost,
+      translatedText,
+      cached: false,
+      bypassCache,
+    });
+  } catch (error) {
+    const status =
+      typeof error?.status === "number" && error.status >= 400 && error.status < 600
+        ? error.status
+        : 400;
+    const retryAfter = error?.retryAfter;
+    if (retryAfter && (status === 429 || status === 503)) {
+      res.set("Retry-After", String(retryAfter));
+    }
+    res.status(status).json({
+      error: error.message,
+      apiKeySource,
+      translationProvider,
+      translationProviderSource,
+      translationBaseUrlSource,
+      translationBaseUrlHost,
+      targetLang,
+      model,
+      modelSource,
+    });
   }
 });
 

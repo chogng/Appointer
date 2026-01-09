@@ -31,6 +31,169 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+@layer components {
+    .ui-tabs__menu {
+        @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
+    }
+
+    .ui-tabs__btn {
+        @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
+    }
+
+    .ui-tabs__btn--sm {
+        @apply h-6 text-xs;
+    }
+
+    .ui-tabs__btn--md {
+        @apply h-[38px] text-sm;
+    }
+
+    .ui-tabs__btn--active {
+        @apply bg-white text-black shadow-sm;
+    }
+
+    .ui-tabs__btn--inactive {
+        @apply text-gray-500 hover:text-gray-900;
+    }
+
+    .ui-tabs__btn-icon {
+        @apply inline-flex;
+    }
+
+    .ui-tabs__btn-text {
+        @apply inline-flex;
+    }
+
+    .ui-toggle__menu {
+        @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
+    }
+
+    /* Preferred (simpler) alias */
+    .toggle_menu {
+        @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
+    }
+
+    .ui-toolbar_wrap {
+        @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
+    }
+
+    .ui-toolbar_warp {
+        @apply w-full flex items-center gap-4 flex-wrap overflow-visible;
+        scrollbar-width: none; /* Firefox */
+    }
+
+    .ui-toolbar_warp::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+
+    .ui-button_warp {
+        @apply flex flex-col items-end gap-1 ml-auto;
+    }
+
+    .ui-button_row {
+        @apply flex items-center gap-2;
+    }
+
+    .ui-filter_warp {
+        @apply flex flex-wrap items-center gap-2 lg:gap-4 min-w-0;
+    }
+
+    .date_btn_label {
+        @apply text-sm font-medium text-text-secondary whitespace-nowrap hidden sm:block;
+    }
+
+    .date_btn_warp {
+        @apply flex items-center gap-2 min-w-0 flex-1;
+    }
+
+    .date_btn {
+        @apply flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer bg-bg-page select-none h-[38px] overflow-hidden shrink min-w-0;
+    }
+
+    .date_btn--open {
+        @apply border-black ring-1 ring-black/5;
+    }
+
+    .date_btn--closed {
+        @apply border-border-200 hover:border-text-secondary;
+    }
+
+    .date_btn_text {
+        @apply flex-1 text-sm truncate;
+    }
+
+    .date_btn_text--value {
+        @apply text-text-primary;
+    }
+
+    .date_btn_text--placeholder {
+        @apply text-text-tertiary;
+    }
+
+    .date_btn_icon {
+        @apply text-text-tertiary inline-flex;
+    }
+
+
+    /* App buttons */
+    .click_btn {
+        @apply relative inline-flex items-center justify-center px-4 rounded-xl text-sm transition-all;
+    }
+
+    .click_btn--md {
+        @apply h-[38px];
+    }
+
+    .click_btn_content {
+        @apply relative z-10 flex items-center gap-2;
+    }
+
+    .click_btn--fx {
+        @apply before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors;
+    }
+
+    .click_btn--primary {
+        @apply text-white before:bg-accent before:scale-100 hover:before:scale-[1.02];
+    }
+
+    .click_btn--ghost {
+        @apply text-text-secondary hover:text-text-primary before:border before:border-border before:bg-transparent hover:before:scale-[1.02];
+    }
+
+    .click_btn--disabled {
+        @apply text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border;
+    }
+
+    /* Preferred (no ui- prefix, underscore style) */
+    .toggle_btn {
+        @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
+    }
+
+    .toggle_btn--sm {
+        @apply h-6 text-xs;
+    }
+
+    .toggle_btn--md {
+        @apply h-[38px] text-sm;
+    }
+
+    .toggle_btn--active {
+        @apply bg-white text-black shadow-sm;
+    }
+
+    .toggle_btn--inactive {
+        @apply text-gray-500 hover:text-gray-900;
+    }
+
+    .toggle_btn_icon {
+        @apply inline-flex;
+    }
+
+    .toggle_btn_text {
+        @apply inline-flex;
+    }
+}
+
 a {
     text-decoration: none;
     color: inherit;
@@ -48,6 +211,11 @@ select,
 textarea {
     font-family: inherit;
     outline: none;
+}
+
+.no-focus-outline:focus,
+.no-focus-outline:focus-visible {
+    outline: none !important;
 }
 
 /* Utilities */
@@ -150,6 +318,10 @@ textarea {
     }
 
     .can-focus {
+        @apply focus:outline-none focus:ring-2 focus:ring-accent/20 focus:ring-offset-2 focus:ring-offset-bg-100;
+    }
+
+    .can-focus-blue {
         @apply focus:outline-none focus:ring-2 focus:ring-accent-focus focus:ring-offset-2 focus:ring-offset-bg-100;
     }
 

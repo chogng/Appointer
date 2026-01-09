@@ -22,6 +22,7 @@ const Devices = () => {
   const { isAdmin } = usePermission();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const isAdminUser = isAdmin();
 
   useDevicesRealtimeSync();
 
@@ -69,6 +70,20 @@ const Devices = () => {
   const updateDeviceMutation = useMutation({
     mutationFn: ({ deviceId, updates }) =>
       apiService.updateDevice(deviceId, updates),
+    onMutate: async ({ deviceId, updates }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.devices() });
+
+      const previousDevices = queryClient.getQueryData(queryKeys.devices());
+
+      queryClient.setQueryData(queryKeys.devices(), (current) => {
+        const currentDevices = Array.isArray(current) ? current : [];
+        return currentDevices.map((d) =>
+          d.id === deviceId ? { ...d, ...updates } : d,
+        );
+      });
+
+      return { previousDevices };
+    },
     onSuccess: (updatedDevice) => {
       if (!updatedDevice?.id) return;
       queryClient.setQueryData(queryKeys.devices(), (current) => {
@@ -78,8 +93,11 @@ const Devices = () => {
         );
       });
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
       console.error("Failed to update device:", error);
+      if (context && Object.prototype.hasOwnProperty.call(context, "previousDevices")) {
+        queryClient.setQueryData(queryKeys.devices(), context.previousDevices);
+      }
       showToast(t("updateFailed"), "error");
     },
   });
@@ -115,33 +133,42 @@ const Devices = () => {
     },
   });
 
-  const handleUpdateDevice = (deviceId, updates) => {
-    updateDeviceMutation.mutate({ deviceId, updates });
-  };
+  const mutateUpdateDevice = updateDeviceMutation.mutate;
+  const mutateDeleteDevice = deleteDeviceMutation.mutate;
 
-  const handleToggleDevice = (deviceId) => {
-    const device = devices.find((d) => d.id === deviceId);
-    if (!device) return;
-    handleUpdateDevice(deviceId, { isEnabled: !device.isEnabled });
-  };
+  const handleUpdateDevice = useCallback((deviceId, updates) => {
+    mutateUpdateDevice({ deviceId, updates });
+  }, [mutateUpdateDevice]);
 
-  const handleDeleteClick = (deviceId, e) => {
+  const handleToggleDevice = useCallback(
+    (deviceId, currentIsEnabled) => {
+      handleUpdateDevice(deviceId, { isEnabled: !currentIsEnabled });
+    },
+    [handleUpdateDevice],
+  );
+
+  const handleDeleteDevice = useCallback((deviceId) => {
+    mutateDeleteDevice(deviceId, {
+      onSuccess: () => {
+        setDeleteConfirmId(null);
+        showToast(t("updateSuccess"), "success");
+      },
+    });
+  }, [mutateDeleteDevice, showToast, t]);
+
+  const handleDeleteClick = useCallback((deviceId, e) => {
     e.stopPropagation();
     if (deleteConfirmId === deviceId) {
       handleDeleteDevice(deviceId);
     } else {
       setDeleteConfirmId(deviceId);
     }
-  };
+  }, [deleteConfirmId, handleDeleteDevice]);
 
-  const handleDeleteDevice = (deviceId) => {
-    deleteDeviceMutation.mutate(deviceId, {
-      onSuccess: () => {
-        setDeleteConfirmId(null);
-        showToast(t("updateSuccess"), "success");
-      },
-    });
-  };
+  const handleBookDevice = useCallback(
+    (deviceId) => navigate(`/devices/${deviceId}`),
+    [navigate],
+  );
 
   const handleCreateDevice = () => {
     createDeviceMutation.mutate(
@@ -168,7 +195,7 @@ const Devices = () => {
 
   return (
     <div
-      className="max-w-[1500px] mx-auto min-h-screen relative"
+      className="w-full min-h-screen relative"
       ref={containerRef}
     >
       <div className="mb-8">
@@ -178,22 +205,22 @@ const Devices = () => {
         <p className="text-text-secondary">{t("selectDeviceToBook")}</p>
       </div>
       {/* Device Card List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))] gap-6">
         {devices.map((device) => (
           <DeviceCard
             key={device.id}
             device={device}
-            isAdmin={isAdmin()}
+            isAdmin={isAdminUser}
             isBlocked={blockedDeviceIdSet.has(device.id)}
             onToggle={handleToggleDevice}
             onUpdate={handleUpdateDevice}
-            onBook={() => navigate(`/devices/${device.id}`)}
+            onBook={handleBookDevice}
             deleteConfirmId={deleteConfirmId}
             onDeleteClick={handleDeleteClick}
             onShowToast={showToast}
           />
         ))}
-        {isAdmin() && (
+        {isAdminUser && (
           <AddDeviceCard
             onClick={(e) => {
               e.stopPropagation();

@@ -3,11 +3,7 @@ import { ThemeContext } from './theme-context';
 
 export const ThemeProvider = ({ children }) => {
     const [theme, setTheme] = useState(() => {
-        try {
-            return localStorage.getItem('drms_theme') || 'system';
-        } catch {
-            return 'system';
-        }
+        return 'system';
     });
 
     useEffect(() => {
@@ -29,11 +25,6 @@ export const ThemeProvider = ({ children }) => {
         };
 
         applyTheme(theme);
-        try {
-            localStorage.setItem('drms_theme', theme);
-        } catch {
-            // ignore storage failures
-        }
 
         // Listener for system theme changes if in system mode
         if (theme === 'system') {

@@ -16,11 +16,13 @@ import {
   ArrowUp,
   Database,
   Trash2,
+  Key,
+  Loader2,
 } from "lucide-react";
 function Section({ title, icon, children }) {
   const Icon = icon;
   return (
-    <Card variant="glass" className="mb-6">
+    <Card className="mb-6 bg-white">
       <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border-subtle">
         <Icon size={20} className="text-accent" />
         <h2 className="text-lg font-medium text-text-primary">{title}</h2>
@@ -53,6 +55,13 @@ const Settings = () => {
   const closeToast = () => setToast((prev) => ({ ...prev, isVisible: false }));
 
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const formatProviderLabel = (provider) => {
+    const normalized = String(provider || "").trim().toLowerCase();
+    if (normalized === "bigmodel") return "BigModel";
+    if (normalized === "openai") return "OpenAI";
+    if (normalized === "openai_compatible") return "OpenAI-compatible";
+    return provider || "-";
+  };
   const [retentionLoading, setRetentionLoading] = useState(false);
   const [retentionSaving, setRetentionSaving] = useState(false);
   const [retentionRunning, setRetentionRunning] = useState(false);
@@ -61,6 +70,786 @@ const Settings = () => {
     logsDays: "",
     requestsDays: "",
   });
+
+  const [hasDefaultTranslationApiKey, setHasDefaultTranslationApiKey] = useState(false);
+  const [translationApiKeyMasked, setTranslationApiKeyMasked] = useState(null);
+  const [translationApiKeyInput, setTranslationApiKeyInput] = useState("");
+  const [translationApiKeySync, setTranslationApiKeySync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [defaultTranslationApiKeyMasked, setDefaultTranslationApiKeyMasked] = useState(null);
+  const [defaultTranslationApiKeyInput, setDefaultTranslationApiKeyInput] = useState("");
+  const [defaultTranslationApiKeySync, setDefaultTranslationApiKeySync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [translationProvider, setTranslationProvider] = useState("bigmodel");
+  const [translationProviderInput, setTranslationProviderInput] = useState("bigmodel");
+  const [supportedTranslationProviders, setSupportedTranslationProviders] = useState(["bigmodel"]);
+  const [translationProviderSync, setTranslationProviderSync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [userTranslationProvider, setUserTranslationProvider] = useState(null);
+  const [userTranslationProviderInput, setUserTranslationProviderInput] = useState("");
+  const [userTranslationProviderSync, setUserTranslationProviderSync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [translationModel, setTranslationModel] = useState(null);
+  const [translationModelInput, setTranslationModelInput] = useState("");
+  const [translationModelSync, setTranslationModelSync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [hasDefaultTranslationModel, setHasDefaultTranslationModel] = useState(false);
+  const [defaultTranslationModel, setDefaultTranslationModel] = useState(null);
+  const [builtinDefaultTranslationModel, setBuiltinDefaultTranslationModel] = useState("glm-4.5-flash");
+  const [defaultTranslationModelInput, setDefaultTranslationModelInput] = useState("");
+  const [defaultTranslationModelSync, setDefaultTranslationModelSync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [hasDefaultTranslationBaseUrl, setHasDefaultTranslationBaseUrl] = useState(false);
+  const [defaultTranslationBaseUrl, setDefaultTranslationBaseUrl] = useState(null);
+  const [defaultTranslationBaseUrlInput, setDefaultTranslationBaseUrlInput] = useState("");
+  const [defaultTranslationBaseUrlSync, setDefaultTranslationBaseUrlSync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [translationBaseUrl, setTranslationBaseUrl] = useState(null);
+  const [translationBaseUrlInput, setTranslationBaseUrlInput] = useState("");
+  const [translationBaseUrlSync, setTranslationBaseUrlSync] = useState({
+    state: "idle", // idle | saving | saved | error
+    message: "",
+  });
+  const [translateTestInput, setTranslateTestInput] = useState(
+    "We propose a simple experiment to validate the method and report key performance metrics.",
+  );
+  const [translateTestBypassCache, setTranslateTestBypassCache] = useState(true);
+  const [translateTestForceDefaultKey, setTranslateTestForceDefaultKey] = useState(false);
+  const [translateTest, setTranslateTest] = useState({
+    state: "idle", // idle | loading | done | error
+    apiKeySource: null, // user | default | null
+    translatedText: "",
+    error: "",
+    cached: false,
+    model: "",
+    modelSource: null,
+    translationProvider: null,
+    translationProviderSource: null,
+    translationBaseUrlSource: null,
+    translationBaseUrlHost: null,
+  });
+
+  const normalizedDefaultTranslationProvider = String(translationProvider || "").trim().toLowerCase();
+  const normalizedUserTranslationProvider = String(userTranslationProvider || "").trim().toLowerCase();
+  const effectiveTranslationProviderForUser =
+    normalizedUserTranslationProvider || normalizedDefaultTranslationProvider;
+  const isDefaultOpenAICompatibleProvider = Boolean(
+    normalizedDefaultTranslationProvider &&
+    normalizedDefaultTranslationProvider !== "bigmodel" &&
+    normalizedDefaultTranslationProvider !== "openai",
+  );
+  const isEffectiveOpenAICompatibleProviderForUser = Boolean(
+    effectiveTranslationProviderForUser &&
+    effectiveTranslationProviderForUser !== "bigmodel" &&
+    effectiveTranslationProviderForUser !== "openai",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiService.getLiteratureSettings();
+        if (cancelled) return;
+        setHasDefaultTranslationApiKey(Boolean(data?.hasDefaultTranslationApiKey));
+        setTranslationApiKeyMasked(
+          typeof data?.translationApiKeyMasked === "string" && data.translationApiKeyMasked
+            ? data.translationApiKeyMasked
+            : null,
+        );
+        setTranslationModel(
+          typeof data?.translationModel === "string" && data.translationModel ? data.translationModel : null,
+        );
+        setTranslationBaseUrl(
+          typeof data?.translationBaseUrl === "string" && data.translationBaseUrl
+            ? data.translationBaseUrl
+            : null,
+        );
+        setHasDefaultTranslationBaseUrl(Boolean(data?.hasDefaultTranslationBaseUrl));
+        setUserTranslationProvider(
+          typeof data?.translationProvider === "string" && data.translationProvider
+            ? data.translationProvider
+            : null,
+        );
+        setTranslationProvider(
+          typeof data?.defaultTranslationProvider === "string" && data.defaultTranslationProvider
+            ? data.defaultTranslationProvider
+            : "bigmodel",
+        );
+        setTranslationProviderInput(
+          typeof data?.defaultTranslationProvider === "string" && data.defaultTranslationProvider
+            ? data.defaultTranslationProvider
+            : "bigmodel",
+        );
+        setSupportedTranslationProviders(
+          Array.isArray(data?.supportedTranslationProviders) && data.supportedTranslationProviders.length
+            ? data.supportedTranslationProviders
+            : ["bigmodel"],
+        );
+      } catch {
+        // quiet error
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSaveTranslationApiKey = async () => {
+    const key = String(translationApiKeyInput || "").trim();
+    if (!key) {
+      showToast(t("personal_api_key_required") || "Please enter your API Key.", "error");
+      return;
+    }
+
+    setTranslationApiKeySync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationApiKey: key });
+      setTranslationApiKeyMasked(
+        typeof data?.translationApiKeyMasked === "string" && data.translationApiKeyMasked
+          ? data.translationApiKeyMasked
+          : null,
+      );
+      setTranslationApiKeyInput("");
+      setTranslationApiKeySync({ state: "saved", message: "" });
+      showToast(t("personal_api_key_saved") || "API Key saved.", "success");
+    } catch (error) {
+      setTranslationApiKeySync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("personal_api_key_save_failed") || "Failed to save API Key.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error"
+      );
+    }
+  };
+
+  const handleClearTranslationApiKey = async () => {
+    setTranslationApiKeySync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationApiKey: "" });
+      setTranslationApiKeyMasked(
+        typeof data?.translationApiKeyMasked === "string" && data.translationApiKeyMasked
+          ? data.translationApiKeyMasked
+          : null,
+      );
+      setTranslationApiKeyInput("");
+      setTranslationApiKeySync({ state: "saved", message: "" });
+      showToast(t("personal_api_key_cleared") || "API Key cleared.", "success");
+    } catch (error) {
+      setTranslationApiKeySync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("personal_api_key_clear_failed") || "Failed to clear API Key.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error"
+      );
+    }
+  };
+
+  const handleSaveUserTranslationProvider = async () => {
+    const provider = String(userTranslationProviderInput || "").trim();
+    if (!provider) {
+      showToast(t("translation_provider_required") || "Please enter your provider.", "error");
+      return;
+    }
+
+    setUserTranslationProviderSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationProvider: provider });
+      setUserTranslationProvider(
+        typeof data?.translationProvider === "string" && data.translationProvider
+          ? data.translationProvider
+          : provider.trim().toLowerCase(),
+      );
+      setUserTranslationProviderInput("");
+      setUserTranslationProviderSync({ state: "saved", message: "" });
+      showToast(t("translation_provider_saved") || "Provider saved.", "success");
+    } catch (error) {
+      setUserTranslationProviderSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("translation_provider_save_failed") || "Failed to save provider.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleClearUserTranslationProvider = async () => {
+    setUserTranslationProviderSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationProvider: "" });
+      setUserTranslationProvider(
+        typeof data?.translationProvider === "string" && data.translationProvider
+          ? data.translationProvider
+          : null,
+      );
+      setUserTranslationProviderInput("");
+      setUserTranslationProviderSync({ state: "saved", message: "" });
+      showToast(t("translation_provider_cleared") || "Provider cleared.", "success");
+    } catch (error) {
+      setUserTranslationProviderSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("translation_provider_clear_failed") || "Failed to clear provider.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleSaveTranslationModel = async () => {
+    const model = String(translationModelInput || "").trim();
+    if (!model) {
+      showToast(t("personal_model_required") || "Please enter your model.", "error");
+      return;
+    }
+
+    setTranslationModelSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationModel: model });
+      setTranslationModel(
+        typeof data?.translationModel === "string" && data.translationModel ? data.translationModel : model,
+      );
+      setTranslationModelInput("");
+      setTranslationModelSync({ state: "saved", message: "" });
+      showToast(t("personal_model_saved") || "Model saved.", "success");
+    } catch (error) {
+      setTranslationModelSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("personal_model_save_failed") || "Failed to save model.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error"
+      );
+    }
+  };
+
+  const handleClearTranslationModel = async () => {
+    setTranslationModelSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationModel: "" });
+      setTranslationModel(
+        typeof data?.translationModel === "string" && data.translationModel ? data.translationModel : null,
+      );
+      setTranslationModelInput("");
+      setTranslationModelSync({ state: "saved", message: "" });
+      showToast(t("personal_model_cleared") || "Model cleared.", "success");
+    } catch (error) {
+      setTranslationModelSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("personal_model_clear_failed") || "Failed to clear model.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error"
+      );
+    }
+  };
+
+  const handleSaveTranslationBaseUrl = async () => {
+    const baseUrl = String(translationBaseUrlInput || "").trim();
+    if (!baseUrl) {
+      showToast(t("personal_base_url_required") || "Please enter your base URL.", "error");
+      return;
+    }
+
+    setTranslationBaseUrlSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationBaseUrl: baseUrl });
+      setTranslationBaseUrl(
+        typeof data?.translationBaseUrl === "string" && data.translationBaseUrl
+          ? data.translationBaseUrl
+          : baseUrl,
+      );
+      setTranslationBaseUrlInput("");
+      setTranslationBaseUrlSync({ state: "saved", message: "" });
+      showToast(t("personal_base_url_saved") || "Base URL saved.", "success");
+    } catch (error) {
+      setTranslationBaseUrlSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("personal_base_url_save_failed") || "Failed to save base URL.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleClearTranslationBaseUrl = async () => {
+    setTranslationBaseUrlSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureSettings({ translationBaseUrl: "" });
+      setTranslationBaseUrl(
+        typeof data?.translationBaseUrl === "string" && data.translationBaseUrl ? data.translationBaseUrl : null,
+      );
+      setTranslationBaseUrlInput("");
+      setTranslationBaseUrlSync({ state: "saved", message: "" });
+      showToast(t("personal_base_url_cleared") || "Base URL cleared.", "success");
+    } catch (error) {
+      setTranslationBaseUrlSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("personal_base_url_clear_failed") || "Failed to clear base URL.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [keyData, modelData, baseUrlData] = await Promise.all([
+          apiService.getLiteratureAdminTranslationKey(),
+          apiService.getLiteratureAdminTranslationModel(),
+          apiService.getLiteratureAdminTranslationBaseUrl(),
+        ]);
+        if (cancelled) return;
+        setDefaultTranslationApiKeyMasked(
+          typeof keyData?.defaultTranslationApiKeyMasked === "string" &&
+            keyData.defaultTranslationApiKeyMasked
+            ? keyData.defaultTranslationApiKeyMasked
+            : null,
+        );
+        setHasDefaultTranslationApiKey(Boolean(keyData?.hasDefaultTranslationApiKey));
+
+        setHasDefaultTranslationModel(Boolean(modelData?.hasDefaultTranslationModel));
+        setDefaultTranslationModel(
+          typeof modelData?.defaultTranslationModel === "string" && modelData.defaultTranslationModel
+            ? modelData.defaultTranslationModel
+            : null,
+        );
+        setBuiltinDefaultTranslationModel(
+          typeof modelData?.builtinDefaultTranslationModel === "string" && modelData.builtinDefaultTranslationModel
+            ? modelData.builtinDefaultTranslationModel
+            : "glm-4.5-flash",
+        );
+
+        setHasDefaultTranslationBaseUrl(Boolean(baseUrlData?.hasDefaultTranslationBaseUrl));
+        setDefaultTranslationBaseUrl(
+          typeof baseUrlData?.defaultTranslationBaseUrl === "string" && baseUrlData.defaultTranslationBaseUrl
+            ? baseUrlData.defaultTranslationBaseUrl
+            : null,
+        );
+      } catch {
+        // quiet error
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperAdmin]);
+
+  const handleSaveDefaultTranslationApiKey = async () => {
+    const key = String(defaultTranslationApiKeyInput || "").trim();
+    if (!key) {
+      showToast(
+        t("default_api_key_required") ||
+        "Please enter the default API Key.",
+        "error",
+      );
+      return;
+    }
+
+    setDefaultTranslationApiKeySync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationKey({
+        defaultTranslationApiKey: key,
+      });
+      setDefaultTranslationApiKeyMasked(
+        typeof data?.defaultTranslationApiKeyMasked === "string" &&
+          data.defaultTranslationApiKeyMasked
+          ? data.defaultTranslationApiKeyMasked
+          : null,
+      );
+      setHasDefaultTranslationApiKey(Boolean(data?.hasDefaultTranslationApiKey));
+      setDefaultTranslationApiKeyInput("");
+      setDefaultTranslationApiKeySync({ state: "saved", message: "" });
+      showToast(
+        t("default_api_key_saved") || "Default API Key saved.",
+        "success",
+      );
+    } catch (error) {
+      setDefaultTranslationApiKeySync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("default_api_key_save_failed") ||
+          "Failed to save default API Key.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleClearDefaultTranslationApiKey = async () => {
+    setDefaultTranslationApiKeySync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationKey({
+        defaultTranslationApiKey: "",
+      });
+      setDefaultTranslationApiKeyMasked(null);
+      setHasDefaultTranslationApiKey(Boolean(data?.hasDefaultTranslationApiKey));
+      setDefaultTranslationApiKeyInput("");
+      setDefaultTranslationApiKeySync({ state: "saved", message: "" });
+      showToast(
+        t("default_api_key_cleared") || "Default API Key cleared.",
+        "success",
+      );
+    } catch (error) {
+      setDefaultTranslationApiKeySync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("default_api_key_clear_failed") ||
+          "Failed to clear default API Key.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleSaveDefaultTranslationModel = async () => {
+    const model = String(defaultTranslationModelInput || "").trim();
+    if (!model) {
+      showToast(
+        t("default_model_required") ||
+        "Please enter the default model.",
+        "error",
+      );
+      return;
+    }
+
+    setDefaultTranslationModelSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationModel({
+        defaultTranslationModel: model,
+      });
+      setHasDefaultTranslationModel(Boolean(data?.hasDefaultTranslationModel));
+      setDefaultTranslationModel(
+        typeof data?.defaultTranslationModel === "string" && data.defaultTranslationModel
+          ? data.defaultTranslationModel
+          : model,
+      );
+      setBuiltinDefaultTranslationModel(
+        typeof data?.builtinDefaultTranslationModel === "string" && data.builtinDefaultTranslationModel
+          ? data.builtinDefaultTranslationModel
+          : builtinDefaultTranslationModel,
+      );
+      setDefaultTranslationModelInput("");
+      setDefaultTranslationModelSync({ state: "saved", message: "" });
+      showToast(
+        t("default_model_saved") || "Default model saved.",
+        "success",
+      );
+    } catch (error) {
+      setDefaultTranslationModelSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("default_model_save_failed") ||
+          "Failed to save default model.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleClearDefaultTranslationModel = async () => {
+    setDefaultTranslationModelSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationModel({
+        defaultTranslationModel: "",
+      });
+      setHasDefaultTranslationModel(Boolean(data?.hasDefaultTranslationModel));
+      setDefaultTranslationModel(
+        typeof data?.defaultTranslationModel === "string" && data.defaultTranslationModel
+          ? data.defaultTranslationModel
+          : null,
+      );
+      setBuiltinDefaultTranslationModel(
+        typeof data?.builtinDefaultTranslationModel === "string" && data.builtinDefaultTranslationModel
+          ? data.builtinDefaultTranslationModel
+          : builtinDefaultTranslationModel,
+      );
+      setDefaultTranslationModelInput("");
+      setDefaultTranslationModelSync({ state: "saved", message: "" });
+      showToast(
+        t("default_model_cleared") || "Default model cleared.",
+        "success",
+      );
+    } catch (error) {
+      setDefaultTranslationModelSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("default_model_clear_failed") ||
+          "Failed to clear default model.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleSaveDefaultTranslationBaseUrl = async () => {
+    const baseUrl = String(defaultTranslationBaseUrlInput || "").trim();
+    if (!baseUrl) {
+      showToast(
+        t("default_base_url_required") || "Please enter the default base URL.",
+        "error",
+      );
+      return;
+    }
+
+    setDefaultTranslationBaseUrlSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationBaseUrl({
+        defaultTranslationBaseUrl: baseUrl,
+      });
+      setHasDefaultTranslationBaseUrl(Boolean(data?.hasDefaultTranslationBaseUrl));
+      setDefaultTranslationBaseUrl(
+        typeof data?.defaultTranslationBaseUrl === "string" && data.defaultTranslationBaseUrl
+          ? data.defaultTranslationBaseUrl
+          : baseUrl,
+      );
+      setDefaultTranslationBaseUrlInput("");
+      setDefaultTranslationBaseUrlSync({ state: "saved", message: "" });
+      showToast(t("default_base_url_saved") || "Default base URL saved.", "success");
+    } catch (error) {
+      setDefaultTranslationBaseUrlSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("default_base_url_save_failed") || "Failed to save default base URL.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleClearDefaultTranslationBaseUrl = async () => {
+    setDefaultTranslationBaseUrlSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationBaseUrl({
+        defaultTranslationBaseUrl: "",
+      });
+      setHasDefaultTranslationBaseUrl(Boolean(data?.hasDefaultTranslationBaseUrl));
+      setDefaultTranslationBaseUrl(
+        typeof data?.defaultTranslationBaseUrl === "string" && data.defaultTranslationBaseUrl
+          ? data.defaultTranslationBaseUrl
+          : null,
+      );
+      setDefaultTranslationBaseUrlInput("");
+      setDefaultTranslationBaseUrlSync({ state: "saved", message: "" });
+      showToast(t("default_base_url_cleared") || "Default base URL cleared.", "success");
+    } catch (error) {
+      setDefaultTranslationBaseUrlSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("default_base_url_clear_failed") || "Failed to clear default base URL.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleUpdateTranslationProvider = async (nextProvider) => {
+    const provider = String(nextProvider || "").trim().toLowerCase();
+    if (!provider || provider === translationProvider) return;
+    if (!isSuperAdmin) return;
+    if (translationProviderSync.state === "saving") return;
+
+    const confirmed = window.confirm(
+      t("translation_provider_switch_confirm") ||
+      "Switching translation provider will clear the global default key/model/base URL. Continue?",
+    );
+    if (!confirmed) return;
+
+    setTranslationProviderSync({ state: "saving", message: "" });
+    try {
+      const data = await apiService.updateLiteratureAdminTranslationProvider({
+        translationProvider: provider,
+      });
+
+      const updatedProvider =
+        typeof data?.translationProvider === "string" && data.translationProvider
+          ? data.translationProvider
+          : provider;
+      setTranslationProvider(updatedProvider);
+      setTranslationProviderInput(updatedProvider);
+      setSupportedTranslationProviders(
+        Array.isArray(data?.supportedProviders) && data.supportedProviders.length
+          ? data.supportedProviders
+          : supportedTranslationProviders,
+      );
+
+      if (data?.clearedDefaults) {
+        setHasDefaultTranslationApiKey(false);
+        setDefaultTranslationApiKeyMasked(null);
+        setDefaultTranslationApiKeyInput("");
+        setHasDefaultTranslationModel(false);
+        setDefaultTranslationModel(null);
+        setDefaultTranslationModelInput("");
+        setHasDefaultTranslationBaseUrl(false);
+        setDefaultTranslationBaseUrl(null);
+        setDefaultTranslationBaseUrlInput("");
+      }
+
+      setTranslationProviderSync({ state: "saved", message: "" });
+      showToast(
+        t("translation_provider_updated") || "Translation provider updated.",
+        "success",
+      );
+    } catch (error) {
+      setTranslationProviderSync({
+        state: "error",
+        message: error?.message || String(error),
+      });
+      showToast(
+        (t("translation_provider_update_failed") || "Failed to update provider.") +
+        (error?.message ? ` (${error.message})` : ""),
+        "error",
+      );
+    }
+  };
+
+  const handleTestTranslate = async () => {
+    if (translateTest.state === "loading") return;
+    const text = String(translateTestInput || "").trim();
+    if (!text) {
+      showToast(t("literature_translate_test_required") || "Please enter test text.", "error");
+      return;
+    }
+
+	    setTranslateTest({
+	      state: "loading",
+	      apiKeySource: null,
+	      translatedText: "",
+	      error: "",
+	      cached: false,
+	      model: "",
+	      modelSource: null,
+	      translationProvider: null,
+	      translationProviderSource: null,
+	      translationBaseUrlSource: null,
+	      translationBaseUrlHost: null,
+	    });
+
+    try {
+      const data = await apiService.translateLiteratureAbstract({
+        id: `settings_test_${Date.now()}`,
+        text,
+        targetLang: "zh",
+        bypassCache: translateTestBypassCache,
+        ...(isSuperAdmin && translateTestForceDefaultKey ? { forceKeySource: "default" } : {}),
+      });
+      const translatedText =
+        typeof data?.translatedText === "string" ? data.translatedText.trim() : "";
+      if (!translatedText) throw new Error("Translation returned empty text");
+
+	      setTranslateTest({
+	        state: "done",
+	        apiKeySource:
+	          typeof data?.apiKeySource === "string" && data.apiKeySource ? data.apiKeySource : null,
+	        translatedText,
+	        error: "",
+	        cached: Boolean(data?.cached),
+	        model: typeof data?.model === "string" ? data.model : "",
+	        modelSource:
+	          typeof data?.modelSource === "string" && data.modelSource ? data.modelSource : null,
+	        translationProvider:
+	          typeof data?.translationProvider === "string" && data.translationProvider
+	            ? data.translationProvider
+	            : null,
+	        translationProviderSource:
+	          typeof data?.translationProviderSource === "string" && data.translationProviderSource
+	            ? data.translationProviderSource
+	            : null,
+	        translationBaseUrlSource:
+	          typeof data?.translationBaseUrlSource === "string" && data.translationBaseUrlSource
+	            ? data.translationBaseUrlSource
+	            : null,
+	        translationBaseUrlHost:
+	          typeof data?.translationBaseUrlHost === "string" && data.translationBaseUrlHost
+	            ? data.translationBaseUrlHost
+	            : null,
+	      });
+	    } catch (error) {
+	      const apiKeySourceFromError =
+	        typeof error?.apiKeySource === "string" && error.apiKeySource ? error.apiKeySource : null;
+	      const modelFromError = typeof error?.model === "string" && error.model ? error.model : "";
+	      const modelSourceFromError =
+	        typeof error?.modelSource === "string" && error.modelSource ? error.modelSource : null;
+	      const providerFromError =
+	        typeof error?.translationProvider === "string" && error.translationProvider
+	          ? error.translationProvider
+	          : null;
+	      const providerSourceFromError =
+	        typeof error?.translationProviderSource === "string" && error.translationProviderSource
+	          ? error.translationProviderSource
+	          : null;
+	      const baseUrlSourceFromError =
+	        typeof error?.translationBaseUrlSource === "string" && error.translationBaseUrlSource
+	          ? error.translationBaseUrlSource
+	          : null;
+	      const baseUrlHostFromError =
+	        typeof error?.translationBaseUrlHost === "string" && error.translationBaseUrlHost
+	          ? error.translationBaseUrlHost
+	          : null;
+	      setTranslateTest({
+	        state: "error",
+	        apiKeySource: apiKeySourceFromError,
+	        translatedText: "",
+	        error: error?.message || String(error),
+	        cached: false,
+	        model: modelFromError,
+	        modelSource: modelSourceFromError,
+	        translationProvider: providerFromError,
+	        translationProviderSource: providerSourceFromError,
+	        translationBaseUrlSource: baseUrlSourceFromError,
+	        translationBaseUrlHost: baseUrlHostFromError,
+	      });
+	    }
+	  };
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -161,7 +950,7 @@ const Settings = () => {
   };
 
   return (
-    <div ref={containerRef} className="max-w-4xl mx-auto relative min-h-screen">
+    <div ref={containerRef} className="w-full relative min-h-screen">
       <h1 className="text-3xl font-serif font-medium text-text-primary mb-8">
         {t("settings")}
       </h1>
@@ -253,10 +1042,10 @@ const Settings = () => {
                   <button
                     type="button"
                     onClick={handleNameSave}
-                    className="flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-lg hover:scale-102 active:scale-95 transition-all whitespace-nowrap"
+                    className="group relative flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-lg active:scale-95 transition-all whitespace-nowrap before:content-[''] before:absolute before:inset-0 before:rounded-lg before:bg-black before:pointer-events-none before:transition-transform hover:before:scale-[1.02]"
                   >
-                    <span>{t("saveChanges")}</span>
-                    <ArrowUp size={16} />
+                    <span className="relative z-10">{t("saveChanges")}</span>
+                    <ArrowUp size={16} className="relative z-10" />
                   </button>
                 </div>
               </div>
@@ -282,11 +1071,10 @@ const Settings = () => {
                 onClick={() => setTheme(item.id)}
                 className={`
                                     flex flex-col items-center justify-center p-4 rounded-xl border transition-all
-                                    ${
-                                      theme === item.id
-                                        ? "bg-accent/5 border-accent text-accent"
-                                        : "border-border-subtle text-text-secondary hover:bg-bg-subtle"
-                                    }
+                                    ${theme === item.id
+                    ? "bg-accent/5 border-accent text-accent"
+                    : "border-border-subtle text-text-secondary hover:bg-bg-subtle"
+                  }
                                 `}
               >
                 <item.icon size={24} className="mb-2" />
@@ -308,11 +1096,10 @@ const Settings = () => {
                 onClick={() => setLanguage(item.id)}
                 className={`
                                     flex items-center justify-between p-4 rounded-xl border transition-all text-left
-                                    ${
-                                      language === item.id
-                                        ? "bg-accent/5 border-accent text-accent"
-                                        : "border-border-subtle text-text-secondary hover:bg-bg-subtle"
-                                    }
+                                    ${language === item.id
+                    ? "bg-accent/5 border-accent text-accent"
+                    : "border-border-subtle text-text-secondary hover:bg-bg-subtle"
+                  }
                                 `}
               >
                 <span className="text-xs font-serif font-medium">
@@ -321,6 +1108,757 @@ const Settings = () => {
                 {language === item.id && <Check size={16} />}
               </button>
             ))}
+          </div>
+        </Section>
+
+        <Section title={t("translation_service") || "Translation Service"} icon={Key}>
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 flex-wrap mb-2">
+                <label className="text-sm font-medium text-text-secondary">
+                  {t("default_provider") || "Default Provider (Global)"}
+                </label>
+                <span className="text-xs text-text-tertiary">
+                  {t("default_provider_hint") ||
+                    "Used when you have not set a personal key/provider."}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {isSuperAdmin ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="text"
+                      value={translationProviderInput}
+                      onChange={(e) => setTranslationProviderInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleUpdateTranslationProvider(translationProviderInput);
+                        }
+                      }}
+                      list="translationProviderSuggestions"
+                      placeholder="bigmodel / openai / openai_compatible"
+                      disabled={translationProviderSync.state === "saving"}
+                      className="min-w-[240px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateTranslationProvider(translationProviderInput)}
+                      disabled={
+                        translationProviderSync.state === "saving" ||
+                        !String(translationProviderInput || "").trim() ||
+                        String(translationProviderInput || "").trim().toLowerCase() ===
+                          String(translationProvider || "").trim().toLowerCase()
+                      }
+                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationProviderSync.state === "saving" ||
+                        !String(translationProviderInput || "").trim() ||
+                        String(translationProviderInput || "").trim().toLowerCase() ===
+                          String(translationProvider || "").trim().toLowerCase()
+                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                        : "bg-accent text-white hover:bg-accent-hover"
+                        }`}
+                    >
+                      <span className="relative z-10">
+                        {translationProviderSync.state === "saving" ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          t("literature_save") || "Save"
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-sm text-text-primary">
+                    {formatProviderLabel(translationProvider)}
+                  </div>
+                )}
+              </div>
+
+              {translationProviderSync.state === "error" && translationProviderSync.message && (
+                <div className="text-xs text-red-500">
+                  {translationProviderSync.message}
+                </div>
+              )}
+            </div>
+
+            <datalist id="translationProviderSuggestions">
+              {supportedTranslationProviders.map((provider) => (
+                <option key={provider} value={provider} />
+              ))}
+            </datalist>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 flex-wrap mb-2">
+                <label className="text-sm font-medium text-text-secondary">
+                  {t("personal_provider") || "Personal Provider"}
+                </label>
+                <span className="text-xs text-text-tertiary">
+                  {t("personal_provider_hint") ||
+                    "Used with your personal key. Leave blank to use the default provider."}
+                </span>
+              </div>
+
+              <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                {userTranslationProvider
+                  ? (t("provider_current") || "Current provider") +
+                  `: ${formatProviderLabel(userTranslationProvider)}`
+                  : (t("personal_provider_using_default") || "Using the default provider") +
+                  `: ${formatProviderLabel(translationProvider)}`}
+              </div>
+
+              {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
+                <div className="text-xs text-amber-600 -mt-1 mb-1">
+                  {t("personal_provider_requires_personal_key") ||
+                    "For security, personal provider is only used with a personal key."}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={userTranslationProviderInput}
+                  onChange={(e) => setUserTranslationProviderInput(e.target.value)}
+                  placeholder="siliconflow / openai_compatible / openai / bigmodel"
+                  list="translationProviderSuggestions"
+                  disabled={userTranslationProviderSync.state === "saving"}
+                  className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60"
+                  autoComplete="off"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSaveUserTranslationProvider}
+                  disabled={
+                    userTranslationProviderSync.state === "saving" ||
+                    !String(userTranslationProviderInput || "").trim()
+                  }
+                  className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${userTranslationProviderSync.state === "saving" || !String(userTranslationProviderInput || "").trim()
+                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                    : "bg-accent text-white hover:bg-accent-hover"
+                    }`}
+                >
+                  <span className="relative z-10">
+                    {userTranslationProviderSync.state === "saving" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      t("literature_save") || "Save"
+                    )}
+                  </span>
+                </button>
+
+                {Boolean(userTranslationProvider) && (
+                  <button
+                    type="button"
+                    onClick={handleClearUserTranslationProvider}
+                    disabled={userTranslationProviderSync.state === "saving"}
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${userTranslationProviderSync.state === "saving"
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                      }`}
+                  >
+                    <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                  </button>
+                )}
+              </div>
+
+              {userTranslationProviderSync.state === "error" &&
+                userTranslationProviderSync.message && (
+                <div className="text-xs text-red-500">
+                  {userTranslationProviderSync.message}
+                </div>
+              )}
+            </div>
+
+            {isSuperAdmin && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <label className="text-sm font-medium text-text-secondary">
+                    {t("default_api_key") ||
+                      "Default API Key (Global)"}
+                  </label>
+                  <span className="text-xs text-text-tertiary">
+                    {t("default_api_key_hint") ||
+                      "Used when a user has not set a personal key."}
+                  </span>
+                </div>
+
+                {defaultTranslationApiKeyMasked && (
+                  <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                    {(t("api_key_saved") || "Saved key") + `: ${defaultTranslationApiKeyMasked}`}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="password"
+                    value={defaultTranslationApiKeyInput}
+                    onChange={(e) => setDefaultTranslationApiKeyInput(e.target.value)}
+                    placeholder={t("default_api_key_placeholder") || ""}
+                    className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                    autoComplete="off"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleSaveDefaultTranslationApiKey}
+                    disabled={
+                      defaultTranslationApiKeySync.state === "saving" ||
+                      !defaultTranslationApiKeyInput.trim()
+                    }
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationApiKeySync.state === "saving" || !defaultTranslationApiKeyInput.trim()
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-accent text-white hover:bg-accent-hover"
+                      }`}
+                  >
+                    <span className="relative z-10">
+                      {defaultTranslationApiKeySync.state === "saving" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        t("literature_save") || "Save"
+                      )}
+                    </span>
+                  </button>
+
+                  {hasDefaultTranslationApiKey && (
+                    <button
+                      type="button"
+                      onClick={handleClearDefaultTranslationApiKey}
+                      disabled={defaultTranslationApiKeySync.state === "saving"}
+                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationApiKeySync.state === "saving"
+                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                        }`}
+                    >
+                      <span className="relative z-10">
+                        {t("literature_clear") || "Clear"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isSuperAdmin && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <label className="text-sm font-medium text-text-secondary">
+                    {t("default_model") ||
+                      "Default Model (Global)"}
+                  </label>
+                  <span className="text-xs text-text-tertiary">
+                    {t("default_model_hint") ||
+                      "Used with the global default key."}
+                  </span>
+                </div>
+
+                <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                  {(t("model_current") || "Current model") +
+                    `: ${hasDefaultTranslationModel ? defaultTranslationModel : "-"}`}
+                  {!hasDefaultTranslationModel &&
+                    translationProvider === "bigmodel" &&
+                    builtinDefaultTranslationModel
+                    ? ` | ${t("model_builtin") || "built-in"}: ${builtinDefaultTranslationModel}`
+                    : ""}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={defaultTranslationModelInput}
+                    onChange={(e) => setDefaultTranslationModelInput(e.target.value)}
+                    placeholder={t("default_model_placeholder") || ""}
+                    className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                    autoComplete="off"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleSaveDefaultTranslationModel}
+                    disabled={
+                      defaultTranslationModelSync.state === "saving" ||
+                      !defaultTranslationModelInput.trim()
+                    }
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationModelSync.state === "saving" || !defaultTranslationModelInput.trim()
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-accent text-white hover:bg-accent-hover"
+                      }`}
+                  >
+                    <span className="relative z-10">
+                      {defaultTranslationModelSync.state === "saving" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        t("literature_save") || "Save"
+                      )}
+                    </span>
+                  </button>
+
+                  {hasDefaultTranslationModel && (
+                    <button
+                      type="button"
+                      onClick={handleClearDefaultTranslationModel}
+                      disabled={defaultTranslationModelSync.state === "saving"}
+                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationModelSync.state === "saving"
+                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                        }`}
+                    >
+                      <span className="relative z-10">
+                        {t("literature_clear") || "Clear"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isSuperAdmin && isDefaultOpenAICompatibleProvider && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <label className="text-sm font-medium text-text-secondary">
+                    {t("default_base_url") || "Default Base URL (Global)"}
+                  </label>
+                  <span className="text-xs text-text-tertiary">
+                    {t("default_base_url_hint") || "Only used for OpenAI-compatible provider."}
+                  </span>
+                </div>
+
+                <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                  {`Current: ${hasDefaultTranslationBaseUrl ? defaultTranslationBaseUrl : "-"}`}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={defaultTranslationBaseUrlInput}
+                    onChange={(e) => setDefaultTranslationBaseUrlInput(e.target.value)}
+                    placeholder={t("default_base_url_placeholder") || ""}
+                    className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                    autoComplete="off"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleSaveDefaultTranslationBaseUrl}
+                    disabled={
+                      defaultTranslationBaseUrlSync.state === "saving" ||
+                      !defaultTranslationBaseUrlInput.trim()
+                    }
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationBaseUrlSync.state === "saving" || !defaultTranslationBaseUrlInput.trim()
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-accent text-white hover:bg-accent-hover"
+                      }`}
+                  >
+                    <span className="relative z-10">
+                      {defaultTranslationBaseUrlSync.state === "saving" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        t("literature_save") || "Save"
+                      )}
+                    </span>
+                  </button>
+
+                  {hasDefaultTranslationBaseUrl && (
+                    <button
+                      type="button"
+                      onClick={handleClearDefaultTranslationBaseUrl}
+                      disabled={defaultTranslationBaseUrlSync.state === "saving"}
+                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationBaseUrlSync.state === "saving"
+                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                        }`}
+                    >
+                      <span className="relative z-10">
+                        {t("literature_clear") || "Clear"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 flex-wrap mb-2">
+                <label className="text-sm font-medium text-text-secondary">
+                  {t("personal_api_key") || "API Key"}
+                </label>
+                <span className="text-xs text-text-tertiary">
+                  {t("personal_api_key_hint") ||
+                    "Used for abstract translation. Stored on the server; never shown in full once saved."}
+                </span>
+              </div>
+
+              {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
+                <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                  {t("personal_api_key_using_default") ||
+                    "Using the default key (admin). Set your own key to override."}
+                </div>
+              )}
+
+              {translationApiKeyMasked && (
+                <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                  {(t("api_key_saved") || "Saved key") + `: ${translationApiKeyMasked}`}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="password"
+                  value={translationApiKeyInput}
+                  onChange={(e) => setTranslationApiKeyInput(e.target.value)}
+                  placeholder={t("personal_api_key_placeholder") || ""}
+                  className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  autoComplete="off"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSaveTranslationApiKey}
+                  disabled={translationApiKeySync.state === "saving" || !translationApiKeyInput.trim()}
+                  className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationApiKeySync.state === "saving" || !translationApiKeyInput.trim()
+                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                    : "bg-accent text-white hover:bg-accent-hover"
+                    }`}
+                >
+                  <span className="relative z-10">
+                    {translationApiKeySync.state === "saving" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      t("literature_save") || "Save"
+                    )}
+                  </span>
+                </button>
+
+                {Boolean(translationApiKeyMasked) && (
+                  <button
+                    type="button"
+                    onClick={handleClearTranslationApiKey}
+                    disabled={translationApiKeySync.state === "saving"}
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationApiKeySync.state === "saving"
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                      }`}
+                  >
+                    <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {isEffectiveOpenAICompatibleProviderForUser && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <label className="text-sm font-medium text-text-secondary">
+                    {t("personal_base_url") || "Base URL"}
+                  </label>
+                  <span className="text-xs text-text-tertiary">
+                    {t("personal_base_url_hint") || "Only used for OpenAI-compatible provider."}
+                  </span>
+                </div>
+
+                {hasDefaultTranslationBaseUrl && !translationBaseUrl && (
+                  <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                    {t("personal_base_url_using_default") ||
+                      "Using the default base URL (admin). Set your own base URL to override."}
+                  </div>
+                )}
+
+                {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
+                  <div className="text-xs text-amber-600 -mt-1 mb-1">
+                    {t("personal_base_url_requires_personal_key") ||
+                      "For security, personal base URL is only used with a personal key."}
+                  </div>
+                )}
+
+                <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                  {`Current: ${translationBaseUrl || "-"}`}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={translationBaseUrlInput}
+                    onChange={(e) => setTranslationBaseUrlInput(e.target.value)}
+                    placeholder={t("personal_base_url_placeholder") || ""}
+                    className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                    autoComplete="off"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleSaveTranslationBaseUrl}
+                    disabled={
+                      translationBaseUrlSync.state === "saving" || !translationBaseUrlInput.trim()
+                    }
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationBaseUrlSync.state === "saving" || !translationBaseUrlInput.trim()
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-accent text-white hover:bg-accent-hover"
+                      }`}
+                  >
+                    <span className="relative z-10">
+                      {translationBaseUrlSync.state === "saving" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        t("literature_save") || "Save"
+                      )}
+                    </span>
+                  </button>
+
+                  {Boolean(translationBaseUrl) && (
+                    <button
+                      type="button"
+                      onClick={handleClearTranslationBaseUrl}
+                      disabled={translationBaseUrlSync.state === "saving"}
+                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationBaseUrlSync.state === "saving"
+                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                        }`}
+                    >
+                      <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 flex-wrap mb-2">
+                <label className="text-sm font-medium text-text-secondary">
+                  {t("personal_model") || "Model"}
+                </label>
+                <span className="text-xs text-text-tertiary">
+                  {t("personal_model_hint") ||
+                    "Used with your personal key. Leave blank to use the default model."}
+                </span>
+              </div>
+
+              <div className="text-xs text-text-tertiary -mt-1 mb-1">
+                {translationModel
+                  ? (t("model_current") || "Current model") +
+                  `: ${translationModel}`
+                  : t("personal_model_using_default") ||
+                  "Using the default model."}
+              </div>
+
+              {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
+                <div className="text-xs text-amber-600 -mt-1 mb-1">
+                  {t("personal_model_requires_personal_key") ||
+                    "For security, personal model is only used with a personal key."}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={translationModelInput}
+                  onChange={(e) => setTranslationModelInput(e.target.value)}
+                  placeholder={t("personal_model_placeholder") || ""}
+                  className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  autoComplete="off"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSaveTranslationModel}
+                  disabled={translationModelSync.state === "saving" || !translationModelInput.trim()}
+                  className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationModelSync.state === "saving" || !translationModelInput.trim()
+                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                    : "bg-accent text-white hover:bg-accent-hover"
+                    }`}
+                >
+                  <span className="relative z-10">
+                    {translationModelSync.state === "saving" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      t("literature_save") || "Save"
+                    )}
+                  </span>
+                </button>
+
+                {Boolean(translationModel) && (
+                  <button
+                    type="button"
+                    onClick={handleClearTranslationModel}
+                    disabled={translationModelSync.state === "saving"}
+                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationModelSync.state === "saving"
+                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                      : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                      }`}
+                  >
+                    <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-2 p-4 rounded-xl border border-border-subtle bg-bg-page/30">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-sm font-medium text-text-primary">
+                    {t("literature_translate_test_title") || "Translation test"}
+                  </div>
+                  <div className="text-xs text-text-tertiary mt-1">
+                    {t("literature_translate_test_hint") ||
+                      "Translate a short text to confirm whether the personal key or the default key is being used."}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestTranslate}
+                  disabled={translateTest.state === "loading"}
+                  className={`group relative inline-flex items-center px-4 h-[38px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translateTest.state === "loading"
+                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
+                    : "bg-accent text-white hover:bg-accent-hover"
+                    }`}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    {translateTest.state === "loading" && (
+                      <Loader2 size={16} className="animate-spin" />
+                    )}
+                    {translateTest.state === "loading"
+                      ? t("literature_translate_test_running") || "Testing..."
+                      : t("literature_translate_test_run") || "Test translate"}
+                  </span>
+                </button>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3 flex-wrap text-xs">
+                <div className="flex items-center gap-4 flex-wrap text-text-secondary">
+                  {isSuperAdmin && (
+                    <label className="inline-flex items-center gap-2 select-none">
+                      <input
+                        type="checkbox"
+                        checked={translateTestForceDefaultKey}
+                        onChange={(e) => setTranslateTestForceDefaultKey(e.target.checked)}
+                      />
+                      {t("literature_translate_test_force_default") ||
+                        "Test with default key (global)"}
+                    </label>
+                  )}
+                </div>
+
+                <label className="inline-flex items-center gap-2 text-text-secondary select-none">
+                  <input
+                    type="checkbox"
+                    checked={translateTestBypassCache}
+                    onChange={(e) => setTranslateTestBypassCache(e.target.checked)}
+                  />
+                  {t("literature_translate_test_bypass_cache") ||
+                    "Force upstream (bypass cache)"}
+                </label>
+              </div>
+
+              <textarea
+                value={translateTestInput}
+                onChange={(e) => setTranslateTestInput(e.target.value)}
+                rows={3}
+                placeholder={
+                  t("literature_translate_test_placeholder") ||
+                  "Paste a short English abstract here to test translation..."
+                }
+                className="mt-3 w-full px-3 py-2.5 rounded-lg bg-bg-page border border-border-subtle focus:outline-none focus:ring-1 focus:ring-accent text-sm text-text-primary placeholder:text-text-tertiary resize-y"
+              />
+
+              {translateTest.state === "done" && (
+                <div className="mt-3 text-sm text-text-secondary space-y-2">
+                  <div className="text-xs text-text-tertiary">
+                    {(t("literature_translate_test_used_key") || "Used key") +
+                      `: ${translateTest.apiKeySource === "user"
+                        ? t("literature_translate_test_key_user") || "personal"
+                        : translateTest.apiKeySource === "default"
+                          ? t("literature_translate_test_key_default") || "default"
+                          : t("literature_translate_test_key_none") || "none"
+	                      }`}
+	                    {translateTest.model
+	                      ? ` | ${(t("translation_model_short") || "model")}: ${translateTest.model}${translateTest.modelSource
+	                        ? ` (${translateTest.modelSource === "user"
+	                          ? t("literature_translate_test_key_user") || "personal"
+	                          : translateTest.modelSource === "default"
+	                            ? t("literature_translate_test_key_default") || "default"
+	                            : translateTest.modelSource
+	                        })`
+	                        : ""}`
+	                      : ""}
+	                    {translateTest.translationProvider
+	                      ? ` | ${(t("translation_provider_short") || "provider")}: ${translateTest.translationProvider}${translateTest.translationProviderSource
+	                        ? ` (${translateTest.translationProviderSource === "user"
+	                          ? t("literature_translate_test_key_user") || "personal"
+	                          : translateTest.translationProviderSource === "default"
+	                            ? t("literature_translate_test_key_default") || "default"
+	                            : translateTest.translationProviderSource
+	                        })`
+	                        : ""}`
+	                      : ""}
+	                    {translateTest.translationBaseUrlHost
+	                      ? ` | ${(t("translation_base_url_short") || "base URL")}: ${translateTest.translationBaseUrlHost}${translateTest.translationBaseUrlSource
+	                        ? ` (${translateTest.translationBaseUrlSource === "user"
+	                          ? t("literature_translate_test_key_user") || "personal"
+	                          : translateTest.translationBaseUrlSource === "default"
+	                            ? t("literature_translate_test_key_default") || "default"
+	                            : t("literature_translate_test_key_none") || "none"
+	                        })`
+	                        : ""}`
+	                      : ""}
+	                    {translateTest.cached
+	                      ? ` | ${t("literature_translate_test_cached") || "cached"}`
+	                      : ""}
+	                  </div>
+                  <div className="whitespace-pre-wrap leading-relaxed">
+                    {translateTest.translatedText}
+                  </div>
+                </div>
+              )}
+
+              {translateTest.state === "error" && (
+                <div className="mt-3 text-sm text-red-500">
+                  <div>
+                    {(t("literature_translate_test_failed") || "Test failed") +
+                      (translateTest.error ? `: ${translateTest.error}` : "")}
+                  </div>
+                  <div className="mt-1 text-xs text-red-500/90">
+                    {(t("literature_translate_test_used_key") || "Used key") +
+                      `: ${translateTest.apiKeySource === "user"
+                        ? t("literature_translate_test_key_user") || "personal"
+                        : translateTest.apiKeySource === "default"
+                          ? t("literature_translate_test_key_default") || "default"
+                          : t("literature_translate_test_key_none") || "none"
+	                      }`}
+	                    {translateTest.model
+	                      ? ` | ${(t("translation_model_short") || "model")}: ${translateTest.model}${translateTest.modelSource
+	                        ? ` (${translateTest.modelSource === "user"
+	                          ? t("literature_translate_test_key_user") || "personal"
+	                          : translateTest.modelSource === "default"
+	                            ? t("literature_translate_test_key_default") || "default"
+	                            : translateTest.modelSource
+	                        })`
+	                        : ""}`
+	                      : ""}
+	                    {translateTest.translationProvider
+	                      ? ` | ${(t("translation_provider_short") || "provider")}: ${translateTest.translationProvider}${translateTest.translationProviderSource
+	                        ? ` (${translateTest.translationProviderSource === "user"
+	                          ? t("literature_translate_test_key_user") || "personal"
+	                          : translateTest.translationProviderSource === "default"
+	                            ? t("literature_translate_test_key_default") || "default"
+	                            : translateTest.translationProviderSource
+	                        })`
+	                        : ""}`
+	                      : ""}
+	                    {translateTest.translationBaseUrlHost
+	                      ? ` | ${(t("translation_base_url_short") || "base URL")}: ${translateTest.translationBaseUrlHost}${translateTest.translationBaseUrlSource
+	                        ? ` (${translateTest.translationBaseUrlSource === "user"
+	                          ? t("literature_translate_test_key_user") || "personal"
+	                          : translateTest.translationBaseUrlSource === "default"
+	                            ? t("literature_translate_test_key_default") || "default"
+	                            : t("literature_translate_test_key_none") || "none"
+	                        })`
+	                        : ""}`
+	                      : ""}
+	                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </Section>
 
@@ -475,15 +2013,17 @@ const Settings = () => {
                     <button
                       type="button"
                       onClick={handleRetentionSave}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors font-medium text-sm disabled:opacity-60"
+                      className="group relative flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors font-medium text-sm disabled:opacity-60 before:content-[''] before:absolute before:inset-0 before:rounded-lg before:bg-accent before:pointer-events-none before:transition-transform hover:before:scale-[1.02] disabled:hover:before:scale-100"
                       disabled={
                         retentionLoading || retentionSaving || retentionRunning
                       }
                     >
-                      <Check size={16} />
-                      {retentionSaving
-                        ? `${t("saveChanges")}...`
-                        : t("saveChanges")}
+                      <Check size={16} className="relative z-10" />
+                      <span className="relative z-10">
+                        {retentionSaving
+                          ? `${t("saveChanges")}...`
+                          : t("saveChanges")}
+                      </span>
                     </button>
                     <button
                       type="button"

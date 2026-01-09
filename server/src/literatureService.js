@@ -167,23 +167,96 @@ function parseNatureCardDateText(text) {
   return `${match[3]}-${month}-${day}`;
 }
 
+function extractHtmlTitle(html) {
+  const match = typeof html === "string" ? html.match(/<title>([\s\S]*?)<\/title>/i) : null;
+  return match ? normalizeText(match[1]) : null;
+}
+
+function parseNatureListingContextFromHtml(html) {
+  const title = extractHtmlTitle(html);
+  if (!title) return { journalTitle: null, sectionTitle: null };
+
+  const parts = title
+    .split("|")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return { sectionTitle: parts[0] || null, journalTitle: parts[1] || null };
+  }
+
+  return { sectionTitle: parts[0] || null, journalTitle: null };
+}
+
+function parseNatureSeedPath(seedUrl) {
+  try {
+    const url = new URL(seedUrl);
+    const parts = url.pathname.split("/").filter(Boolean);
+    return {
+      journalSlug: parts[0] || null,
+      sectionSlug: parts[1] || null,
+    };
+  } catch {
+    return { journalSlug: null, sectionSlug: null };
+  }
+}
+
+function buildNatureSourceContext({
+  journalTitle,
+  sectionTitle,
+  journalSlug,
+  sectionSlug,
+} = {}) {
+  const journal = String(journalTitle || "").trim() || null;
+  const section = String(sectionTitle || "").trim() || null;
+  if (journal && section) return `${journal} · ${section}`;
+  if (journal) return journal;
+  if (section) return section;
+  const slugParts = [journalSlug, sectionSlug].filter(Boolean);
+  return slugParts.length ? slugParts.join(" / ") : null;
+}
+
+function deriveNatureDoiFromArticleUrl(articleUrl) {
+  try {
+    const url = new URL(articleUrl);
+    const match = url.pathname.match(/\/articles\/([^/]+)$/i);
+    if (!match) return null;
+    const code = String(match[1] || "").trim();
+    if (!code) return null;
+    return `10.1038/${code}`;
+  } catch {
+    return null;
+  }
+}
+
 function parseNatureListingCandidates(html, seedUrl) {
   const results = [];
   const seen = new Set();
   const hrefRe =
-    /href="(https?:\/\/www\.nature\.com\/articles\/[^"#\s]+|\/articles\/[^"#\s]+)"/gi;
+    /href="(https?:\/\/(?:www\.)?nature\.com\/articles\/[^"#\s]+|\/articles\/[^"#\s]+)"/gi;
 
   let match;
   while ((match = hrefRe.exec(html))) {
     const rawLink = match[1];
     const windowStart = match.index;
-    const window = html.slice(windowStart, windowStart + 3000);
+    const cardEnd = html.indexOf("</article>", windowStart);
+    const windowEnd =
+      cardEnd >= 0 ? cardEnd + "</article>".length : windowStart + 8000;
+    const window = html.slice(windowStart, windowEnd);
+
+    // Many Nature listing pages render the article title as the anchor text inside
+    // <a href="/articles/...">TITLE</a>, while the surrounding <h3> starts *before*
+    // the href attribute. Prefer extracting the anchor text from this local window.
+    const anchorTitleMatch = window.match(/>\s*([\s\S]*?)\s*<\/a>/i);
+    const titleFromAnchor = anchorTitleMatch
+      ? normalizeText(anchorTitleMatch[1])
+      : "";
 
     const titleMatch =
       window.match(/<h[12-6][^>]*>([\s\S]*?)<\/h[12-6]>/i) ||
       window.match(/name="dc\.title" content="([^"]+)"/i) ||
       window.match(/property="og:title" content="([^"]+)"/i);
-    const title = titleMatch ? normalizeText(titleMatch[1]) : "";
+    const title = titleFromAnchor || (titleMatch ? normalizeText(titleMatch[1]) : "");
     if (!title) continue;
 
     const absolute = new URL(rawLink, seedUrl);
@@ -202,7 +275,18 @@ function parseNatureListingCandidates(html, seedUrl) {
         : parseNatureCardDateText(dateMatch[1])
       : null;
 
-    results.push({ articleUrl, title, publishedDate });
+    const typeMatch =
+      window.match(
+        /data-test="article\.type"[\s\S]*?class="c-meta__type"[^>]*>([\s\S]*?)<\/span>/i,
+      ) || window.match(/class="c-meta__type"[^>]*>([\s\S]*?)<\/span>/i);
+    const articleType = typeMatch ? normalizeText(typeMatch[1]) : null;
+
+    const summaryMatch =
+      window.match(/data-test="article-description"[\s\S]*?>([\s\S]*?)<\/div>/i) ||
+      window.match(/itemprop="description"[\s\S]*?>([\s\S]*?)<\/div>/i);
+    const abstract = summaryMatch ? normalizeText(summaryMatch[1]) : null;
+
+    results.push({ articleUrl, title, publishedDate, articleType, abstract });
   }
 
   return results;
@@ -246,6 +330,42 @@ function extractNatureAbstract(html) {
   return normalized || null;
 }
 
+function parseNatureDataLayerCategory(html) {
+  if (typeof html !== "string" || !html) {
+    return { contentType: null, contentSubGroup: null, contentGroup: null };
+  }
+
+  const match = html.match(/window\.dataLayer\s*=\s*(\[[\s\S]*?\])\s*;/i);
+  if (!match) {
+    return { contentType: null, contentSubGroup: null, contentGroup: null };
+  }
+
+  try {
+    const dataLayer = JSON.parse(match[1]);
+    const category = dataLayer?.[0]?.content?.category || {};
+    const legacy = category?.legacy || {};
+
+    const contentType =
+      typeof category.contentType === "string" && category.contentType.trim()
+        ? category.contentType.trim()
+        : null;
+    const contentSubGroup =
+      typeof legacy.webtrendsContentSubGroup === "string" &&
+      legacy.webtrendsContentSubGroup.trim()
+        ? legacy.webtrendsContentSubGroup.trim()
+        : null;
+    const contentGroup =
+      typeof legacy.webtrendsContentGroup === "string" &&
+      legacy.webtrendsContentGroup.trim()
+        ? legacy.webtrendsContentGroup.trim()
+        : null;
+
+    return { contentType, contentSubGroup, contentGroup };
+  } catch {
+    return { contentType: null, contentSubGroup: null, contentGroup: null };
+  }
+}
+
 function parseNatureNextPageUrl(html, currentUrl) {
   if (typeof html !== "string" || !html) return null;
 
@@ -274,7 +394,7 @@ function parseNatureNextPageUrl(html, currentUrl) {
   return null;
 }
 
-async function fetchNatureArticleDetails(articleUrl) {
+async function _fetchNatureArticleDetails(articleUrl) {
   const html = await fetchText(articleUrl);
 
   const title =
@@ -288,10 +408,19 @@ async function fetchNatureArticleDetails(articleUrl) {
   );
 
   const abstract = extractNatureAbstract(html);
+  const category = parseNatureDataLayerCategory(html);
 
   const pdfUrl = `${articleUrl}.pdf`;
 
-  return { title: normalizeText(title), publishedDate, abstract, pdfUrl };
+  return {
+    title: normalizeText(title),
+    publishedDate,
+    abstract,
+    pdfUrl,
+    contentType: category.contentType,
+    contentSubGroup: category.contentSubGroup,
+    contentGroup: category.contentGroup,
+  };
 }
 
 function scienceSeedToRssUrl(seedUrl) {
@@ -462,6 +591,9 @@ export async function searchLiterature({
     if (url.hostname.endsWith("nature.com")) {
       const visitedPages = new Set();
       const perSeedSeenArticles = new Set();
+      const seedPath = parseNatureSeedPath(seedUrl);
+      let journalTitle = null;
+      let sectionTitle = null;
 
       let pageUrl = seedUrl;
       let pageCount = 0;
@@ -476,6 +608,18 @@ export async function searchLiterature({
         pageCount += 1;
 
         const html = await fetchText(pageUrl);
+        if (!journalTitle || !sectionTitle) {
+          const ctx = parseNatureListingContextFromHtml(html);
+          if (!sectionTitle && ctx.sectionTitle) sectionTitle = ctx.sectionTitle;
+          if (!journalTitle && ctx.journalTitle) journalTitle = ctx.journalTitle;
+        }
+
+        const seedContext = buildNatureSourceContext({
+          journalTitle,
+          sectionTitle,
+          journalSlug: seedPath.journalSlug,
+          sectionSlug: seedPath.sectionSlug,
+        });
         const pageCandidates = parseNatureListingCandidates(html, pageUrl);
 
         const pageDates = pageCandidates
@@ -503,31 +647,46 @@ export async function searchLiterature({
         }
 
         const remaining = cap - results.length;
-        const candidateCap = Math.min(200, Math.max(20, remaining * 5));
+        const candidateCap = Math.min(300, Math.max(50, remaining * 6));
         const candidates = filteredCandidates.slice(0, candidateCap);
 
-        const details = await mapWithConcurrency(candidates, 4, async (c) => {
-          const d = await fetchNatureArticleDetails(c.articleUrl);
-          const publishedDate = d.publishedDate || c.publishedDate || null;
+        for (const c of candidates) {
+          if (!c?.articleUrl) continue;
+          const publishedDate = c.publishedDate || null;
           if (publishedDate && !isDateInRange(publishedDate, start, end)) {
-            return null;
+            continue;
           }
 
-          return {
+          const articleType = c.articleType || null;
+          const sourceContext = buildNatureSourceContext({
+            journalTitle,
+            sectionTitle: articleType || sectionTitle,
+            journalSlug: seedPath.journalSlug,
+            sectionSlug: seedPath.sectionSlug,
+          });
+
+          const item = {
             id: c.articleUrl,
             source: "nature",
             seedUrl,
-            title: d.title || c.title || c.articleUrl,
+            seedContext,
+            sourceContext,
+            journalTitle,
+            sectionTitle,
+            journalSlug: seedPath.journalSlug,
+            sectionSlug: seedPath.sectionSlug,
+            articleType,
+            contentType: null,
+            contentSubGroup: articleType,
+            contentGroup: journalTitle,
+            title: c.title || c.articleUrl,
             articleUrl: c.articleUrl,
             publishedDate,
-            abstract: d.abstract,
-            pdfUrl: d.pdfUrl,
-            doi: null,
+            abstract: c.abstract,
+            pdfUrl: `${c.articleUrl}.pdf`,
+            doi: deriveNatureDoiFromArticleUrl(c.articleUrl),
           };
-        });
 
-        for (const item of details) {
-          if (!item || typeof item !== "object") continue;
           if (!item.id || seenIds.has(item.id)) continue;
           seenIds.add(item.id);
           results.push(item);

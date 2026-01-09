@@ -1,7 +1,10 @@
 import Card from './ui/Card';
 import { Plus, Check } from 'lucide-react';
+import { useLanguage } from '../hooks/useLanguage';
 
 const AddDeviceCard = ({ onClick, isConfirming }) => {
+    const { t } = useLanguage();
+
     return (
         <Card
             variant="glass"
@@ -24,7 +27,7 @@ const AddDeviceCard = ({ onClick, isConfirming }) => {
                     )}
                 </div>
                 <span className="text-sm font-medium">
-                    {isConfirming ? '确认创建?' : '添加新设备'}
+                    {isConfirming ? t('confirmCreate') : t('addNewDevice')}
                 </span>
             </div>
         </Card>

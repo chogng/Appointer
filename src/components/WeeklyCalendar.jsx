@@ -7,8 +7,10 @@ import {
   parse,
   getHours,
 } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { enUS, zhCN } from "date-fns/locale";
 import BookingPopover from "./BookingPopover";
+import { useLanguage } from "../hooks/useLanguage";
+import { useUiPrefs } from "../hooks/useUiPrefs";
 
 const EVENT_COLORS = {
   default: {
@@ -48,6 +50,9 @@ const WeeklyCalendar = ({
   isSaving = false,
   className = "",
 }) => {
+  const { language, t } = useLanguage();
+  const uiPrefs = useUiPrefs();
+  const locale = language === "zh" ? zhCN : enUS;
   const [_hoverSlot, setHoverSlot] = useState(null);
   const [selectionDraft, setSelectionDraft] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -380,7 +385,7 @@ const WeeklyCalendar = ({
                     <span
                       className={`text-[12px] font-medium mb-1 ${isToday ? "text-accent" : "text-text-secondary"}`}
                     >
-                      {format(day, "EEE", { locale: zhCN })}
+                      {format(day, "EEE", { locale })}
                     </span>
                     <div
                       className={`
@@ -502,8 +507,7 @@ const WeeklyCalendar = ({
                       const slot = getSlotFromHour(hour);
 
                       setIsDragging(true);
-                      const savedColor =
-                        localStorage.getItem("lastSelectedColor");
+                      const savedColor = uiPrefs?.lastSelectedColor ?? null;
                       setSelectionDraft({
                         date: dateStr,
                         startSlot: slot,
@@ -605,7 +609,7 @@ const WeeklyCalendar = ({
                             }}
                           >
                             <div className="font-medium truncate text-sm">
-                              （无标题）
+                              {t("untitled")}
                             </div>
                             <div className="text-sm opacity-80 mt-0.5">
                               {timeSlot}
@@ -636,7 +640,7 @@ const WeeklyCalendar = ({
                             }}
                           >
                             <div className="font-medium truncate text-sm">
-                              （无标题）
+                              {t("untitled")}
                             </div>
                             <div className="text-sm opacity-80 mt-0.5">
                               {draftInteraction.startData.timeSlot}
@@ -697,7 +701,7 @@ const WeeklyCalendar = ({
                             />
 
                             <div className="font-medium truncate text-sm pointer-events-none">
-                              （无标题）
+                              {t("untitled")}
                             </div>
                             <div className="text-sm text-text-300 mt-0.5 pointer-events-none">
                               {draftEvent.timeSlot}
@@ -761,7 +765,8 @@ const WeeklyCalendar = ({
                           }}
                         >
                           <div className="font-medium truncate text-sm">
-                            {res.title || (isMine ? "我的预约" : "已预约")}
+                            {res.title ||
+                              (isMine ? t("myReservation") : t("reserved"))}
                           </div>
                           <div className="text-sm opacity-80 mt-0.5">
                             {res.timeSlot}
@@ -795,6 +800,7 @@ const WeeklyCalendar = ({
         }}
         onDelete={handleDeleteBooking}
         initialData={popoverData.data}
+        currentUserId={currentUserId}
         position={popoverData.position}
         placement={popoverData.placement}
       />

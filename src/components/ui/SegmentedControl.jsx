@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-const SegmentedControl = ({ options, value, onChange, className = "" }) => {
+const SegmentedControl = ({ options, value, onChange, className = "", ...props }) => {
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const containerRef = useRef(null);
   const buttonsRef = useRef([]);
@@ -28,6 +28,7 @@ const SegmentedControl = ({ options, value, onChange, className = "" }) => {
                 rounded-lg border border-transparent hover:border-border-subtle
                 transition-all duration-200 ${className}
             `}
+      {...props}
     >
       <div
         className="absolute top-1 bottom-1 bg-white dark:bg-gray-700 shadow-sm rounded-md border border-border-subtle transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)]"

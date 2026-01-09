@@ -1,7 +1,7 @@
 {
   "name": "device_reservation_system",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.16",
     "date-fns": "^4.1.0",
+    "docx": "^9.5.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.554.0",
     "papaparse": "^5.5.3",

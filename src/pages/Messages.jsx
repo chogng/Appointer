@@ -77,7 +77,7 @@ const Messages = () => {
   }
 
   return (
-    <div className="max-w-[1500px] mx-auto min-h-screen">
+    <div className="w-full min-h-screen">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-serif font-medium text-text-primary">
           {t("messages") || "Message History"}

@@ -4,9 +4,11 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { ArrowLeft } from "lucide-react";
 import { apiService } from "../services/apiService";
+import { useLanguage } from "../hooks/useLanguage";
 
 const CreateDevice = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -61,7 +63,7 @@ const CreateDevice = () => {
       navigate("/devices");
     } catch (error) {
       console.error("Failed to create device:", error);
-      alert("创建设备失败，请重试");
+      alert(t("createDeviceFailed"));
     }
   };
 
@@ -79,29 +81,29 @@ const CreateDevice = () => {
   };
 
   const weekDays = [
-    { value: "monday", label: "周一" },
-    { value: "tuesday", label: "周二" },
-    { value: "wednesday", label: "周三" },
-    { value: "thursday", label: "周四" },
-    { value: "friday", label: "周五" },
-    { value: "saturday", label: "周六" },
-    { value: "sunday", label: "周日" },
+    { value: "monday", label: `${t("week")}${t("mon")}` },
+    { value: "tuesday", label: `${t("week")}${t("tue")}` },
+    { value: "wednesday", label: `${t("week")}${t("wed")}` },
+    { value: "thursday", label: `${t("week")}${t("thu")}` },
+    { value: "friday", label: `${t("week")}${t("fri")}` },
+    { value: "saturday", label: `${t("week")}${t("sat")}` },
+    { value: "sunday", label: `${t("week")}${t("sun")}` },
   ];
 
   return (
-    <div className="max-w-[800px] mx-auto">
+    <div className="w-full">
       <div className="mb-8">
         <button
           onClick={() => navigate("/devices")}
           className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4"
         >
           <ArrowLeft size={20} />
-          <span>返回设备列表</span>
+          <span>{t("backToDeviceList")}</span>
         </button>
         <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">
-          创建新设备
+          {t("createDevice")}
         </h1>
-        <p className="text-text-secondary">填写设备信息并设置预约规则</p>
+        <p className="text-text-secondary">{t("createDeviceSubtitle")}</p>
       </div>
 
       <Card className="p-8">
@@ -109,13 +111,13 @@ const CreateDevice = () => {
           {/* 设备名称 */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-text-primary">
-              设备名称 <span className="text-red-500">*</span>
+              {t("deviceNameLabel")} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              placeholder="例如：会议室 A / 投影仪 01"
+              placeholder={t("deviceNamePlaceholder")}
               required
               className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-blue-500 transition-colors placeholder:text-text-tertiary h-11 px-3 rounded-lg w-full outline-none"
             />
@@ -124,12 +126,12 @@ const CreateDevice = () => {
           {/* 设备描述 */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-text-primary">
-              设备描述
+              {t("deviceDescriptionLabel")}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              placeholder="简要描述设备的功能、位置或使用说明"
+              placeholder={t("deviceDescriptionPlaceholder")}
               rows={3}
               className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-blue-500 transition-colors placeholder:text-text-tertiary px-3 py-2 rounded-lg w-full outline-none resize-none"
             />
@@ -138,14 +140,15 @@ const CreateDevice = () => {
           {/* 时间粒度 */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-text-primary">
-              预约时间粒度 <span className="text-red-500">*</span>
+              {t("bookingGranularityLabel")}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { value: "30", label: "30分钟" },
-                { value: "60", label: "1小时" },
-                { value: "90", label: "90分钟" },
-                { value: "120", label: "2小时" },
+                { value: "30", label: t("granularity30m") },
+                { value: "60", label: t("granularity60m") },
+                { value: "90", label: t("granularity90m") },
+                { value: "120", label: t("granularity120m") },
               ].map((option) => (
                 <button
                   key={option.value}
@@ -166,7 +169,7 @@ const CreateDevice = () => {
           {/* 可预约日期类型 */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-text-primary">
-              可预约日期 <span className="text-red-500">*</span>
+              {t("bookableDaysLabel")} <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
@@ -178,7 +181,7 @@ const CreateDevice = () => {
                     : "bg-bg-subtle border-border-subtle hover:border-border-default"
                 }`}
               >
-                每天可预约
+                {t("bookableEveryday")}
               </button>
               <button
                 type="button"
@@ -189,7 +192,7 @@ const CreateDevice = () => {
                     : "bg-bg-subtle border-border-subtle hover:border-border-default"
                 }`}
               >
-                特定星期可预约
+                {t("bookableSpecificWeekdays")}
               </button>
             </div>
           </div>
@@ -198,7 +201,7 @@ const CreateDevice = () => {
           {formData.availabilityType === "specific" && (
             <div className="flex flex-col gap-2 pl-4 border-l-2 border-blue-500">
               <label className="text-sm font-medium text-text-primary">
-                选择可预约的星期
+                {t("selectWeekdaysLabel")}
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
                 {weekDays.map((day) => (
@@ -222,7 +225,8 @@ const CreateDevice = () => {
           {/* 可预约时间段类型 */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-text-primary">
-              可预约时间段 <span className="text-red-500">*</span>
+              {t("bookableTimeRangeLabel")}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
@@ -234,7 +238,7 @@ const CreateDevice = () => {
                     : "bg-bg-subtle border-border-subtle hover:border-border-default"
                 }`}
               >
-                24小时可预约
+                {t("bookable24Hours")}
               </button>
               <button
                 type="button"
@@ -245,7 +249,7 @@ const CreateDevice = () => {
                     : "bg-bg-subtle border-border-subtle hover:border-border-default"
                 }`}
               >
-                特定时间段可预约
+                {t("bookableSpecificTimeRange")}
               </button>
             </div>
           </div>
@@ -254,12 +258,12 @@ const CreateDevice = () => {
           {formData.timeRangeType === "specific" && (
             <div className="flex flex-col gap-3 pl-4 border-l-2 border-blue-500">
               <label className="text-sm font-medium text-text-primary">
-                设置时间段
+                {t("setTimeRangeLabel")}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-xs text-text-secondary">
-                    开始时间
+                    {t("startTime")}
                   </label>
                   <input
                     type="time"
@@ -272,7 +276,7 @@ const CreateDevice = () => {
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-xs text-text-secondary">
-                    结束时间
+                    {t("endTime")}
                   </label>
                   <input
                     type="time"
@@ -295,10 +299,10 @@ const CreateDevice = () => {
               onClick={() => navigate("/devices")}
               className="flex-1"
             >
-              取消
+              {t("cancel")}
             </Button>
             <Button type="submit" className="flex-1">
-              创建设备
+              {t("createDevice")}
             </Button>
           </div>
         </form>

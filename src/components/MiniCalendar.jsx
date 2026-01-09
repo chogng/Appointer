@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import { format, startOfMonth, startOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { zhCN } from 'date-fns/locale';
+import { enUS, zhCN } from 'date-fns/locale';
+import { useLanguage } from '../hooks/useLanguage';
 
 const MiniCalendar = ({ selectedDate, onDateSelect, className = '' }) => {
     const [viewDate, setViewDate] = useState(selectedDate || new Date());
+    const { language, t } = useLanguage();
+    const locale = language === 'zh' ? zhCN : enUS;
+
+    const prevMonthLabel = language === 'zh' ? '上个月' : 'Previous month';
+    const nextMonthLabel = language === 'zh' ? '下个月' : 'Next month';
+    const prevMonthTestId = import.meta.env.DEV ? 'minical-prev-month' : undefined;
+    const nextMonthTestId = import.meta.env.DEV ? 'minical-next-month' : undefined;
 
     const monthStart = startOfMonth(viewDate);
     const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday start
@@ -12,7 +20,9 @@ const MiniCalendar = ({ selectedDate, onDateSelect, className = '' }) => {
 
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
-    const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    const weekDays = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')].map((label) =>
+        String(label).slice(0, 1),
+    );
 
     const handlePrevMonth = () => setViewDate(subMonths(viewDate, 1));
     const handleNextMonth = () => setViewDate(addMonths(viewDate, 1));
@@ -21,13 +31,25 @@ const MiniCalendar = ({ selectedDate, onDateSelect, className = '' }) => {
         <div className={`w-full p-4 ${className}`}>
             <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-text-primary">
-                    {format(viewDate, 'yyyy年M月', { locale: zhCN })}
+                    {format(viewDate, language === 'zh' ? 'yyyy年M月' : 'MMM yyyy', { locale })}
                 </span>
                 <div className="flex gap-1">
-                    <button onClick={handlePrevMonth} className="p-1 hover:bg-bg-200 rounded-full text-text-secondary">
+                    <button
+                        type="button"
+                        onClick={handlePrevMonth}
+                        className="p-1 hover:bg-bg-200 rounded-full text-text-secondary"
+                        aria-label={prevMonthLabel}
+                        data-testid={prevMonthTestId}
+                    >
                         <ChevronLeft size={16} />
                     </button>
-                    <button onClick={handleNextMonth} className="p-1 hover:bg-bg-200 rounded-full text-text-secondary">
+                    <button
+                        type="button"
+                        onClick={handleNextMonth}
+                        className="p-1 hover:bg-bg-200 rounded-full text-text-secondary"
+                        aria-label={nextMonthLabel}
+                        data-testid={nextMonthTestId}
+                    >
                         <ChevronRight size={16} />
                     </button>
                 </div>

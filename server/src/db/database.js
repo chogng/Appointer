@@ -160,6 +160,10 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS device_analysis_settings (
       userId TEXT PRIMARY KEY,
       yUnit TEXT NOT NULL DEFAULT 'A',
+      ssMethodDefault TEXT NOT NULL DEFAULT 'auto',
+      ssDiagnosticsEnabled INTEGER NOT NULL DEFAULT 1,
+      ssIdLow REAL NOT NULL DEFAULT 1e-11,
+      ssIdHigh REAL NOT NULL DEFAULT 1e-9,
       updatedAt TEXT NOT NULL
     );
   `);
@@ -207,6 +211,28 @@ async function migrateSchema() {
     CREATE INDEX IF NOT EXISTS logs_timestamp_idx
     ON logs (timestamp)
   `);
+
+  // Device analysis settings (added in ssfit_v1).
+  ensureColumn(
+    "device_analysis_settings",
+    "ssMethodDefault",
+    "TEXT NOT NULL DEFAULT 'auto'",
+  );
+  ensureColumn(
+    "device_analysis_settings",
+    "ssDiagnosticsEnabled",
+    "INTEGER NOT NULL DEFAULT 1",
+  );
+  ensureColumn(
+    "device_analysis_settings",
+    "ssIdLow",
+    "REAL NOT NULL DEFAULT 1e-11",
+  );
+  ensureColumn(
+    "device_analysis_settings",
+    "ssIdHigh",
+    "REAL NOT NULL DEFAULT 1e-9",
+  );
 
   db.run(`
     CREATE INDEX IF NOT EXISTS requests_status_createdAt_idx

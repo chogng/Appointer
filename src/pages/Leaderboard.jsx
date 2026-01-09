@@ -127,7 +127,7 @@ const Leaderboard = () => {
   const restUsers = data.slice(3);
 
   return (
-    <div className="max-w-[1500px] mx-auto min-h-screen relative animate-fade-in pb-12">
+    <div className="w-full min-h-screen relative animate-fade-in pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-1 gap-4">
         <div>

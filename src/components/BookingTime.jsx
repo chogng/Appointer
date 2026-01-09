@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import Dropdown from "./ui/Dropdown";
 
 const TimeIcon = ({ size = 24, className }) => (
@@ -95,7 +95,10 @@ const generateTimeOptions = (granularity = 60) => {
 
 const BookingTime = ({ device, onUpdate, isAdmin }) => {
   const granularity = device.granularity || 60;
-  const timeOptions = generateTimeOptions(granularity);
+  const timeOptions = useMemo(
+    () => generateTimeOptions(granularity),
+    [granularity],
+  );
 
   const handleStartChange = (newStart) => {
     onUpdate(device.id, {

@@ -4,6 +4,8 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,12 +15,17 @@ import CanvasMultiLineChart from "./CanvasMultiLineChart";
 import {
   computeCentralDerivative,
   computeSubthresholdSwing,
+  computeSubthresholdSwingFitAuto,
+  computeSubthresholdSwingFitInIdWindow,
+  computeSubthresholdSwingFitInRange,
+  classifySsFit,
   computeLegendDerivativeSeries,
   formatNumber,
 } from "./analysisMath";
 import { apiService } from "../../services/apiService";
 import Dropdown from "../ui/Dropdown";
 import Button from "../ui/Button";
+import ToggleButton from "../ui/ToggleButton";
 
 const COLORS = [
   "#8884d8",
@@ -413,6 +420,7 @@ const FileCard = React.memo(function FileCard({
   onSelectFile,
   yUnitFactor = 1,
   yUnitLabel = "A",
+  yScale = "linear",
 }) {
   const { ref, inView } = useInViewOnce();
   const seriesCount = Array.isArray(file?.series) ? file.series.length : 0;
@@ -438,11 +446,10 @@ const FileCard = React.memo(function FileCard({
         e.preventDefault();
       }}
       onClick={() => onSelectFile?.(file?.fileId)}
-      className={`text-left rounded-xl border transition-colors overflow-hidden ${
-        isActive
-          ? "border-accent/40 bg-accent/5"
-          : "border-border bg-bg-surface hover:bg-bg-surface-hover"
-      }`}
+      className={`text-left rounded-xl border transition-colors overflow-hidden ${isActive
+        ? "border-accent/40 bg-accent/5"
+        : "border-border bg-bg-surface hover:bg-bg-surface-hover"
+        }`}
     >
       <div className="px-2 pt-1.5 pb-1">
         <div className="flex items-start justify-between gap-2">
@@ -453,20 +460,10 @@ const FileCard = React.memo(function FileCard({
             <div className="text-[10px] text-text-secondary mt-0.5 space-y-0.5">
               <div>
                 series: {seriesCount}
-                {sampledPoints ? ` · points/series: ${sampledPoints}` : ""}
+                {sampledPoints ? ` · points: ${sampledPoints}` : ""}
               </div>
-              {yAxisMinLabel && (
-                <div>
-                  ymin: {yAxisMinLabel}
-                  {ySuffix}
-                </div>
-              )}
-              {yAxisMaxLabel && (
-                <div>
-                  ymax: {yAxisMaxLabel}
-                  {ySuffix}
-                </div>
-              )}
+              {file.curveType && <div>Type: {file.curveType}</div>}
+
             </div>
           </div>
           {isActive && (
@@ -487,6 +484,7 @@ const FileCard = React.memo(function FileCard({
             series={file.series}
             domain={file.domain}
             yScaleFactor={yUnitFactor}
+            yScaleType={yScale}
             yUnitLabel={yUnitLabel}
             title={file.fileName}
             className="absolute inset-0"
@@ -515,6 +513,8 @@ const FileCard = React.memo(function FileCard({
   );
 });
 
+import { ArrowDownWideNarrow, ArrowUpWideNarrow } from "lucide-react";
+
 const OverviewGrid = React.memo(function OverviewGrid({
   processedData,
   processingStatus,
@@ -522,7 +522,37 @@ const OverviewGrid = React.memo(function OverviewGrid({
   onSelectFile,
   yUnitFactor,
   yUnitLabel,
+  yScale,
 }) {
+  const [sortOrder, setSortOrder] = useState("none"); // "none" | "desc" | "asc"
+  const [curveFilter, setCurveFilter] = useState("all");
+
+  const sortedData = useMemo(() => {
+    if (!processedData) return [];
+    if (sortOrder === "none") return processedData;
+    return [...processedData].sort((a, b) => {
+      // Sort by yMax
+      const aY = a?.domain?.y?.[1] ?? -Infinity;
+      const bY = b?.domain?.y?.[1] ?? -Infinity;
+      return sortOrder === "desc" ? bY - aY : aY - bY;
+    });
+  }, [processedData, sortOrder]);
+
+  const filteredData = useMemo(() => {
+    if (curveFilter === "all") return sortedData;
+    const target = curveFilter === "transfer" ? "vg" : "vd";
+    return sortedData.filter((f) => {
+      // Check curveType field first (if available)
+      if (f?.curveType) {
+        const curveType = String(f.curveType).toLowerCase();
+        return curveType.includes(target);
+      }
+      // Fallback to xLabel
+      const label = String(f?.xLabel || "").toLowerCase();
+      return label.includes(target);
+    });
+  }, [sortedData, curveFilter]);
+
   if (!processedData?.length) return null;
 
   return (
@@ -530,19 +560,56 @@ const OverviewGrid = React.memo(function OverviewGrid({
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-text-primary">
-            Overview ({processedData.length})
+            Overview ({sortedData.length})
           </h2>
         </div>
 
-        {processingStatus?.state === "processing" && (
-          <div className="text-xs text-text-secondary">
-            Processing {processingStatus.processed}/{processingStatus.total}
-          </div>
-        )}
+
+        <div className="flex items-center gap-3">
+          <ToggleButton
+            options={[
+              { label: "All", value: "all" },
+              { label: "Transfer", value: "transfer" },
+              { label: "Output", value: "output" },
+            ]}
+            value={curveFilter}
+            onChange={setCurveFilter}
+            size="md"
+            a11yVariant="tabs"
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              setSortOrder((prev) => {
+                if (prev === "none") return "desc";
+                if (prev === "desc") return "asc";
+                return "none";
+              });
+            }}
+            className={`h-[48px] w-[48px] flex items-center justify-center rounded-md border text-text-secondary transition-colors ${sortOrder !== "none"
+              ? "bg-accent/10 border-accent/20 text-accent"
+              : "border-border bg-bg-surface hover:bg-bg-page hover:text-black"
+              }`}
+            title={`Sort by yMax: ${sortOrder === "none" ? "None" : sortOrder === "desc" ? "Descending" : "Ascending"}`}
+          >
+            {sortOrder === "asc" ? (
+              <ArrowUpWideNarrow size={18} />
+            ) : (
+              <ArrowDownWideNarrow size={18} />
+            )}
+          </button>
+
+          {processingStatus?.state === "processing" && (
+            <div className="text-xs text-text-secondary">
+              Processing {processingStatus.processed}/{processingStatus.total}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-        {processedData.map((file) => (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar">
+        {filteredData.map((file) => (
           <FileCard
             key={file.fileId}
             file={file}
@@ -550,6 +617,7 @@ const OverviewGrid = React.memo(function OverviewGrid({
             onSelectFile={onSelectFile}
             yUnitFactor={yUnitFactor}
             yUnitLabel={yUnitLabel}
+            yScale={yScale}
           />
         ))}
       </div>
@@ -557,16 +625,35 @@ const OverviewGrid = React.memo(function OverviewGrid({
   );
 });
 
-const AnalysisCharts = ({ processedData, processingStatus }) => {
+const AnalysisCharts = ({
+  processedData,
+  processingStatus,
+  ssMethod = "auto",
+  setSsMethod = () => { },
+  ssDiagnosticsEnabled = true,
+  setSsDiagnosticsEnabled = () => { },
+  ssShowFitLine = true,
+  setSsShowFitLine = () => { },
+  ssIdWindow = { low: "1e-11", high: "1e-9" },
+  setSsIdWindow = () => { },
+  ssManualRanges = {},
+  setSsManualRanges = () => { },
+}) => {
   const [activeFileId, setActiveFileId] = useState(
     processedData?.[0]?.fileId ?? null,
   );
   const [plotType, setPlotType] = useState("iv"); // 'iv' | 'gm' | 'ss' | 'j'
+  const [focusedSeriesId, setFocusedSeriesId] = useState(null);
   const [yUnit, setYUnit] = useState("A"); // 'A' | 'uA' | 'nA'
   const userChangedYUnitRef = useRef(false);
+  const ssAxisRestoreRef = useRef(null);
   const [gmMode, setGmMode] = useState("x"); // 'x' | 'legend'
   const [areaInput, setAreaInput] = useState("");
   const [showAxisControls, setShowAxisControls] = useState(false);
+  const [ssManualDraft, setSsManualDraft] = useState(null); // { fileId, seriesId, x1, x2 } | null
+  const ssDragStateRef = useRef(null);
+  const ssDragCommitTimerRef = useRef(0);
+  const ssKeyStateRef = useRef({ shift: false, alt: false });
   const [axis, setAxis] = useState({
     xMin: "",
     xMax: "",
@@ -604,6 +691,78 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const updateKeys = (e) => {
+      ssKeyStateRef.current = {
+        shift: Boolean(e?.shiftKey),
+        alt: Boolean(e?.altKey),
+      };
+    };
+
+    const cancelActiveDrag = (e) => {
+      const drag = ssDragStateRef.current;
+      if (!drag?.active) return;
+      e?.preventDefault?.();
+
+      if (ssDragCommitTimerRef.current) {
+        clearTimeout(ssDragCommitTimerRef.current);
+        ssDragCommitTimerRef.current = 0;
+      }
+
+      ssDragStateRef.current = null;
+      setSsManualDraft(null);
+
+      const fileId = drag?.fileId ?? null;
+      const seriesId = drag?.seriesId ?? null;
+      const startRange = drag?.startRange ?? null;
+      if (!fileId || !seriesId) return;
+
+      const x1 = Number(startRange?.x1);
+      const x2 = Number(startRange?.x2);
+      if (Number.isFinite(x1) && Number.isFinite(x2)) {
+        setSsManualRanges((prev) => {
+          const prevFile = prev?.[fileId] ?? {};
+          return {
+            ...(prev || {}),
+            [fileId]: {
+              ...prevFile,
+              [seriesId]: { x1, x2 },
+            },
+          };
+        });
+        return;
+      }
+
+      // No prior range: revert to "unset" (remove key) if a draft already committed.
+      setSsManualRanges((prev) => {
+        const prevFile = prev?.[fileId] ?? {};
+        if (!Object.prototype.hasOwnProperty.call(prevFile, seriesId)) return prev;
+        const { [seriesId]: _omit, ...restFile } = prevFile;
+        const next = { ...(prev || {}) };
+        if (Object.keys(restFile).length === 0) {
+          const { [fileId]: _omitFile, ...rest } = next;
+          return rest;
+        }
+        next[fileId] = restFile;
+        return next;
+      });
+    };
+
+    const onKeyDown = (e) => {
+      updateKeys(e);
+      if (e?.key === "Escape") cancelActiveDrag(e);
+    };
+
+    const onKeyUp = (e) => updateKeys(e);
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [setSsManualRanges]);
+
   const currentUnitMeta = useMemo(() => {
     const unit = String(yUnit || "A");
     if (unit === "uA") return { value: "uA", label: "µA", factor: 1e6 };
@@ -625,12 +784,15 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     [effectiveActiveFileId, processedData],
   );
 
-  const xRangeLabel = useMemo(() => {
-    if (!activeFile?.x) return "";
-    const start = `${activeFile.x.colLabel}${activeFile.x.startRow}`;
-    const end = `${activeFile.x.colLabel}${activeFile.x.endRow}`;
-    return `${start}-${end}`;
-  }, [activeFile]);
+  useEffect(() => {
+    const list = activeFile?.series ?? [];
+    if (!list.length) {
+      if (focusedSeriesId !== null) setFocusedSeriesId(null);
+      return;
+    }
+    if (focusedSeriesId && list.some((s) => s.id === focusedSeriesId)) return;
+    setFocusedSeriesId(list[0].id);
+  }, [activeFile?.fileId, activeFile?.series, focusedSeriesId]);
 
   const area = useMemo(() => {
     if (areaInput === null || areaInput === undefined) return null;
@@ -641,20 +803,73 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     return num;
   }, [areaInput]);
 
+  const ssApplicable = useMemo(() => {
+    const curveType = String(activeFile?.curveType || "").toLowerCase();
+    if (curveType) return curveType.includes("vg") || curveType.includes("transfer");
+    const label = String(activeFile?.xLabel || "").toLowerCase();
+    return label.includes("vg");
+  }, [activeFile?.curveType, activeFile?.xLabel]);
+
   const effectivePlotType = useMemo(() => {
     if (plotType === "j" && !area) return "iv";
+    if (plotType === "ss" && !ssApplicable) return "iv";
     return plotType;
-  }, [area, plotType]);
+  }, [area, plotType, ssApplicable]);
 
-  const plotYFactor = useMemo(
-    () => (effectivePlotType === "ss" ? 1 : currentUnitMeta.factor),
-    [currentUnitMeta.factor, effectivePlotType],
-  );
+  useEffect(() => {
+    const shouldEnableDrag = effectivePlotType === "ss" && ssMethod === "manual";
+    const activeFileIdNow = activeFile?.fileId ?? null;
+    const focusedSeriesIdNow = focusedSeriesId ?? null;
+
+    const drag = ssDragStateRef.current;
+    const dragActive = Boolean(drag?.active);
+    const dragIsForCurrent =
+      drag &&
+      drag.fileId === activeFileIdNow &&
+      drag.seriesId === focusedSeriesIdNow;
+
+    if (!shouldEnableDrag || (dragActive && !dragIsForCurrent)) {
+      if (ssDragCommitTimerRef.current) {
+        clearTimeout(ssDragCommitTimerRef.current);
+        ssDragCommitTimerRef.current = 0;
+      }
+      ssDragStateRef.current = null;
+      if (ssManualDraft) setSsManualDraft(null);
+    }
+  }, [activeFile?.fileId, effectivePlotType, focusedSeriesId, ssManualDraft, ssMethod]);
+
+  useEffect(() => {
+    if (effectivePlotType === "ss") {
+      if (!ssAxisRestoreRef.current) {
+        ssAxisRestoreRef.current = {
+          yScale: axis?.yScale ?? "linear",
+          yTicks: axis?.yTicks ?? "nice",
+        };
+      }
+      setAxis((prev) => {
+        if (prev.yScale === "logAbs" && prev.yTicks === "decades") return prev;
+        return { ...prev, yScale: "logAbs", yTicks: "decades" };
+      });
+      return;
+    }
+
+    if (ssAxisRestoreRef.current) {
+      const prev = ssAxisRestoreRef.current;
+      ssAxisRestoreRef.current = null;
+      setAxis((axisPrev) => ({
+        ...axisPrev,
+        yScale: prev?.yScale ?? axisPrev.yScale,
+        yTicks: prev?.yTicks ?? axisPrev.yTicks,
+      }));
+    }
+  }, [axis?.yScale, axis?.yTicks, effectivePlotType]);
+
+  const plotYFactor = useMemo(() => currentUnitMeta.factor, [currentUnitMeta.factor]);
 
   const plotYUnitLabel = useMemo(() => {
-    if (effectivePlotType === "ss") return "mV/dec";
     if (effectivePlotType === "gm") return `${currentUnitMeta.label}/V`;
     if (effectivePlotType === "j") return `${currentUnitMeta.label}/Area`;
+    // SS tab main plot is I-V in log(|I|), so keep current unit here.
     return currentUnitMeta.label;
   }, [currentUnitMeta.label, effectivePlotType]);
 
@@ -745,20 +960,37 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     if (!activeFile?.series?.length) return new Map();
 
     const map = new Map();
+    const manualBySeries =
+      activeFile?.fileId && ssManualRanges?.[activeFile.fileId]
+        ? ssManualRanges[activeFile.fileId]
+        : {};
+
+    const idLowRaw = Number(ssIdWindow?.low);
+    const idHighRaw = Number(ssIdWindow?.high);
+    const idWindowOk =
+      Number.isFinite(idLowRaw) &&
+      Number.isFinite(idHighRaw) &&
+      idLowRaw > 0 &&
+      idHighRaw > 0;
+    const idLow = idWindowOk ? Math.min(idLowRaw, idHighRaw) : null;
+    const idHigh = idWindowOk ? Math.max(idLowRaw, idHighRaw) : null;
+    const idWindowRatio =
+      idLow && idHigh && idLow > 0 ? idHigh / idLow : null;
 
     for (const series of activeFile.series) {
       const points = pointsBySeriesId.get(series.id) ?? [];
 
       const gm = gmBySeriesId.get(series.id) ?? [];
-      const ss = computeSubthresholdSwing(points);
+      const ssDiagnostics = computeSubthresholdSwing(points);
+      const ssAuto = computeSubthresholdSwingFitAuto(points);
       const j = area
         ? points.map((p) => ({
-            x: p?.x ?? null,
-            y:
-              typeof p?.y === "number" && Number.isFinite(p.y)
-                ? Math.abs(p.y) / area
-                : null,
-          }))
+          x: p?.x ?? null,
+          y:
+            typeof p?.y === "number" && Number.isFinite(p.y)
+              ? Math.abs(p.y) / area
+              : null,
+        }))
         : null;
 
       // Scalar metrics (computed from |I| to support p/n-type)
@@ -803,23 +1035,114 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
 
       const gmMaxAbsFinite = Number.isFinite(gmMaxAbs) ? gmMaxAbs : null;
 
-      let ssMin = Infinity;
-      let xAtSsMin = null;
-      for (const p of ss) {
+      let legacySsMin = Infinity;
+      let legacyXAtSsMin = null;
+      for (const p of ssDiagnostics) {
         const x = p?.x;
         const y = p?.y;
-        if (typeof x !== "number" || !Number.isFinite(x)) continue;
-        if (typeof y !== "number" || !Number.isFinite(y)) continue;
-        if (y > 0 && y < ssMin) {
-          ssMin = y;
-          xAtSsMin = x;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (y > 0 && y < legacySsMin) {
+          legacySsMin = y;
+          legacyXAtSsMin = x;
         }
       }
-      const ssMinFinite = Number.isFinite(ssMin) ? ssMin : null;
+      const legacySsMinFinite = Number.isFinite(legacySsMin) ? legacySsMin : null;
+
+      const strictFit = ssAuto?.strict ?? { ok: false, reason: "common.invalid_points" };
+      const suggestedFit = ssAuto?.suggested ?? {
+        ok: false,
+        reason: "common.invalid_points",
+      };
+
+      const initRange = strictFit?.ok
+        ? { x1: strictFit.x1, x2: strictFit.x2, source: "strict" }
+        : suggestedFit?.ok
+          ? { x1: suggestedFit.x1, x2: suggestedFit.x2, source: "suggested" }
+          : null;
+
+      const storedManual = manualBySeries?.[series.id] ?? null;
+
+      const resolveSelectedFit = () => {
+        if (ssMethod === "legacy") {
+          return {
+            method: "legacy",
+            confidence: "low",
+            fit: legacySsMinFinite !== null
+              ? {
+                ok: true,
+                ss: legacySsMinFinite,
+                x1: null,
+                x2: null,
+                r2: null,
+                decadeSpan: null,
+                n: null,
+                reason: "ok",
+              }
+              : { ok: false, reason: "common.not_enough_points" },
+            xAt: legacyXAtSsMin,
+          };
+        }
+
+        if (ssMethod === "idWindow") {
+          const fit = idWindowOk
+            ? computeSubthresholdSwingFitInIdWindow(points, idLow, idHigh)
+            : { ok: false, reason: "idw.invalid_input" };
+          const cls = classifySsFit("idWindow", fit, { idWindowRatio });
+          return {
+            method: "idWindow",
+            confidence: cls.ss_confidence,
+            reason: cls.ss_reason,
+            fit,
+            xAt:
+              fit?.x1 != null && fit?.x2 != null ? (fit.x1 + fit.x2) * 0.5 : null,
+          };
+        }
+
+        if (ssMethod === "manual") {
+          const range = storedManual ?? initRange;
+          const fit = range
+            ? computeSubthresholdSwingFitInRange(points, range.x1, range.x2)
+            : { ok: false, reason: "manual.range_outside_domain" };
+          const cls = classifySsFit("manual", fit);
+          return {
+            method: "manual",
+            confidence: cls.ss_confidence,
+            reason: cls.ss_reason,
+            fit,
+            rangeSource: storedManual ? "manual" : range?.source ?? null,
+            xAt:
+              fit?.x1 != null && fit?.x2 != null ? (fit.x1 + fit.x2) * 0.5 : null,
+          };
+        }
+
+        // Auto (strict) by default.
+        const cls = classifySsFit("auto", strictFit);
+        return {
+          method: "auto",
+          confidence: cls.ss_confidence,
+          reason: cls.ss_reason,
+          fit: strictFit,
+          xAt:
+            strictFit?.x1 != null && strictFit?.x2 != null
+              ? (strictFit.x1 + strictFit.x2) * 0.5
+              : null,
+        };
+      };
+
+      const selected = resolveSelectedFit();
+      const selectedFit = selected.fit;
+      const selectedSs =
+        selected?.confidence !== "fail" &&
+          selectedFit?.ok &&
+          Number.isFinite(selectedFit?.ss)
+          ? selectedFit.ss
+          : null;
 
       map.set(series.id, {
         gm,
-        ss,
+        ssDiagnostics,
+        ssAuto,
+        ssSelected: selected,
         j,
         metrics: {
           ion: ionFinite,
@@ -832,8 +1155,20 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
               : null,
           gmMaxAbs: gmMaxAbsFinite,
           xAtGmMaxAbs,
-          ssMin: ssMinFinite,
-          xAtSsMin,
+          ss: selectedSs,
+          ssMethod: selected.method,
+          ssConfidence: selected.confidence,
+          ssReason: selected.reason ?? null,
+          ssX1: Number.isFinite(selectedFit?.x1) ? selectedFit.x1 : null,
+          ssX2: Number.isFinite(selectedFit?.x2) ? selectedFit.x2 : null,
+          ssR2: Number.isFinite(selectedFit?.r2) ? selectedFit.r2 : null,
+          ssSpanDec: Number.isFinite(selectedFit?.decadeSpan)
+            ? selectedFit.decadeSpan
+            : null,
+          ssN: Number.isFinite(selectedFit?.n) ? selectedFit.n : null,
+          xAtSs: selectedSs !== null ? selected.xAt : null,
+          legacySsMin: legacySsMinFinite,
+          legacyXAtSsMin,
           jon: area && ionFinite !== null ? ionFinite / area : null,
           joff: area && ioffFinite !== null ? ioffFinite / area : null,
         },
@@ -841,7 +1176,59 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     }
 
     return map;
-  }, [activeFile, area, gmBySeriesId, pointsBySeriesId]);
+  }, [
+    activeFile,
+    area,
+    gmBySeriesId,
+    pointsBySeriesId,
+    ssIdWindow?.high,
+    ssIdWindow?.low,
+    ssManualRanges,
+    ssMethod,
+  ]);
+
+  useEffect(() => {
+    if (effectivePlotType !== "ss") return;
+    if (ssMethod !== "manual") return;
+    const fileId = activeFile?.fileId ?? null;
+    if (!fileId || !focusedSeriesId) return;
+
+    const existing = ssManualRanges?.[fileId]?.[focusedSeriesId] ?? null;
+    if (existing && Number.isFinite(existing.x1) && Number.isFinite(existing.x2)) {
+      return;
+    }
+
+    const analysis = analysisBySeriesId.get(focusedSeriesId);
+    const strict = analysis?.ssAuto?.strict ?? null;
+    const suggested = analysis?.ssAuto?.suggested ?? null;
+    const init = strict?.ok
+      ? { x1: strict.x1, x2: strict.x2 }
+      : suggested?.ok
+        ? { x1: suggested.x1, x2: suggested.x2 }
+        : null;
+
+    if (!init || !Number.isFinite(init.x1) || !Number.isFinite(init.x2)) return;
+
+    setSsManualRanges((prev) => {
+      const prevFile = prev?.[fileId] ?? {};
+      if (prevFile?.[focusedSeriesId]) return prev;
+      return {
+        ...(prev || {}),
+        [fileId]: {
+          ...prevFile,
+          [focusedSeriesId]: { x1: init.x1, x2: init.x2 },
+        },
+      };
+    });
+  }, [
+    activeFile?.fileId,
+    analysisBySeriesId,
+    effectivePlotType,
+    focusedSeriesId,
+    setSsManualRanges,
+    ssManualRanges,
+    ssMethod,
+  ]);
 
   const plotSeries = useMemo(() => {
     if (!activeFile?.series?.length) return [];
@@ -853,7 +1240,8 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
         return { ...series, data: analysis?.gm ?? [] };
       }
       if (effectivePlotType === "ss") {
-        return { ...series, data: analysis?.ss ?? [] };
+        // SS tab main plot is I-V in log(|I|); SS(x) stays as diagnostics.
+        return { ...series, data: baseData };
       }
       if (effectivePlotType === "j") {
         return { ...series, data: analysis?.j ?? [] };
@@ -883,6 +1271,170 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
       data: (s?.data ?? []).map((p) => ({ x: p?.x ?? null, y: toY(p?.y) })),
     }));
   }, [plotSeries, yScaleMode]);
+
+  const focusedAnalysis = useMemo(() => {
+    if (!focusedSeriesId) return null;
+    return analysisBySeriesId.get(focusedSeriesId) ?? null;
+  }, [analysisBySeriesId, focusedSeriesId]);
+
+  const focusedSsOverlay = useMemo(() => {
+    if (effectivePlotType !== "ss") return null;
+    if (!focusedSeriesId) return null;
+
+    const analysis = focusedAnalysis;
+    const ssAuto = analysis?.ssAuto ?? null;
+    const strict = ssAuto?.strict ?? null;
+    const suggested = ssAuto?.suggested ?? null;
+
+    const fileId = activeFile?.fileId ?? null;
+    const manualStored = fileId ? ssManualRanges?.[fileId]?.[focusedSeriesId] : null;
+
+    if (ssMethod === "manual") {
+      const fit = analysis?.ssSelected?.fit ?? null;
+      const draft =
+        ssManualDraft &&
+          ssManualDraft.fileId === fileId &&
+          ssManualDraft.seriesId === focusedSeriesId
+          ? ssManualDraft
+          : null;
+      const x1 = Number.isFinite(draft?.x1)
+        ? draft.x1
+        : Number.isFinite(fit?.x1)
+          ? fit.x1
+          : Number(manualStored?.x1);
+      const x2 = Number.isFinite(draft?.x2)
+        ? draft.x2
+        : Number.isFinite(fit?.x2)
+          ? fit.x2
+          : Number(manualStored?.x2);
+      if (!Number.isFinite(x1) || !Number.isFinite(x2)) return null;
+      return { x1, x2, kind: "manual" };
+    }
+
+    if (ssMethod === "idWindow") {
+      const fit = analysis?.ssSelected?.fit ?? null;
+      const x1 = Number(fit?.x1);
+      const x2 = Number(fit?.x2);
+      if (!Number.isFinite(x1) || !Number.isFinite(x2)) return null;
+      return { x1, x2, kind: "idWindow" };
+    }
+
+    if (ssMethod === "legacy") return null;
+
+    // Auto (strict), show suggested band if strict fails but suggestion exists.
+    if (strict?.ok && Number.isFinite(strict?.x1) && Number.isFinite(strict?.x2)) {
+      return { x1: strict.x1, x2: strict.x2, kind: "autoStrict" };
+    }
+    if (suggested?.ok && Number.isFinite(suggested?.x1) && Number.isFinite(suggested?.x2)) {
+      return { x1: suggested.x1, x2: suggested.x2, kind: "autoSuggested" };
+    }
+    return null;
+  }, [
+    activeFile?.fileId,
+    effectivePlotType,
+    focusedAnalysis,
+    focusedSeriesId,
+    ssManualDraft,
+    ssManualRanges,
+    ssMethod,
+  ]);
+
+  const focusedFitLine = useMemo(() => {
+    if (effectivePlotType !== "ss") return null;
+    if (!ssShowFitLine) return null;
+    if (!focusedSeriesId) return null;
+
+    const selected = focusedAnalysis?.ssSelected ?? null;
+    if (selected?.confidence === "fail") return null;
+
+    const fit = selected?.fit ?? null;
+    if (!fit?.ok) return null;
+    if (!Number.isFinite(fit?.a) || !Number.isFinite(fit?.b)) return null;
+    if (!Number.isFinite(fit?.x1) || !Number.isFinite(fit?.x2)) return null;
+
+    const x1 = fit.x1;
+    const x2 = fit.x2;
+    const y1 = Math.pow(10, fit.a * x1 + fit.b);
+    const y2 = Math.pow(10, fit.a * x2 + fit.b);
+    if (!Number.isFinite(y1) || !Number.isFinite(y2) || y1 <= 0 || y2 <= 0) return null;
+
+    return [
+      { x: x1, y: y1 },
+      { x: x2, y: y2 },
+    ];
+  }, [
+    effectivePlotType,
+    focusedAnalysis?.ssSelected,
+    focusedSeriesId,
+    ssShowFitLine,
+  ]);
+
+  const ssOverlayStyle = useMemo(() => {
+    const kind = focusedSsOverlay?.kind ?? "";
+    if (kind === "autoStrict") {
+      return { fill: "#22c55e", fillOpacity: 0.08, stroke: "#22c55e", strokeOpacity: 0.45 };
+    }
+    if (kind === "autoSuggested") {
+      return { fill: "#f59e0b", fillOpacity: 0.08, stroke: "#f59e0b", strokeOpacity: 0.45 };
+    }
+    if (kind === "idWindow") {
+      return { fill: "#a855f7", fillOpacity: 0.08, stroke: "#a855f7", strokeOpacity: 0.45 };
+    }
+    if (kind === "manual") {
+      return { fill: "#60a5fa", fillOpacity: 0.08, stroke: "#60a5fa", strokeOpacity: 0.45 };
+    }
+    return { fill: "#60a5fa", fillOpacity: 0.08, stroke: "#60a5fa", strokeOpacity: 0.45 };
+  }, [focusedSsOverlay?.kind]);
+
+  const focusedSeriesColor = useMemo(() => {
+    const idx = displayPlotSeries.findIndex((s) => s?.id === focusedSeriesId);
+    if (idx < 0) return COLORS[0];
+    return COLORS[idx % COLORS.length];
+  }, [displayPlotSeries, focusedSeriesId]);
+
+  const ssSummary = useMemo(() => {
+    if (effectivePlotType !== "ss") return null;
+    if (!focusedSeriesId || !focusedAnalysis) return null;
+
+    const selected = focusedAnalysis?.ssSelected ?? null;
+    const fit = selected?.fit ?? null;
+    const conf = String(selected?.confidence || "fail");
+    const method = String(selected?.method || ssMethod || "auto");
+
+    const strict = focusedAnalysis?.ssAuto?.strict ?? null;
+    const suggested = focusedAnalysis?.ssAuto?.suggested ?? null;
+
+    const ss =
+      conf !== "fail" && fit?.ok && Number.isFinite(fit?.ss) ? fit.ss : null;
+    const r2 = Number.isFinite(fit?.r2) ? fit.r2 : null;
+    const span = Number.isFinite(fit?.decadeSpan) ? fit.decadeSpan : null;
+    const n = Number.isFinite(fit?.n) ? fit.n : null;
+    const x1 = Number.isFinite(fit?.x1) ? fit.x1 : null;
+    const x2 = Number.isFinite(fit?.x2) ? fit.x2 : null;
+
+    const suggestedRange =
+      !strict?.ok && suggested?.ok && Number.isFinite(suggested?.x1) && Number.isFinite(suggested?.x2)
+        ? { x1: suggested.x1, x2: suggested.x2 }
+        : null;
+
+    const reason =
+      conf === "fail"
+        ? String(selected?.reason || strict?.reason || fit?.reason || "common.invalid_points")
+        : String(selected?.reason || fit?.reason || "ok");
+
+    return {
+      ss,
+      r2,
+      span,
+      n,
+      x1,
+      x2,
+      confidence: conf,
+      method,
+      reason,
+      suggestedRange,
+    };
+  }, [effectivePlotType, focusedAnalysis, focusedSeriesId, ssMethod]);
 
   const autoMinMax = useMemo(
     () => computeMinMax(displayPlotSeries),
@@ -954,6 +1506,29 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     effectiveYScale,
     plotYFactor,
   ]);
+
+  const focusedSsDiagnostics = useMemo(() => {
+    if (effectivePlotType !== "ss") return null;
+    if (!ssDiagnosticsEnabled) return null;
+    const data = focusedAnalysis?.ssDiagnostics ?? null;
+    return Array.isArray(data) ? data : null;
+  }, [effectivePlotType, focusedAnalysis?.ssDiagnostics, ssDiagnosticsEnabled]);
+
+  const ssDiagnosticsMinMax = useMemo(() => {
+    if (!focusedSsDiagnostics) return { minX: null, maxX: null, minY: null, maxY: null };
+    return computeMinMax([{ data: focusedSsDiagnostics }]);
+  }, [focusedSsDiagnostics]);
+
+  const ssDiagnosticsYDomain = useMemo(() => {
+    const minY = ssDiagnosticsMinMax?.minY ?? null;
+    const maxY = ssDiagnosticsMinMax?.maxY ?? null;
+    if (minY === null || maxY === null) return [0, 1];
+    return padLinearDomain(minY, maxY);
+  }, [ssDiagnosticsMinMax?.maxY, ssDiagnosticsMinMax?.minY]);
+
+  const ssDiagnosticsYTicks = useMemo(() => {
+    return buildOriginAutoTicks(ssDiagnosticsYDomain[0], ssDiagnosticsYDomain[1], 6);
+  }, [ssDiagnosticsYDomain]);
 
   const xTicks = useMemo(() => {
     const mode = String(axis?.xTicks ?? "auto");
@@ -1038,7 +1613,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
         ? "Transconductance (gm = dI/dLegend @ fixed X)"
         : "Derivative (dI/dX per curve)";
     }
-    if (effectivePlotType === "ss") return "Subthreshold Swing (mV/dec)";
+    if (effectivePlotType === "ss") return "Subthreshold Swing (fit on log(|I|))";
     if (effectivePlotType === "j") return "Current Density (J = |I| / Area)";
     return "Detail Plot";
   }, [effectivePlotType, gmMode]);
@@ -1057,6 +1632,215 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     });
   }, [activeFile, analysisBySeriesId]);
 
+  const snapXToSeries = React.useCallback(
+    (x, seriesId, { disableSnap = false } = {}) => {
+      const raw = Number(x);
+      if (!Number.isFinite(raw)) return null;
+      if (disableSnap) return raw;
+      const pts = pointsBySeriesId.get(seriesId) ?? [];
+      let best = null;
+      let bestDist = Infinity;
+      for (const p of pts) {
+        const px = p?.x;
+        if (!Number.isFinite(px)) continue;
+        const d = Math.abs(px - raw);
+        if (d < bestDist) {
+          bestDist = d;
+          best = px;
+        }
+      }
+      return best !== null ? best : raw;
+    },
+    [pointsBySeriesId],
+  );
+
+  const commitManualRange = React.useCallback(
+    (fileId, seriesId, range, { immediate = false } = {}) => {
+      if (!fileId || !seriesId) return;
+      if (!range) return;
+      const x1 = Number(range?.x1);
+      const x2 = Number(range?.x2);
+      if (!Number.isFinite(x1) || !Number.isFinite(x2)) return;
+
+      const lo = Math.min(x1, x2);
+      const hi = Math.max(x1, x2);
+
+      const doCommit = () => {
+        setSsManualRanges((prev) => {
+          const prevFile = prev?.[fileId] ?? {};
+          return {
+            ...(prev || {}),
+            [fileId]: {
+              ...prevFile,
+              [seriesId]: { x1: lo, x2: hi },
+            },
+          };
+        });
+      };
+
+      if (ssDragCommitTimerRef.current) {
+        clearTimeout(ssDragCommitTimerRef.current);
+        ssDragCommitTimerRef.current = 0;
+      }
+
+      if (immediate) {
+        doCommit();
+        return;
+      }
+
+      ssDragCommitTimerRef.current = setTimeout(doCommit, 120);
+    },
+    [setSsManualRanges],
+  );
+
+  const handleSsMouseDown = React.useCallback(
+    (e) => {
+      if (effectivePlotType !== "ss") return;
+      if (ssMethod !== "manual") return;
+      const fileId = activeFile?.fileId ?? null;
+      const seriesId = focusedSeriesId ?? null;
+      if (!fileId || !seriesId) return;
+
+      const rawX = Number(e?.activeLabel);
+      if (!Number.isFinite(rawX)) return;
+
+      const disableSnap = Boolean(ssKeyStateRef.current?.alt);
+      const x = snapXToSeries(rawX, seriesId, { disableSnap });
+      if (!Number.isFinite(x)) return;
+
+      const stored = ssManualRanges?.[fileId]?.[seriesId] ?? null;
+      const draft =
+        ssManualDraft &&
+          ssManualDraft.fileId === fileId &&
+          ssManualDraft.seriesId === seriesId
+          ? ssManualDraft
+          : null;
+
+      const current = draft ?? stored;
+      const hasCurrent =
+        Number.isFinite(Number(current?.x1)) && Number.isFinite(Number(current?.x2));
+
+      const shift = Boolean(ssKeyStateRef.current?.shift);
+      let mode = "new"; // new | left | right | move
+      let startRange = hasCurrent
+        ? { x1: Number(current.x1), x2: Number(current.x2) }
+        : null;
+
+      if (!shift && startRange) {
+        const x1 = startRange.x1;
+        const x2 = startRange.x2;
+        const lo = Math.min(x1, x2);
+        const hi = Math.max(x1, x2);
+        const span = Math.abs((xDomain?.[1] ?? 1) - (xDomain?.[0] ?? 0));
+        const tol = Math.max(1e-12, span * 0.015);
+
+        if (Math.abs(x - lo) <= tol) mode = "left";
+        else if (Math.abs(x - hi) <= tol) mode = "right";
+        else if (x >= lo && x <= hi) mode = "move";
+      }
+
+      const initial =
+        mode === "new" || !startRange ? { x1: x, x2: x } : { ...startRange };
+
+      ssDragStateRef.current = {
+        active: true,
+        mode,
+        fileId,
+        seriesId,
+        startX: x,
+        startRange,
+        draftRange: initial,
+      };
+
+      setSsManualDraft({ fileId, seriesId, x1: initial.x1, x2: initial.x2 });
+    },
+    [
+      activeFile?.fileId,
+      effectivePlotType,
+      focusedSeriesId,
+      snapXToSeries,
+      ssManualDraft,
+      ssManualRanges,
+      ssMethod,
+      xDomain,
+    ],
+  );
+
+  const handleSsMouseMove = React.useCallback(
+    (e) => {
+      const drag = ssDragStateRef.current;
+      if (!drag?.active) return;
+      if (drag.mode !== "new" && drag.mode !== "left" && drag.mode !== "right" && drag.mode !== "move") {
+        return;
+      }
+
+      const rawX = Number(e?.activeLabel);
+      if (!Number.isFinite(rawX)) return;
+      const disableSnap = Boolean(ssKeyStateRef.current?.alt);
+      const x = snapXToSeries(rawX, drag.seriesId, { disableSnap });
+      if (!Number.isFinite(x)) return;
+
+      let next = null;
+      if (drag.mode === "new") {
+        next = { x1: drag.startX, x2: x };
+      } else if (drag.mode === "left") {
+        next = { x1: x, x2: drag.startRange?.x2 ?? x };
+      } else if (drag.mode === "right") {
+        next = { x1: drag.startRange?.x1 ?? x, x2: x };
+      } else if (drag.mode === "move") {
+        const base = drag.startRange;
+        if (!base) return;
+        const dx = x - drag.startX;
+        let x1 = base.x1 + dx;
+        let x2 = base.x2 + dx;
+
+        const domLo = Number(xDomain?.[0]);
+        const domHi = Number(xDomain?.[1]);
+        if (Number.isFinite(domLo) && Number.isFinite(domHi)) {
+          const lo = Math.min(x1, x2);
+          const hi = Math.max(x1, x2);
+          if (lo < domLo) {
+            const d = domLo - lo;
+            x1 += d;
+            x2 += d;
+          }
+          if (hi > domHi) {
+            const d = domHi - hi;
+            x1 += d;
+            x2 += d;
+          }
+        }
+        next = { x1, x2 };
+      }
+
+      if (!next) return;
+
+      drag.draftRange = next;
+      ssDragStateRef.current = drag;
+      setSsManualDraft({
+        fileId: drag.fileId,
+        seriesId: drag.seriesId,
+        x1: next.x1,
+        x2: next.x2,
+      });
+      commitManualRange(drag.fileId, drag.seriesId, next, { immediate: false });
+    },
+    [commitManualRange, snapXToSeries, xDomain],
+  );
+
+  const handleSsMouseUp = React.useCallback(() => {
+    const drag = ssDragStateRef.current;
+    if (!drag?.active) return;
+
+    const finalRange = drag.draftRange ?? drag.startRange;
+    if (finalRange) {
+      commitManualRange(drag.fileId, drag.seriesId, finalRange, { immediate: true });
+    }
+
+    ssDragStateRef.current = null;
+    setSsManualDraft(null);
+  }, [commitManualRange]);
+
   const handleSelectFile = React.useCallback(
     (fileId) => {
       if (!fileId) return;
@@ -1065,6 +1849,32 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
     [setActiveFileId],
   );
 
+  const buildSsTooltip = React.useCallback((row) => {
+    if (!row) return "";
+    const parts = [];
+    if (row.ssMethod) parts.push(`method=${row.ssMethod}`);
+    if (row.ssConfidence) parts.push(`confidence=${row.ssConfidence}`);
+    if (row.ssReason) parts.push(`reason=${row.ssReason}`);
+
+    if (Number.isFinite(row.ssR2)) parts.push(`r2=${formatNumber(row.ssR2, { digits: 4 })}`);
+    if (Number.isFinite(row.ssSpanDec)) parts.push(`spanDec=${formatNumber(row.ssSpanDec, { digits: 2 })}`);
+    if (Number.isFinite(row.ssN)) parts.push(`n=${row.ssN}`);
+    if (Number.isFinite(row.ssX1) && Number.isFinite(row.ssX2)) {
+      parts.push(
+        `range=[${formatNumber(row.ssX1, { digits: 4 })}, ${formatNumber(row.ssX2, { digits: 4 })}]`,
+      );
+    }
+
+    if (Number.isFinite(row.legacySsMin)) {
+      parts.push(`legacySSmin=${formatNumber(row.legacySsMin, { digits: 2 })}`);
+      if (Number.isFinite(row.legacyXAtSsMin)) {
+        parts.push(`x@legacy=${formatNumber(row.legacyXAtSsMin, { digits: 4 })}`);
+      }
+    }
+
+    return parts.join(" | ");
+  }, []);
+
   if (!processedData || processedData.length === 0) return null;
 
   return (
@@ -1072,10 +1882,10 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
       <OverviewGrid
         processedData={processedData}
         processingStatus={processingStatus}
-        activeFileId={effectiveActiveFileId}
         onSelectFile={handleSelectFile}
         yUnitFactor={currentUnitMeta.factor}
         yUnitLabel={currentUnitMeta.label}
+        yScale={effectiveYScale}
       />
 
       <div className="bg-bg-surface border border-border rounded-xl p-4">
@@ -1092,33 +1902,36 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
               <button
                 type="button"
                 onClick={() => setPlotType("iv")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  effectivePlotType === "iv"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "iv"
+                  ? "bg-accent text-white shadow"
+                  : "text-text-secondary hover:text-text-primary"
+                  }`}
               >
                 I-V
               </button>
               <button
                 type="button"
                 onClick={() => setPlotType("gm")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  effectivePlotType === "gm"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "gm"
+                  ? "bg-accent text-white shadow"
+                  : "text-text-secondary hover:text-text-primary"
+                  }`}
               >
                 gm
               </button>
               <button
                 type="button"
-                onClick={() => setPlotType("ss")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  effectivePlotType === "ss"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
+                onClick={() => ssApplicable && setPlotType("ss")}
+                disabled={!ssApplicable}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "ss"
+                  ? "bg-accent text-white shadow"
+                  : "text-text-secondary hover:text-text-primary"
+                  } ${!ssApplicable ? "opacity-50 cursor-not-allowed" : ""}`}
+                title={
+                  !ssApplicable
+                    ? "SS is defined for transfer (Vg) curves. This file does not look like a Vg sweep."
+                    : ""
+                }
               >
                 SS
               </button>
@@ -1126,11 +1939,10 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                 type="button"
                 onClick={() => setPlotType("j")}
                 disabled={!area}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  effectivePlotType === "j"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
-                } ${!area ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "j"
+                  ? "bg-accent text-white shadow"
+                  : "text-text-secondary hover:text-text-primary"
+                  } ${!area ? "opacity-50 cursor-not-allowed" : ""}`}
                 title={!area ? "Set a positive Area to enable J plot" : ""}
               >
                 J
@@ -1145,7 +1957,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                 value={areaInput}
                 onChange={(e) => setAreaInput(e.target.value)}
                 placeholder="e.g. 1e-4"
-                className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent w-[100px]"
+                className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[100px]"
               />
               <Button
                 variant="text"
@@ -1163,32 +1975,61 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                 <span className="text-xs text-text-secondary whitespace-nowrap">
                   Y unit:
                 </span>
+                <ToggleButton
+                  value={yUnit}
+                  onChange={(next) => {
+                    const nextUnit =
+                      next === "A" || next === "uA" || next === "nA"
+                        ? next
+                        : "A";
+
+                    userChangedYUnitRef.current = true;
+                    setYUnit(nextUnit);
+                    apiService
+                      .updateDeviceAnalysisSettings({ yUnit: nextUnit })
+                      .catch(() => { });
+                  }}
+                  options={[
+                    { value: "A", label: "A" },
+                    { value: "uA", label: "µA" },
+                    { value: "nA", label: "nA" },
+                  ]}
+                  size="sm"
+                  className="h-8"
+                  itemClassName="px-2"
+                />
+              </div>
+
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-text-secondary whitespace-nowrap">
+                  Y scale:
+                </span>
                 {effectivePlotType === "ss" ? (
                   <span className="text-xs text-text-primary font-mono whitespace-nowrap">
-                    mV/dec
+                    log(|I|)
                   </span>
                 ) : (
-                  <Dropdown
-                    value={yUnit}
-                    onChange={(next) => {
-                      const nextUnit =
-                        next === "A" || next === "uA" || next === "nA"
-                          ? next
-                          : "A";
-
-                      userChangedYUnitRef.current = true;
-                      setYUnit(nextUnit);
-                      apiService
-                        .updateDeviceAnalysisSettings({ yUnit: nextUnit })
-                        .catch(() => {});
-                    }}
+                  <ToggleButton
                     options={[
-                      { value: "A", label: "A" },
-                      { value: "uA", label: "µA" },
-                      { value: "nA", label: "nA" },
+                      { value: "linear", label: "Linear" },
+                      { value: "log", label: "Log" },
                     ]}
-                    className="w-[70px]"
-                    triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
+                    value={axis.yScale === "logAbs" ? "log" : axis.yScale}
+                    onChange={(next) => {
+                      setAxis((prev) => {
+                        const nextScale = next === "log" ? "log" : "linear";
+                        const nextTicks =
+                          nextScale === "linear" ? "nice" : "decades";
+                        return {
+                          ...prev,
+                          yScale: nextScale,
+                          yTicks: nextTicks,
+                        };
+                      });
+                    }}
+                    size="sm"
+                    className="h-8"
+                    itemClassName="px-2 py-1"
                   />
                 )}
               </div>
@@ -1210,6 +2051,165 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                     className="w-[170px]"
                     triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
                   />
+                </div>
+              ) : null}
+
+              {effectivePlotType === "ss" ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-text-secondary whitespace-nowrap">
+                      Focus:
+                    </span>
+                    <Dropdown
+                      value={focusedSeriesId ?? ""}
+                      onChange={(next) => setFocusedSeriesId(next)}
+                      options={(activeFile?.series ?? []).map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                      }))}
+                      className="w-[160px]"
+                      triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
+                      placeholder="Select curve"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-text-secondary whitespace-nowrap">
+                      SS:
+                    </span>
+                    <Dropdown
+                      value={ssMethod}
+                      onChange={(next) => {
+                        const method =
+                          next === "auto" ||
+                            next === "manual" ||
+                            next === "idWindow" ||
+                            next === "legacy"
+                            ? next
+                            : "auto";
+                        setSsMethod(method);
+                        apiService
+                          .updateDeviceAnalysisSettings({
+                            ssMethodDefault: method,
+                          })
+                          .catch(() => { });
+                      }}
+                      options={[
+                        { value: "auto", label: "Auto (strict)" },
+                        { value: "manual", label: "Manual (drag)" },
+                        { value: "idWindow", label: "|Id| window" },
+                        { value: "legacy", label: "Legacy (min deriv)" },
+                      ]}
+                      className="w-[150px]"
+                      triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
+                    />
+                  </div>
+
+                  <Button
+                    variant="text"
+                    size="sm"
+                    onClick={() => {
+                      setSsMethod("auto");
+                      apiService
+                        .updateDeviceAnalysisSettings({ ssMethodDefault: "auto" })
+                        .catch(() => { });
+                    }}
+                    className="h-8 px-2 text-xs border border-border/50 hover:bg-bg-subtle"
+                    title="Reset SS method to Auto (strict)"
+                  >
+                    Reset
+                  </Button>
+
+                  <Button
+                    variant={ssShowFitLine ? "secondary" : "text"}
+                    size="sm"
+                    onClick={() => setSsShowFitLine((v) => !v)}
+                    className="h-8 px-2 text-xs"
+                    title="Toggle fit line overlay (focused curve only)"
+                  >
+                    Fit line
+                  </Button>
+
+                  <Button
+                    variant={ssDiagnosticsEnabled ? "secondary" : "text"}
+                    size="sm"
+                    onClick={() => {
+                      const next = !ssDiagnosticsEnabled;
+                      setSsDiagnosticsEnabled(next);
+                      apiService
+                        .updateDeviceAnalysisSettings({
+                          ssDiagnosticsEnabled: next,
+                        })
+                        .catch(() => { });
+                    }}
+                    className="h-8 px-2 text-xs"
+                    title="Toggle SS(x) diagnostics plot"
+                  >
+                    Diagnostics
+                  </Button>
+
+                  {ssMethod === "idWindow" ? (
+                    <div className="flex items-center gap-1 text-xs text-text-secondary">
+                      <span className="whitespace-nowrap">|Id|:</span>
+                      <input
+                        value={ssIdWindow?.low ?? ""}
+                        onChange={(e) =>
+                          setSsIdWindow((prev) => ({
+                            ...(prev || {}),
+                            low: e.target.value,
+                          }))
+                        }
+                        onBlur={() => {
+                          const low = Number(ssIdWindow?.low);
+                          const high = Number(ssIdWindow?.high);
+                          if (
+                            Number.isFinite(low) &&
+                            Number.isFinite(high) &&
+                            low > 0 &&
+                            high > 0
+                          ) {
+                            apiService
+                              .updateDeviceAnalysisSettings({
+                                ssIdLow: low,
+                                ssIdHigh: high,
+                              })
+                              .catch(() => { });
+                          }
+                        }}
+                        placeholder="low (A)"
+                        className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
+                      />
+                      <span>~</span>
+                      <input
+                        value={ssIdWindow?.high ?? ""}
+                        onChange={(e) =>
+                          setSsIdWindow((prev) => ({
+                            ...(prev || {}),
+                            high: e.target.value,
+                          }))
+                        }
+                        onBlur={() => {
+                          const low = Number(ssIdWindow?.low);
+                          const high = Number(ssIdWindow?.high);
+                          if (
+                            Number.isFinite(low) &&
+                            Number.isFinite(high) &&
+                            low > 0 &&
+                            high > 0
+                          ) {
+                            apiService
+                              .updateDeviceAnalysisSettings({
+                                ssIdLow: low,
+                                ssIdHigh: high,
+                              })
+                              .catch(() => { });
+                          }
+                        }}
+                        placeholder="high (A)"
+                        className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1235,6 +2235,79 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
               </Button>
             </div>
           </div>
+
+          {effectivePlotType === "ss" && ssSummary ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span
+                className={`px-2 py-1 rounded-md border ${ssSummary.confidence === "high"
+                  ? "border-green-500/40 text-green-500"
+                  : ssSummary.confidence === "low"
+                    ? "border-yellow-500/40 text-yellow-500"
+                    : "border-red-500/40 text-red-500"
+                  }`}
+                title={`method=${ssSummary.method} reason=${ssSummary.reason}`}
+              >
+                {String(ssSummary.confidence).toUpperCase()}
+              </span>
+
+              <span className="text-text-secondary">
+                method: <span className="text-text-primary font-mono">{ssSummary.method}</span>
+              </span>
+
+              <span className="text-text-secondary">
+                SS:{" "}
+                <span className="text-text-primary font-mono">
+                  {ssSummary.ss !== null ? `${formatNumber(ssSummary.ss, { digits: 2 })} mV/dec` : "—"}
+                </span>
+              </span>
+
+              <span className="text-text-secondary">
+                R²:{" "}
+                <span className="text-text-primary font-mono">
+                  {ssSummary.r2 !== null ? formatNumber(ssSummary.r2, { digits: 4 }) : "—"}
+                </span>
+              </span>
+
+              <span className="text-text-secondary">
+                span:{" "}
+                <span className="text-text-primary font-mono">
+                  {ssSummary.span !== null ? formatNumber(ssSummary.span, { digits: 2 }) : "—"} dec
+                </span>
+              </span>
+
+              <span className="text-text-secondary">
+                N:{" "}
+                <span className="text-text-primary font-mono">
+                  {ssSummary.n !== null ? String(ssSummary.n) : "—"}
+                </span>
+              </span>
+
+              <span className="text-text-secondary">
+                range:{" "}
+                <span className="text-text-primary font-mono">
+                  {ssSummary.x1 !== null && ssSummary.x2 !== null
+                    ? `[${formatNumber(ssSummary.x1, { digits: 4 })}, ${formatNumber(ssSummary.x2, { digits: 4 })}]`
+                    : "—"}
+                </span>
+              </span>
+
+              {ssSummary.confidence === "fail" ? (
+                <span className="text-red-500" title={ssSummary.reason}>
+                  reason: <span className="font-mono">{ssSummary.reason}</span>
+                </span>
+              ) : null}
+
+              {ssSummary.suggestedRange ? (
+                <span className="text-yellow-500">
+                  suggested:{" "}
+                  <span className="font-mono">
+                    [{formatNumber(ssSummary.suggestedRange.x1, { digits: 4 })},{" "}
+                    {formatNumber(ssSummary.suggestedRange.x2, { digits: 4 })}]
+                  </span>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           {showAxisControls && (
             <div className="bg-bg-page border border-border rounded-lg p-3">
@@ -1280,7 +2353,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                         setAxis((prev) => ({ ...prev, xMin: e.target.value }))
                       }
                       placeholder="min (auto)"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                     />
                     <input
                       value={axis.xMax}
@@ -1288,7 +2361,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                         setAxis((prev) => ({ ...prev, xMax: e.target.value }))
                       }
                       placeholder="max (auto)"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                     />
                   </div>
 
@@ -1298,7 +2371,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, xTicks: e.target.value }))
                       }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                       title="Tick mode"
                     >
                       <option value="auto">ticks: auto</option>
@@ -1315,7 +2388,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                       }
                       disabled={axis.xTicks !== "nice"}
                       placeholder="count"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
                       title="Nice tick count"
                     />
                     <input
@@ -1325,7 +2398,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                       }
                       disabled={axis.xTicks !== "step"}
                       placeholder="step"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
                       title="Step tick increment"
                     />
                   </div>
@@ -1342,7 +2415,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                         setAxis((prev) => ({ ...prev, yMin: e.target.value }))
                       }
                       placeholder={`min (auto) (${plotYUnitLabel})`}
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                     />
                     <input
                       value={axis.yMax}
@@ -1350,7 +2423,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                         setAxis((prev) => ({ ...prev, yMax: e.target.value }))
                       }
                       placeholder={`max (auto) (${plotYUnitLabel})`}
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                     />
                   </div>
 
@@ -1369,7 +2442,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                           };
                         })
                       }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                       title="Scale"
                     >
                       <option value="linear">scale: linear</option>
@@ -1381,7 +2454,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, yTicks: e.target.value }))
                       }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                       title="Tick mode"
                     >
                       <option value="auto">ticks: auto</option>
@@ -1415,7 +2488,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                             }))
                           }
                           placeholder={`step (${plotYUnitLabel})`}
-                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                           title="Major tick increment"
                         />
                       ) : (
@@ -1429,7 +2502,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                           }
                           disabled={axis.yTicks !== "nice"}
                           placeholder="count"
-                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
                           title="Nice tick count"
                         />
                       )
@@ -1444,7 +2517,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                         }
                         disabled={axis.yTicks !== "decades"}
                         placeholder="decade step"
-                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
                         title="Major tick increment (decades)"
                       />
                     )}
@@ -1462,22 +2535,18 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
         </div>
 
         {activeFile?.series?.length ? (
-          <div className="h-[500px] flex flex-col">
-            <div className="text-xs text-text-secondary mb-2">
-              X: {xRangeLabel} | points/group: {activeFile.x.points} | groups:{" "}
-              {activeFile.x.groups} | series: {activeFile.series.length} | y
-              unit: {plotYUnitLabel}
-            </div>
+          <div className="flex flex-col">
+
 
             {effectivePlotType === "gm" &&
-            gmMode === "legend" &&
-            !gmLegendStatus.ok ? (
+              gmMode === "legend" &&
+              !gmLegendStatus.ok ? (
               <div className="text-[11px] text-red-500 mb-2">
                 {gmLegendStatus.message}
               </div>
             ) : null}
 
-            <div className="flex-1 min-h-0">
+            <div className="h-[500px]">
               <ResponsiveContainer
                 width="100%"
                 height="100%"
@@ -1485,7 +2554,11 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
               >
                 <LineChart
                   data={[]}
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                  margin={{ top: 5, right: 15, left: 45, bottom: 28 }}
+                  onMouseDown={handleSsMouseDown}
+                  onMouseMove={handleSsMouseMove}
+                  onMouseUp={handleSsMouseUp}
+                  onMouseLeave={handleSsMouseUp}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -1500,6 +2573,23 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                     }
                     ticks={xTicks ?? undefined}
                     interval={xLabelInterval}
+                    // ========== X轴标题 (底部标题) 位置设置 ==========
+                    // position: 标题位置 (insideBottom=底部内侧)
+                    // offset: 垂直偏移量 (负值向下移动)
+                    // fontSize: 字体大小
+                    label={
+                      activeFile?.xLabel
+                        ? {
+                          value: activeFile.xLabel,
+                          position: "insideBottom",
+                          offset: -15,
+                          fill: "currentColor",
+                          opacity: 0.9,
+                          fontSize: 16,
+                          fontWeight: 500,
+                        }
+                        : undefined
+                    }
                     tickFormatter={(v) =>
                       formatNumber(v, { digits: xTickDigits })
                     }
@@ -1509,6 +2599,26 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                     allowDataOverflow
                   />
                   <YAxis
+                    // ========== Y轴标题 (左侧标题) 位置设置 ==========
+                    // position: 标题位置 (insideLeft=左侧内侧)
+                    // offset: 水平偏移量 (负值向左移动)
+                    // angle: 旋转角度 (-90=垂直)
+                    // fontSize: 字体大小
+                    label={
+                      activeFile?.yLabel
+                        ? {
+                          value: activeFile.yLabel,
+                          angle: -90,
+                          position: "insideLeft",
+                          offset: -15,
+                          style: { textAnchor: "middle" },
+                          fill: "currentColor",
+                          opacity: 0.9,
+                          fontSize: 16,
+                          fontWeight: 500,
+                        }
+                        : undefined
+                    }
                     type="number"
                     scale={effectiveYScale === "linear" ? "linear" : "log"}
                     domain={
@@ -1516,9 +2626,16 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                     }
                     ticks={yTicks ?? undefined}
                     interval={yLabelInterval}
-                    tickFormatter={(v) =>
-                      formatNumber(v * plotYFactor, { digits: yTickDigits })
-                    }
+                    tickFormatter={(v) => {
+                      const scaled = v * plotYFactor;
+                      if (effectiveYScale !== "linear") {
+                        // Use scientific notation for log scale
+                        if (!Number.isFinite(scaled) || scaled === 0) return "0";
+                        const exp = Math.floor(Math.log10(Math.abs(scaled)));
+                        return `1e${exp}`;
+                      }
+                      return formatNumber(scaled, { digits: yTickDigits });
+                    }}
                     stroke="currentColor"
                     className="text-text-secondary text-xs"
                     tick={{ fill: "currentColor", opacity: 0.6 }}
@@ -1547,7 +2664,59 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                       ];
                     }}
                   />
-                  <Legend verticalAlign="top" align="right" />
+                  {/* ========== Legend 图例位置设置 ========== */}
+                  {/* layout: horizontal=水平, vertical=垂直 */}
+                  {/* verticalAlign: top/middle/bottom 垂直对齐 */}
+                  {/* align: left/center/right 水平对齐 */}
+                  {/* wrapperStyle.right: 距右边距离, wrapperStyle.top: 距顶部距离 */}
+                  {effectivePlotType === "ss" && focusedSsOverlay ? (
+                    <>
+                      <ReferenceArea
+                        x1={Math.min(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+                        x2={Math.max(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+                        fill={ssOverlayStyle.fill}
+                        fillOpacity={ssOverlayStyle.fillOpacity}
+                        ifOverflow="hidden"
+                      />
+                      <ReferenceLine
+                        x={Math.min(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+                        stroke={ssOverlayStyle.stroke}
+                        strokeOpacity={ssOverlayStyle.strokeOpacity}
+                        strokeWidth={2}
+                        ifOverflow="hidden"
+                      />
+                      <ReferenceLine
+                        x={Math.max(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+                        stroke={ssOverlayStyle.stroke}
+                        strokeOpacity={ssOverlayStyle.strokeOpacity}
+                        strokeWidth={2}
+                        ifOverflow="hidden"
+                      />
+                    </>
+                  ) : null}
+
+                  <Legend
+                    layout="vertical"
+                    verticalAlign="middle"
+                    align="right"
+                    width={120}
+                    wrapperStyle={{ right: 0, top: 0 }}
+                  />
+
+                  {effectivePlotType === "ss" && focusedFitLine ? (
+                    <Line
+                      data={focusedFitLine}
+                      dataKey="y"
+                      name="Fit"
+                      stroke={focusedSeriesColor}
+                      dot={false}
+                      isAnimationActive={false}
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      strokeOpacity={0.7}
+                    />
+                  ) : null}
+
                   {displayPlotSeries.map((series, idx) => (
                     <Line
                       key={series.id}
@@ -1557,12 +2726,137 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                       stroke={COLORS[idx % COLORS.length]}
                       dot={false}
                       isAnimationActive={false}
-                      strokeWidth={2}
+                      strokeWidth={
+                        effectivePlotType === "ss" &&
+                          focusedSeriesId &&
+                          series.id === focusedSeriesId
+                          ? 2.5
+                          : 2
+                      }
+                      strokeOpacity={
+                        effectivePlotType === "ss" &&
+                          focusedSeriesId &&
+                          series.id !== focusedSeriesId
+                          ? 0.35
+                          : 1
+                      }
                     />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
+
+            {effectivePlotType === "ss" && focusedSsDiagnostics ? (
+              <div className="mt-4">
+                <div className="text-xs text-text-secondary mb-2">
+                  Diagnostics: SS(x)
+                </div>
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%" className="!outline-none">
+                    <LineChart data={[]} margin={{ top: 5, right: 135, left: 45, bottom: 20 }}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#333"
+                        opacity={0.2}
+                      />
+                      <XAxis
+                        dataKey="x"
+                        type="number"
+                        domain={
+                          xTicks ? [xTicks[0], xTicks[xTicks.length - 1]] : xDomain
+                        }
+                        ticks={xTicks ?? undefined}
+                        interval={xLabelInterval}
+                        tickFormatter={(v) =>
+                          formatNumber(v, { digits: xTickDigits })
+                        }
+                        stroke="currentColor"
+                        className="text-text-secondary text-xs"
+                        tick={{ fill: "currentColor", opacity: 0.6 }}
+                        allowDataOverflow
+                      />
+                      <YAxis
+                        label={{
+                          value: "SS (mV/dec)",
+                          angle: -90,
+                          position: "insideLeft",
+                          offset: -15,
+                          style: { textAnchor: "middle" },
+                          fill: "currentColor",
+                          opacity: 0.9,
+                          fontSize: 14,
+                          fontWeight: 500,
+                        }}
+                        type="number"
+                        scale="linear"
+                        domain={ssDiagnosticsYDomain}
+                        ticks={ssDiagnosticsYTicks ?? undefined}
+                        interval={0}
+                        tickFormatter={(v) => formatNumber(v, { digits: 2 })}
+                        stroke="currentColor"
+                        className="text-text-secondary text-xs"
+                        tick={{ fill: "currentColor", opacity: 0.6 }}
+                        allowDataOverflow
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#1e1e1e",
+                          borderColor: "#333",
+                          color: "#fff",
+                        }}
+                        itemStyle={{ color: "#ccc" }}
+                        labelFormatter={(label) =>
+                          `x=${formatNumber(label, { digits: xTickDigits })}`
+                        }
+                        formatter={(value, name) => [
+                          `${formatNumber(Number(value), { digits: 2 })} mV/dec`,
+                          name,
+                        ]}
+                      />
+
+                      {focusedSsOverlay ? (
+                        <>
+                          <ReferenceLine
+                            x={Math.min(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+                            stroke={ssOverlayStyle.stroke}
+                            strokeOpacity={ssOverlayStyle.strokeOpacity}
+                            strokeWidth={2}
+                            ifOverflow="hidden"
+                          />
+                          <ReferenceLine
+                            x={Math.max(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+                            stroke={ssOverlayStyle.stroke}
+                            strokeOpacity={ssOverlayStyle.strokeOpacity}
+                            strokeWidth={2}
+                            ifOverflow="hidden"
+                          />
+                        </>
+                      ) : null}
+
+                      {ssSummary?.ss !== null && Number.isFinite(ssSummary?.ss) ? (
+                        <ReferenceLine
+                          y={ssSummary.ss}
+                          stroke={focusedSeriesColor}
+                          strokeOpacity={0.35}
+                          strokeDasharray="4 4"
+                          ifOverflow="hidden"
+                        />
+                      ) : null}
+
+                      <Line
+                        data={focusedSsDiagnostics}
+                        dataKey="y"
+                        name="SS(x)"
+                        stroke={focusedSeriesColor}
+                        dot={false}
+                        isAnimationActive={false}
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="flex items-center justify-center h-[300px] text-text-secondary">
@@ -1578,7 +2872,7 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
               Calculated Parameters
             </h3>
             <div className="text-xs text-text-secondary whitespace-nowrap">
-              gm: max |{gmMode === "legend" ? "dI/dLegend" : "dI/dX"}| · SS: min
+              gm: max |{gmMode === "legend" ? "dI/dLegend" : "dI/dX"}| · SS: fit
               (mV/dec) · J uses |I|/Area
             </div>
           </div>
@@ -1611,10 +2905,10 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                   x@gm_max
                 </th>
                 <th className="p-2 text-xs font-semibold text-text-secondary">
-                  SS_min
+                  SS
                 </th>
                 <th className="p-2 text-xs font-semibold text-text-secondary">
-                  x@SS_min
+                  x@SS
                 </th>
                 <th className="p-2 text-xs font-semibold text-text-secondary">
                   Jon (if Area)
@@ -1649,10 +2943,26 @@ const AnalysisCharts = ({ processedData, processingStatus }) => {
                     {formatNumber(row.xAtGmMaxAbs)}
                   </td>
                   <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    {formatNumber(row.ssMin, { digits: 2 })}
+                    <span
+                      className={`${row.ssConfidence === "high"
+                        ? "text-green-500"
+                        : row.ssConfidence === "low"
+                          ? "text-yellow-500"
+                          : row.ssConfidence === "fail"
+                            ? "text-red-500"
+                            : "text-text-primary"
+                        }`}
+                      title={buildSsTooltip(row)}
+                    >
+                      {row.ss !== null
+                        ? formatNumber(row.ss, { digits: 2 })
+                        : row.ssConfidence === "fail"
+                          ? "Fail"
+                          : "—"}
+                    </span>
                   </td>
                   <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                    {formatNumber(row.xAtSsMin)}
+                    {formatNumber(row.xAtSs)}
                   </td>
                   <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
                     {formatNumber(row.jon)}

@@ -49,6 +49,7 @@ const CanvasMultiLineChart = ({
   series,
   domain,
   yScaleFactor = 1,
+  yScaleType = "linear",
   yUnitLabel = "",
   padding = DEFAULT_PADDING,
   title,
@@ -126,16 +127,41 @@ const CanvasMultiLineChart = ({
     const height = size.height;
     const xMin = domain?.x?.[0] ?? 0;
     const xMax = domain?.x?.[1] ?? 1;
-    const yMin = domain?.y?.[0] ?? 0;
-    const yMax = domain?.y?.[1] ?? 1;
+    let yMin = domain?.y?.[0] ?? 0;
+    let yMax = domain?.y?.[1] ?? 1;
+
+    // For log scale, ensure strictly positive range
+    if (yScaleType === "log") {
+      if (yMin <= 0) yMin = 1e-12; // Fallback for typically small currents
+      if (yMax <= yMin) yMax = yMin * 10;
+    }
+
     const xSpan = xMax - xMin || 1;
-    const ySpan = yMax - yMin || 1;
+    // For linear: span = max - min
+    // For log: span = log10(max) - log10(min)
+    const ySpan = yScaleType === "log"
+      ? Math.log10(yMax) - Math.log10(yMin)
+      : yMax - yMin;
+
+    if (yScaleType === "log" && ySpan <= 0) {
+      // Degenerate log span?
+    }
 
     const innerW = Math.max(1, width - padding.left - padding.right);
     const innerH = Math.max(1, height - padding.top - padding.bottom);
 
     const xToPx = (x) => padding.left + ((x - xMin) / xSpan) * innerW;
-    const yToPx = (y) => padding.top + (1 - (y - yMin) / ySpan) * innerH;
+
+    const yToPx = (y) => {
+      if (yScaleType === "log") {
+        if (y <= 0) return size.height - padding.bottom; // Clamp bottom
+        const logY = Math.log10(y);
+        const logMin = Math.log10(yMin);
+        const ratio = (logY - logMin) / ySpan;
+        return padding.top + (1 - ratio) * innerH;
+      }
+      return padding.top + (1 - (y - yMin) / ySpan) * innerH;
+    };
 
     const pxToX = (px) => xMin + ((px - padding.left) / innerW) * xSpan;
 

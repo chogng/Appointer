@@ -65,10 +65,9 @@ const DataPreviewTable = ({ processedData }) => {
             onClick={() => setActiveFileId(file.fileId)}
             className={`
               px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
-              ${
-                effectiveActiveFileId === file.fileId
-                  ? "bg-accent/10 text-accent ring-1 ring-accent/20"
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-page"
+              ${effectiveActiveFileId === file.fileId
+                ? "bg-accent/10 text-accent ring-1 ring-black"
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-page"
               }
             `}
           >
@@ -93,7 +92,7 @@ const DataPreviewTable = ({ processedData }) => {
           value={effectiveActiveSeriesId ?? ""}
           onChange={(e) => setActiveSeriesId(e.target.value)}
           disabled={!activeFile?.series?.length}
-          className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent max-w-[260px]"
+          className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black max-w-[260px]"
           title="Select a series"
         >
           {activeFile?.series?.map((s) => (

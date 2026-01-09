@@ -187,7 +187,7 @@ const Users = () => {
   return (
     <div
       ref={containerRef}
-      className="max-w-[1500px] mx-auto min-h-screen relative"
+      className="w-full min-h-screen relative"
     >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
@@ -265,13 +265,12 @@ const Users = () => {
                 <td className="px-6 py-4">
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium
-                                        ${
-                                          u.role === "SUPER_ADMIN"
-                                            ? "bg-purple-500/10 text-purple-500"
-                                            : u.role === "ADMIN"
-                                              ? "bg-blue-500/10 text-blue-500"
-                                              : "bg-gray-500/10 text-gray-400"
-                                        }`}
+                                        ${u.role === "SUPER_ADMIN"
+                        ? "bg-purple-500/10 text-purple-500"
+                        : u.role === "ADMIN"
+                          ? "bg-blue-500/10 text-blue-500"
+                          : "bg-gray-500/10 text-gray-400"
+                      }`}
                   >
                     <Shield size={12} />
                     {u.role}
@@ -495,11 +494,10 @@ const Users = () => {
                                 );
                               }
                             }}
-                            className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                              isBlocked
+                            className={`px-2 py-1 text-xs font-medium rounded transition-colors ${isBlocked
                                 ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
                                 : "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                            }`}
+                              }`}
                           >
                             {isBlocked ? "Blocked" : "Allowed"}
                           </button>

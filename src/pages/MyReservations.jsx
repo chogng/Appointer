@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "../services/apiService";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Dropdown from "../components/ui/Dropdown";
@@ -19,6 +20,7 @@ import {
 const MyReservations = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [allReservations, setAllReservations] = useState([]); // Store all raw data
   const [users, setUsers] = useState([]); // Store users for admin view
   const [devices, setDevices] = useState([]);
@@ -63,19 +65,19 @@ const MyReservations = () => {
   }, [user?.id, loadData]); // Reload if admin status changes (though unlikely without re-login)
 
   const getDeviceName = (id) =>
-    devices.find((d) => d.id === id)?.name || "未知设备";
+    devices.find((d) => d.id === id)?.name || t("unknownDevice");
   const getUserName = (id) =>
-    users.find((u) => u.id === id)?.name || "未知用户";
+    users.find((u) => u.id === id)?.name || t("unknownUser");
 
   const handleCancel = async (id) => {
-    if (!confirm("您确定要取消此预约吗？")) return;
+    if (!confirm(t("confirmCancelReservation"))) return;
 
     try {
       await apiService.updateReservation(id, { status: "CANCELLED" });
       await loadData();
     } catch (error) {
       console.error("Failed to cancel reservation:", error);
-      alert("取消失败，请重试");
+      alert(t("cancelFailedRetry"));
     }
   };
 
@@ -91,7 +93,7 @@ const MyReservations = () => {
 
   const handleBulkCancel = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`确定要取消选中的 ${selectedIds.size} 个预约吗？`)) return;
+    if (!confirm(t("confirmBulkCancel", { count: selectedIds.size }))) return;
 
     try {
       setLoading(true);
@@ -104,7 +106,7 @@ const MyReservations = () => {
       await loadData();
     } catch (error) {
       console.error("Batch cancel failed:", error);
-      alert("批量取消失败，请重试");
+      alert(t("bulkCancelFailedRetry"));
     } finally {
       setLoading(false);
     }
@@ -147,7 +149,7 @@ const MyReservations = () => {
   };
 
   const filterOptions = [
-    { label: "全部设备", value: "all" },
+    { label: t("allDevices"), value: "all" },
     ...devices.map((d) => ({ label: d.name, value: d.id })),
   ];
 
@@ -156,20 +158,20 @@ const MyReservations = () => {
   }
 
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-6">
           {!isAdmin && (
             <h1 className="text-3xl font-serif font-medium text-text-primary">
-              我的预约
+              {t("myReservationsTitle")}
             </h1>
           )}
           {isAdmin && (
             <div className="w-[200px] mt-1">
               <SegmentedControl
                 options={[
-                  { label: "我的预约", value: "mine" },
-                  { label: "用户预约", value: "all" },
+                  { label: t("myReservationsTitle"), value: "mine" },
+                  { label: t("userReservationsTitle"), value: "all" },
                 ]}
                 value={scope}
                 onChange={setScope}
@@ -189,7 +191,7 @@ const MyReservations = () => {
                 className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
               >
                 <Trash2 size={16} />
-                取消选中 ({selectedIds.size})
+                {t("cancelSelected")} ({selectedIds.size})
               </Button>
             </div>
           )}
@@ -200,7 +202,7 @@ const MyReservations = () => {
               options={filterOptions}
               value={filterDeviceId}
               onChange={setFilterDeviceId}
-              placeholder="筛选设备"
+              placeholder={t("filterDevice")}
             />
           </div>
 
@@ -213,7 +215,7 @@ const MyReservations = () => {
                   ? "bg-indigo-50 text-indigo-600"
                   : "text-text-secondary hover:bg-white/60"
               }`}
-              title={isAllSelected ? "取消全选" : "全选"}
+              title={isAllSelected ? t("deselectAll") : t("selectAll")}
             >
               {isAllSelected ? <CheckSquare size={20} /> : <Square size={20} />}
             </button>
@@ -225,7 +227,7 @@ const MyReservations = () => {
                   ? "bg-[#7FB77E] text-white shadow-md shadow-green-100"
                   : "text-text-secondary hover:bg-white/60"
               }`}
-              title="列表视图"
+              title={t("listView")}
             >
               <List size={20} />
             </button>
@@ -236,7 +238,7 @@ const MyReservations = () => {
                   ? "bg-[#7FB77E] text-white shadow-md shadow-green-100"
                   : "text-text-secondary hover:bg-white/60"
               }`}
-              title="网格视图"
+              title={t("gridView")}
             >
               <LayoutGrid size={20} />
             </button>
@@ -254,8 +256,8 @@ const MyReservations = () => {
           </div>
           <p className="text-text-secondary">
             {filterDeviceId === "all"
-              ? "您当前没有有效的预约。"
-              : "该设备下没有预约记录。"}
+              ? t("noReservations")
+              : t("noReservationsForDevice")}
           </p>
         </Card>
       ) : (
@@ -366,7 +368,7 @@ const MyReservations = () => {
                   }
                   className={`transition-all duration-300 ${viewMode === "list" ? "" : "flex-1"} bg-white/40 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 border-border-subtle backdrop-blur-sm`}
                 >
-                  查看
+                  {t("view")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -374,7 +376,7 @@ const MyReservations = () => {
                   onClick={() => handleCancel(res.id)}
                   className={`transition-all duration-300 ${viewMode === "list" ? "" : "flex-1"} bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm`}
                 >
-                  取消
+                  {t("cancel")}
                 </Button>
               </div>
             </Card>

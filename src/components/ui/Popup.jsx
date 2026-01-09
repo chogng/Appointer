@@ -42,6 +42,8 @@ const Popup = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen, closeOnClickOutside, onClose, containerRef]);
 
+    const resolvedChildren = typeof children === 'function' ? (isOpen ? children() : null) : children;
+
     return (
         <div
             ref={popupRef}
@@ -70,7 +72,7 @@ const Popup = ({
                     ${className}
                 `}
             >
-                {children}
+                {resolvedChildren}
             </div>
         </div>
     );

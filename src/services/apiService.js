@@ -1,3 +1,5 @@
+import { getMockUser } from "../utils/mockAuthStore";
+
 // Production-like default: same-origin API (works with backend-served dist and with Vite proxy in dev)
 const DEFAULT_API_BASE_URL = "/api";
 const API_BASE_URL = (
@@ -91,18 +93,23 @@ class ApiService {
       let message = "Request failed";
       const contentType = response.headers.get("content-type") || "";
 
-      try {
-        if (contentType.includes("application/json")) {
-          const error = await response.json();
-          message = error?.error || error?.message || message;
-        } else {
-          const text = await response.text();
-          if (text) message = text;
+      if (contentType.includes("application/json")) {
+        const parsed = await response.json().catch(() => null);
+        message = parsed?.error || parsed?.message || message;
+
+        const error = new Error(message);
+        if (parsed && typeof parsed === "object") {
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (k === "error" || k === "message") return;
+            error[k] = v;
+          });
         }
-      } catch {
-        // ignore parse failures
+        error.status = response.status;
+        throw error;
       }
 
+      const text = await response.text().catch(() => "");
+      if (text) message = text;
       const error = new Error(message);
       error.status = response.status;
       throw error;
@@ -410,14 +417,65 @@ class ApiService {
     });
   }
 
+  async translateLiteratureAbstract(payload) {
+    return this.request("/literature/translate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getLiteratureAdminTranslationKey() {
+    return this.request("/admin/literature/translation-key");
+  }
+
+  async updateLiteratureAdminTranslationKey(payload) {
+    return this.request("/admin/literature/translation-key", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getLiteratureAdminTranslationModel() {
+    return this.request("/admin/literature/translation-model");
+  }
+
+  async updateLiteratureAdminTranslationModel(payload) {
+    return this.request("/admin/literature/translation-model", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getLiteratureAdminTranslationBaseUrl() {
+    return this.request("/admin/literature/translation-base-url");
+  }
+
+  async updateLiteratureAdminTranslationBaseUrl(payload) {
+    return this.request("/admin/literature/translation-base-url", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getLiteratureAdminTranslationProvider() {
+    return this.request("/admin/literature/translation-provider");
+  }
+
+  async updateLiteratureAdminTranslationProvider(payload) {
+    return this.request("/admin/literature/translation-provider", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
   // ============ Mock API 处理 ============
   _mockRequest(endpoint, options = {}) {
     const method = options.method || "GET";
 
     // 路由匹配
     if (endpoint === "/auth/me") {
-      const saved = localStorage.getItem("mock_user");
-      if (saved) return JSON.parse(saved);
+      const saved = getMockUser();
+      if (saved) return saved;
       throw new Error("Not authenticated");
     }
     if (endpoint === "/auth/logout") return { success: true };
@@ -450,11 +508,195 @@ class ApiService {
         startDate: null,
         endDate: null,
         maxResults: 100,
+        hasTranslationApiKey: false,
+        hasDefaultTranslationApiKey: false,
+        translationApiKeySource: null,
+        translationApiKeyMasked: null,
+        translationProvider: null,
+        translationModel: null,
+        translationBaseUrl: null,
+        hasDefaultTranslationBaseUrl: false,
+        defaultTranslationProvider: "bigmodel",
+        supportedTranslationProviders: ["bigmodel"],
         updatedAt: null,
       };
     }
 
+    if (endpoint === "/literature/settings" && method === "PATCH") {
+      let parsed = null;
+      try {
+        parsed = options?.body ? JSON.parse(options.body) : null;
+      } catch {
+        parsed = null;
+      }
+
+      const translationModel =
+        typeof parsed?.translationModel === "string" && parsed.translationModel.trim()
+          ? parsed.translationModel.trim()
+          : null;
+
+      const hasUserKey =
+        typeof parsed?.translationApiKey === "string" && parsed.translationApiKey.trim();
+
+      const translationProvider =
+        typeof parsed?.translationProvider === "string" && parsed.translationProvider.trim()
+          ? parsed.translationProvider.trim()
+          : null;
+
+      return {
+        seedUrls: Array.isArray(parsed?.seedUrls) ? parsed.seedUrls : [],
+        startDate: typeof parsed?.startDate === "string" ? parsed.startDate : null,
+        endDate: typeof parsed?.endDate === "string" ? parsed.endDate : null,
+        maxResults: typeof parsed?.maxResults === "number" ? parsed.maxResults : 100,
+        hasTranslationApiKey: Boolean(hasUserKey),
+        hasDefaultTranslationApiKey: false,
+        translationApiKeySource: hasUserKey ? "user" : null,
+        translationApiKeyMasked: hasUserKey ? "****mock" : null,
+        translationProvider,
+        translationModel,
+        translationBaseUrl:
+          typeof parsed?.translationBaseUrl === "string" && parsed.translationBaseUrl.trim()
+            ? parsed.translationBaseUrl.trim()
+            : null,
+        hasDefaultTranslationBaseUrl: false,
+        defaultTranslationProvider: "bigmodel",
+        supportedTranslationProviders: ["bigmodel"],
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     if (endpoint === "/literature/search") return [];
+
+    if (endpoint === "/literature/translate" && method === "POST") {
+      let parsed = null;
+      try {
+        parsed = options?.body ? JSON.parse(options.body) : null;
+      } catch {
+        parsed = null;
+      }
+      return {
+        id: null,
+        model: "glm-4.5-flash",
+        modelSource: "mock",
+        translatedText: "Mock translation (enable backend to translate).",
+        targetLang: parsed?.targetLang || "zh",
+        apiKeySource: "mock",
+        translationProvider: "mock",
+        translationProviderSource: "mock",
+        translationBaseUrlSource: null,
+        translationBaseUrlHost: null,
+        cached: false,
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-key" && method === "GET") {
+      return {
+        hasDefaultTranslationApiKey: false,
+        defaultTranslationApiKeyMasked: null,
+        updatedAt: null,
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-key" && method === "PATCH") {
+      return {
+        hasDefaultTranslationApiKey: true,
+        defaultTranslationApiKeyMasked: "****mock",
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-model" && method === "GET") {
+      return {
+        hasDefaultTranslationModel: false,
+        defaultTranslationModel: null,
+        updatedAt: null,
+        builtinDefaultTranslationModel: "glm-4.5-flash",
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-model" && method === "PATCH") {
+      let parsed = null;
+      try {
+        parsed = options?.body ? JSON.parse(options.body) : null;
+      } catch {
+        parsed = null;
+      }
+
+      const nextModel =
+        typeof parsed?.defaultTranslationModel === "string" && parsed.defaultTranslationModel.trim()
+          ? parsed.defaultTranslationModel.trim()
+          : null;
+
+      return {
+        hasDefaultTranslationModel: Boolean(
+          parsed?.defaultTranslationModel && parsed.defaultTranslationModel.trim(),
+        ),
+        defaultTranslationModel: nextModel,
+        updatedAt: new Date().toISOString(),
+        builtinDefaultTranslationModel: "glm-4.5-flash",
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-base-url" && method === "GET") {
+      return {
+        hasDefaultTranslationBaseUrl: false,
+        defaultTranslationBaseUrl: null,
+        updatedAt: null,
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-base-url" && method === "PATCH") {
+      let parsed = null;
+      try {
+        parsed = options?.body ? JSON.parse(options.body) : null;
+      } catch {
+        parsed = null;
+      }
+
+      const nextBaseUrl =
+        typeof parsed?.defaultTranslationBaseUrl === "string" && parsed.defaultTranslationBaseUrl.trim()
+          ? parsed.defaultTranslationBaseUrl.trim()
+          : null;
+
+      return {
+        hasDefaultTranslationBaseUrl: Boolean(
+          parsed?.defaultTranslationBaseUrl && parsed.defaultTranslationBaseUrl.trim(),
+        ),
+        defaultTranslationBaseUrl: nextBaseUrl,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-provider" && method === "GET") {
+      return {
+        translationProvider: "bigmodel",
+        hasTranslationProvider: true,
+        supportedProviders: ["bigmodel"],
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (endpoint === "/admin/literature/translation-provider" && method === "PATCH") {
+      let parsed = null;
+      try {
+        parsed = options?.body ? JSON.parse(options.body) : null;
+      } catch {
+        parsed = null;
+      }
+
+      const provider =
+        typeof parsed?.translationProvider === "string" && parsed.translationProvider.trim()
+          ? parsed.translationProvider.trim()
+          : "bigmodel";
+
+      return {
+        translationProvider: provider,
+        hasTranslationProvider: true,
+        supportedProviders: ["bigmodel"],
+        updatedAt: new Date().toISOString(),
+        clearedDefaults: true,
+      };
+    }
 
     // POST/PATCH/DELETE 操作返回成功
     if (method === "POST" || method === "PATCH" || method === "DELETE") {

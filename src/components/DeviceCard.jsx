@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useLanguage } from "../hooks/useLanguage";
 import Card from "./ui/Card";
 import Button from "./ui/Button";
@@ -167,33 +167,30 @@ const DeviceCard = ({
 
   return (
     <Card
-      variant="glass"
       className="flex flex-col gap-[0.75rem] sm:gap-[1rem] hover-lift group"
     >
       <div className="flex items-start gap-[0.75rem] sm:gap-[1rem]">
         {isAdmin ? (
           <div
-            onClick={() => onToggle(device.id)}
+            onClick={() => onToggle(device.id, device.isEnabled)}
             className={`
                             relative w-[2.5rem] h-[2.5rem] sm:w-[3rem] sm:h-[3rem] rounded-[0.5rem]
                             transition-all duration-200 cursor-pointer
                             flex items-center justify-center
                             backdrop-blur-md shadow-lg active:scale-90 hover:scale-105
-                            ${
-                              device.isEnabled
-                                ? "bg-gradient-to-br from-white/90 to-white/50 dark:from-green-500/20 dark:to-green-900/10"
-                                : "bg-gray-100/80 dark:bg-gray-800/50"
-                            }
+                            ${device.isEnabled
+                ? "bg-gradient-to-br from-white/90 to-white/50 dark:from-green-500/20 dark:to-green-900/10"
+                : "bg-gray-100/80 dark:bg-gray-800/50"
+              }
                         `}
           >
             <div
               className={`
                             transition-colors duration-300
-                            ${
-                              device.isEnabled
-                                ? "text-[#7FB77E] dark:text-green-400"
-                                : "text-gray-400 dark:text-gray-500"
-                            }
+                            ${device.isEnabled
+                  ? "text-[#7FB77E] dark:text-green-400"
+                  : "text-gray-400 dark:text-gray-500"
+                }
                         `}
             >
               <DeviceIcon className="w-[1.25rem] h-[1.25rem] sm:w-[1.5rem] sm:h-[1.5rem]" />
@@ -245,13 +242,12 @@ const DeviceCard = ({
             {!isAdmin && (
               /* Status dot only for User in narrow views, or full pill in large */
               <span
-                className={`flex items-center gap-[0.375rem] px-[0.5rem] py-[0.125rem] rounded-[0.5rem] text-[0.875rem] font-semibold shrink-0 md:hidden xl:flex ${
-                  isBlocked
+                className={`flex items-center gap-[0.375rem] px-[0.5rem] py-[0.125rem] rounded-[0.5rem] text-[0.875rem] font-semibold shrink-0 md:hidden xl:flex ${isBlocked
                     ? "bg-red-500/10 text-red-600"
                     : device.isEnabled
                       ? "bg-green-500/10 text-green-600"
                       : "bg-red-500/10 text-red-600"
-                }`}
+                  }`}
               >
                 <span
                   className={`w-[0.375rem] h-[0.375rem] rounded-full shrink-0 ${isBlocked || !device.isEnabled ? "bg-red-600" : "bg-green-600"}`}
@@ -315,7 +311,7 @@ const DeviceCard = ({
           variant="dark"
           className={`flex-1 text-[0.875rem] sm:text-base whitespace-nowrap overflow-hidden ${isBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
           disabled={!device.isEnabled || isBlocked}
-          onClick={onBook}
+          onClick={() => onBook(device.id)}
         >
           {isBlocked ? "Banned" : t("bookNow")}
         </Button>
@@ -323,11 +319,10 @@ const DeviceCard = ({
           <Button
             variant={deleteConfirmId === device.id ? "danger" : "secondary"}
             onClick={(e) => onDeleteClick(device.id, e)}
-            className={`flex-1 text-[0.875rem] sm:text-base transition-all duration-300 ${
-              deleteConfirmId === device.id
+            className={`flex-1 text-[0.875rem] sm:text-base transition-all duration-300 ${deleteConfirmId === device.id
                 ? "bg-red-600 shadow-red-200 border-transparent shadow-lg text-white"
                 : "bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm"
-            }`}
+              }`}
             title={
               deleteConfirmId === device.id ? t("confirm") : t("deleteDevice")
             }
@@ -347,4 +342,4 @@ const DeviceCard = ({
   );
 };
 
-export default DeviceCard;
+export default memo(DeviceCard);

@@ -225,79 +225,85 @@ const Dropdown = ({
         containerRef={containerRef}
         className={popupClassName}
       >
-        {title ? (
-          <div className="px-3 py-2 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-            {title}
-          </div>
-        ) : null}
+        {() => (
+          <>
+            {title ? (
+              <div className="px-3 py-2 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                {title}
+              </div>
+            ) : null}
 
-        <div className="flex flex-col gap-1 max-h-[15rem] overflow-y-auto pr-1 custom-scrollbar">
-          {indexedGroups.map(({ group, options }, groupIdx) => (
-            <div key={group || "default"} role={group ? "group" : undefined}>
-              {group ? (
-                <>
-                  {groupIdx > 0 ? (
-                    <div
-                      role="separator"
-                      aria-orientation="horizontal"
-                      className="h-px bg-border my-1 mx-3"
-                    />
-                  ) : null}
-                  <div className="px-3 py-1 text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
-                    {group}
-                  </div>
-                </>
-              ) : null}
-
-              {options.map(({ option, index: currentIndex }) => {
-                const isHighlighted = highlightedIndex === currentIndex;
-                const isSelected = value === option.value;
-                const Icon = option.icon;
-
-                return (
-                  <button
-                    key={String(option.value)}
-                    type="button"
-                    role="menuitem"
-                    tabIndex={-1}
-                    data-highlighted={isHighlighted || undefined}
-                    data-selected={isSelected || undefined}
-                    onClick={() => selectOption(option)}
-                    onMouseEnter={() => setHighlightedIndex(currentIndex)}
-                    className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors flex items-center justify-between ${
-                      isSelected
-                        ? "bg-bg-surface-hover text-text-primary font-medium"
-                        : isHighlighted
-                          ? "bg-bg-surface-hover/70 text-text-primary"
-                          : "text-text-secondary hover:bg-bg-surface-hover/60 hover:text-text-primary"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      {Icon ? (
-                        <Icon style={{ width: "0.9rem", height: "0.9rem" }} />
+            <div className="flex flex-col gap-1 max-h-[15rem] overflow-y-auto pr-1 custom-scrollbar">
+              {indexedGroups.map(({ group, options }, groupIdx) => (
+                <div key={group || "default"} role={group ? "group" : undefined}>
+                  {group ? (
+                    <>
+                      {groupIdx > 0 ? (
+                        <div
+                          role="separator"
+                          aria-orientation="horizontal"
+                          className="h-px bg-border my-1 mx-3"
+                        />
                       ) : null}
-                      <span className="truncate">
-                        {option.label ?? String(option.value)}
-                      </span>
-                    </span>
-                    {isSelected ? (
-                      <Check
-                        style={{ width: "0.9rem", height: "0.9rem" }}
-                        className="text-accent"
-                      />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+                      <div className="px-3 py-1 text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
+                        {group}
+                      </div>
+                    </>
+                  ) : null}
 
-          {flatOptions.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-text-secondary">
-              No options
+                  {options.map(({ option, index: currentIndex }) => {
+                    const isHighlighted = highlightedIndex === currentIndex;
+                    const isSelected = value === option.value;
+                    const Icon = option.icon;
+
+                    return (
+                      <button
+                        key={String(option.value)}
+                        type="button"
+                        role="menuitem"
+                        tabIndex={-1}
+                        data-highlighted={isHighlighted || undefined}
+                        data-selected={isSelected || undefined}
+                        onClick={() => selectOption(option)}
+                        onMouseEnter={() => setHighlightedIndex(currentIndex)}
+                        className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors flex items-center justify-between ${
+                          isSelected
+                            ? "bg-bg-surface-hover text-text-primary font-medium"
+                            : isHighlighted
+                              ? "bg-bg-surface-hover/70 text-text-primary"
+                              : "text-text-secondary hover:bg-bg-surface-hover/60 hover:text-text-primary"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          {Icon ? (
+                            <Icon
+                              style={{ width: "0.9rem", height: "0.9rem" }}
+                            />
+                          ) : null}
+                          <span className="truncate">
+                            {option.label ?? String(option.value)}
+                          </span>
+                        </span>
+                        {isSelected ? (
+                          <Check
+                            style={{ width: "0.9rem", height: "0.9rem" }}
+                            className="text-accent"
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {flatOptions.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-text-secondary">
+                  No options
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </>
+        )}
       </Popup>
     </div>
   );

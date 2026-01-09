@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiService } from "../services/apiService";
 import { socketService } from "../services/socketService";
 import { AuthContext } from "./auth-context";
+import { clearMockUser, getMockUser, setMockUser } from "../utils/mockAuthStore";
 
 // 开发模式：启用虚拟登录（设为 true 可跳过后端验证）
 const DEV_MOCK_LOGIN =
@@ -32,20 +33,18 @@ export const AuthProvider = ({ children }) => {
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const userIdRef = useRef(null);
+
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user?.id]);
 
   // Check session on mount
   useEffect(() => {
     const checkSession = async () => {
       // 开发模式：从 localStorage 恢复
       if (DEV_MOCK_LOGIN) {
-        const saved = localStorage.getItem("mock_user");
-        if (saved) {
-          try {
-            setUser(JSON.parse(saved));
-          } catch {
-            setUser(null);
-          }
-        }
+        setUser(getMockUser());
         setLoading(false);
         return;
       }
@@ -71,7 +70,7 @@ export const AuthProvider = ({ children }) => {
     if (DEV_MOCK_LOGIN) {
       const mockUser = MOCK_USERS[username] || MOCK_USERS.admin;
       setUser(mockUser);
-      localStorage.setItem("mock_user", JSON.stringify(mockUser));
+      setMockUser(mockUser);
       return { success: true };
     }
 
@@ -87,7 +86,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     // 开发模式：清理 localStorage
     if (DEV_MOCK_LOGIN) {
-      localStorage.removeItem("mock_user");
+      clearMockUser();
       setUser(null);
       return;
     }

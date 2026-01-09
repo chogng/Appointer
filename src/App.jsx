@@ -5,6 +5,7 @@ import AppRoutes from "./routes/AppRoutes";
 
 import { ThemeProvider } from "./context/ThemeContext";
 import { LanguageProvider } from "./context/LanguageContext";
+import { UiPrefsProvider } from "./context/UiPrefsContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,9 +26,11 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <LanguageProvider>
-            <Router>
-              <AppRoutes />
-            </Router>
+            <UiPrefsProvider>
+              <Router>
+                <AppRoutes />
+              </Router>
+            </UiPrefsProvider>
           </LanguageProvider>
         </ThemeProvider>
       </AuthProvider>

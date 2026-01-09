@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
+import { DeviceAnalysisSessionProvider } from "../context/DeviceAnalysisSessionContext";
+import { LiteratureResearchSessionProvider } from "../context/LiteratureResearchSessionContext";
 import {
   Calendar,
   ChevronLeft,
@@ -285,7 +287,11 @@ const MainLayout = () => {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const collapseMenuLabel = language === "zh" ? "收起菜单" : "Collapse menu";
+  const collapseTestId = import.meta.env.DEV ? "sidebar-collapse" : undefined;
+  const expandTestId = import.meta.env.DEV ? "sidebar-expand" : undefined;
+  const logoutTestId = import.meta.env.DEV ? "sidebar-logout" : undefined;
 
   const navItems = [
     { icon: DashboardIcon, label: t("dashboard"), path: "/dashboard" },
@@ -354,11 +360,14 @@ const MainLayout = () => {
 
           {/* Toggle Button in Header */}
           <button
+            type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`
                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
                             ${isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"}
                         `}
+            aria-label={collapseMenuLabel}
+            data-testid={collapseTestId}
           >
             <SidebarCollapseIcon size={20} />
           </button>
@@ -367,9 +376,11 @@ const MainLayout = () => {
         {/* Invisible Toggle Overlay on Logo for Collapsed State */}
         {isCollapsed && (
           <button
+            type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="absolute top-6 left-[28px] w-6 h-6 z-50 cursor-pointer"
-            title="展开菜单"
+            aria-label={t("expandMenu")}
+            data-testid={expandTestId}
           />
         )}
 
@@ -453,13 +464,15 @@ const MainLayout = () => {
 
           {/* Logout Button - Moves left/center when collapsed */}
           <button
+            type="button"
             onClick={logout}
             className="absolute p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all duration-500 -translate-y-1/2"
             style={{
               left: isCollapsed ? "23px" : "234px",
               top: isCollapsed ? "108px" : "48px",
             }}
-            title={t("logout")}
+            aria-label={t("logout")}
+            data-testid={logoutTestId}
           >
             <LogoutIcon size={18} />
           </button>
@@ -469,7 +482,11 @@ const MainLayout = () => {
       {/* main content */}
       <main className="flex-1 h-full overflow-hidden flex flex-col relative">
         <div className="flex-1 overflow-y-auto p-8">
-          <Outlet />
+          <DeviceAnalysisSessionProvider key={user?.id ?? "anon"}>
+            <LiteratureResearchSessionProvider key={user?.id ?? "anon"}>
+              <Outlet />
+            </LiteratureResearchSessionProvider>
+          </DeviceAnalysisSessionProvider>
         </div>
       </main>
     </div>

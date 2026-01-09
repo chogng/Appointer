@@ -1,9 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  startTransition,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertCircle,
   BarChart2,
   Download,
   Table as TableIcon,
+  Trash2,
   Upload,
 } from "lucide-react";
 import Papa from "papaparse";
@@ -12,41 +20,77 @@ import CsvImporter from "../components/DeviceAnalysis/CsvImporter";
 import TemplateManager from "../components/DeviceAnalysis/TemplateManager";
 import DataPreviewTable from "../components/DeviceAnalysis/DataPreviewTable";
 import AnalysisCharts from "../components/DeviceAnalysis/AnalysisCharts";
+import {
+  classifySsFit,
+  computeSubthresholdSwing,
+  computeSubthresholdSwingFitAuto,
+  computeSubthresholdSwingFitInIdWindow,
+  computeSubthresholdSwingFitInRange,
+} from "../components/DeviceAnalysis/analysisMath";
+import { prepareDeviceAnalysisExtraction } from "./deviceAnalysisExtractionValidation";
+import { useLanguage } from "../hooks/useLanguage";
+import { useDeviceAnalysisSession } from "../hooks/useDeviceAnalysisSession";
+import { apiService } from "../services/apiService";
 
 const DeviceAnalysis = () => {
+  const { t } = useLanguage();
+  const session = useDeviceAnalysisSession();
+  const {
+    rawData = [],
+    setRawData = () => { },
+    selectedPreviewFileId = null,
+    setSelectedPreviewFileId = () => { },
+    processedData = [],
+    setProcessedData = () => { },
+    extractionErrors = [],
+    setExtractionErrors = () => { },
+    viewMode = "chart",
+    setViewMode = () => { },
+    ssMethod = "auto",
+    setSsMethod = () => { },
+    ssDiagnosticsEnabled = true,
+    setSsDiagnosticsEnabled = () => { },
+    ssShowFitLine = true,
+    setSsShowFitLine = () => { },
+    ssIdWindow = { low: "1e-11", high: "1e-9" },
+    setSsIdWindow = () => { },
+    ssManualRanges = {},
+    setSsManualRanges = () => { },
+  } = session || {};
   const importerRef = useRef(null);
-  const [rawData, setRawData] = useState([]);
-  const [selectedPreviewFileId, setSelectedPreviewFileId] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewStatus, setPreviewStatus] = useState({
     state: "idle", // 'idle' | 'loading' | 'ready' | 'error'
     message: "",
   });
   const [previewLoadedRowCount, setPreviewLoadedRowCount] = useState(0);
-  const [processedData, setProcessedData] = useState([]);
-  const [extractionErrors, setExtractionErrors] = useState([]);
   const [_processingStatus, setProcessingStatus] = useState({
     state: "idle", // 'idle' | 'processing' | 'done' | 'error'
     processed: 0,
     total: 0,
   });
-  const [viewMode, setViewMode] = useState("chart"); // 'table' or 'chart'
 
   const previewWorkerRef = useRef(null);
   const previewRequestIdRef = useRef(0);
   const previewRowsRequestIdRef = useRef(0);
   const previewRowsRequestsRef = useRef(new Map());
 
+  const previewRowsCacheByFileIdRef = useRef(new Map());
+  const previewLoadedChunksByFileIdRef = useRef(new Map());
   const previewRowsCacheRef = useRef(new Map());
   const previewLoadedChunksRef = useRef(new Set());
   const previewCacheFileIdRef = useRef(null);
+  const previewRowsUpdateRafRef = useRef(0);
+  const pendingPreviewLoadedRowCountRef = useRef(0);
 
-  const PREVIEW_ROW_CHUNK_SIZE = 200;
+  const PREVIEW_ROW_CHUNK_SIZE = 50;
 
   const processingWorkerRef = useRef(null);
   const processingJobIdRef = useRef(0);
   const processingQueueRef = useRef([]);
   const processingStopOnErrorRef = useRef(false);
+
+  const deferredSelectedPreviewFileId = useDeferredValue(selectedPreviewFileId);
 
   const _getExcelColumnLabel = (index) => {
     let label = "";
@@ -58,130 +102,273 @@ const DeviceAnalysis = () => {
     return label;
   };
 
-  const parseCellRef = (value) => {
-    if (typeof value !== "string") return null;
-    const trimmed = value.trim().toUpperCase();
-    if (!trimmed) return null;
-
-    const match = trimmed.match(/^([A-Z]+)(\d+)$/);
-    if (!match) return null;
-
-    const colLabel = match[1];
-    const rowNumber = Number(match[2]);
-    if (!Number.isInteger(rowNumber) || rowNumber < 1) return null;
-
-    let colIndex = 0;
-    for (let i = 0; i < colLabel.length; i++) {
-      colIndex = colIndex * 26 + (colLabel.charCodeAt(i) - 64);
+  const cancelPendingPreviewRowRequests = useCallback(() => {
+    const pending = previewRowsRequestsRef.current;
+    for (const request of pending.values()) {
+      try {
+        request?.resolve?.([]);
+      } catch {
+        // ignore
+      }
     }
-    colIndex -= 1;
+    pending.clear();
+  }, []);
 
-    return { rowIndex: rowNumber - 1, colIndex };
-  };
+  const handlePreviewWorkerMessage = useCallback((event) => {
+    const { type, payload } = event.data ?? {};
+    if (type === "previewResult") {
+      if (payload?.requestId !== previewRequestIdRef.current) return;
 
-  const _parseNumberStrict = (raw) => {
-    if (raw === null || raw === undefined) return null;
-    if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-    if (typeof raw === "string") {
-      const trimmed = raw.trim();
-      if (!trimmed) return null;
-      const num = Number(trimmed);
-      return Number.isFinite(num) ? num : null;
+      if (previewRowsUpdateRafRef.current) {
+        cancelAnimationFrame(previewRowsUpdateRafRef.current);
+        previewRowsUpdateRafRef.current = 0;
+      }
+
+      const fileId = payload.fileId ?? null;
+      previewCacheFileIdRef.current = fileId;
+
+      if (!fileId) {
+        previewRowsCacheRef.current = new Map();
+        previewLoadedChunksRef.current = new Set();
+        setPreviewLoadedRowCount(0);
+      } else {
+        const cacheByFileId = previewRowsCacheByFileIdRef.current;
+        const chunksByFileId = previewLoadedChunksByFileIdRef.current;
+
+        let rowCache = cacheByFileId.get(fileId);
+        if (!rowCache) {
+          rowCache = new Map();
+          cacheByFileId.set(fileId, rowCache);
+        }
+
+        let loadedChunks = chunksByFileId.get(fileId);
+        if (!loadedChunks) {
+          loadedChunks = new Set();
+          chunksByFileId.set(fileId, loadedChunks);
+        }
+
+        previewRowsCacheRef.current = rowCache;
+        previewLoadedChunksRef.current = loadedChunks;
+        setPreviewLoadedRowCount(rowCache.size);
+      }
+
+      setPreviewFile({
+        fileId,
+        fileName: payload.fileName,
+        rowCount: payload.rowCount,
+        columnCount: payload.columnCount,
+        maxCellLengths: payload.maxCellLengths,
+      });
+      setPreviewStatus({ state: "ready", message: "" });
+      return;
     }
-    return null;
-  };
 
-  useEffect(() => {
+    if (type === "previewRowsResult") {
+      const requestId = payload?.requestId ?? null;
+      const pending = previewRowsRequestsRef.current.get(requestId);
+      if (!pending) return;
+      previewRowsRequestsRef.current.delete(requestId);
+
+      const { resolve, reject } = pending;
+      try {
+        const fileId = payload?.fileId ?? null;
+        const startRow = Number(payload?.startRow) || 0;
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+
+        if (fileId && previewCacheFileIdRef.current !== fileId) {
+          // Ignore stale rows for an old preview file.
+          resolve([]);
+          return;
+        }
+
+        const cache = previewRowsCacheRef.current;
+        for (let i = 0; i < rows.length; i++) {
+          cache.set(startRow + i, rows[i]);
+        }
+
+        pendingPreviewLoadedRowCountRef.current = cache.size;
+        if (!previewRowsUpdateRafRef.current) {
+          previewRowsUpdateRafRef.current = requestAnimationFrame(() => {
+            previewRowsUpdateRafRef.current = 0;
+            const nextCount = pendingPreviewLoadedRowCountRef.current;
+            startTransition(() => setPreviewLoadedRowCount(nextCount));
+          });
+        }
+        resolve(rows);
+      } catch (err) {
+        reject(err);
+      }
+      return;
+    }
+
+    if (type === "workerError") {
+      if (
+        payload?.requestId !== previewRequestIdRef.current &&
+        !previewRowsRequestsRef.current.has(payload?.requestId)
+      ) {
+        return;
+      }
+
+      if (previewRowsRequestsRef.current.has(payload?.requestId)) {
+        const pending = previewRowsRequestsRef.current.get(payload?.requestId);
+        previewRowsRequestsRef.current.delete(payload?.requestId);
+        pending?.reject?.(
+          new Error(payload?.message || "Unknown worker error"),
+        );
+        return;
+      }
+
+      console.error("Preview worker error:", payload?.message);
+      setPreviewStatus({
+        state: "error",
+        message: payload?.message ?? "Preview worker error",
+      });
+    }
+  }, []);
+
+  const createPreviewWorker = useCallback(() => {
     const worker = new Worker(
       new URL("../workers/deviceAnalysis.worker.js", import.meta.url),
       { type: "module" },
     );
 
+    worker.onmessage = handlePreviewWorkerMessage;
     previewWorkerRef.current = worker;
+    return worker;
+  }, [handlePreviewWorkerMessage]);
 
-    worker.onmessage = (event) => {
-      const { type, payload } = event.data ?? {};
-      if (type === "previewResult") {
-        if (payload?.requestId !== previewRequestIdRef.current) return;
+  const resetPreviewWorker = useCallback(() => {
+    cancelPendingPreviewRowRequests("Preview reset");
 
-        previewRowsCacheRef.current = new Map();
-        previewLoadedChunksRef.current = new Set();
-        previewCacheFileIdRef.current = payload.fileId ?? null;
-        setPreviewLoadedRowCount(0);
+    if (previewWorkerRef.current) {
+      previewWorkerRef.current.terminate();
+      previewWorkerRef.current = null;
+    }
 
-        setPreviewFile({
-          fileId: payload.fileId,
-          fileName: payload.fileName,
-          rowCount: payload.rowCount,
-          columnCount: payload.columnCount,
-          maxCellLengths: payload.maxCellLengths,
-        });
-        setPreviewStatus({ state: "ready", message: "" });
-        return;
-      }
+    createPreviewWorker();
+  }, [cancelPendingPreviewRowRequests, createPreviewWorker]);
 
-      if (type === "previewRowsResult") {
-        const requestId = payload?.requestId ?? null;
-        const pending = previewRowsRequestsRef.current.get(requestId);
-        if (!pending) return;
-        previewRowsRequestsRef.current.delete(requestId);
+  const resetProcessingWorker = useCallback(() => {
+    processingJobIdRef.current += 1;
+    processingQueueRef.current = [];
+    processingStopOnErrorRef.current = false;
 
-        const { resolve, reject } = pending;
-        try {
-          const fileId = payload?.fileId ?? null;
-          const startRow = Number(payload?.startRow) || 0;
-          const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+    if (processingWorkerRef.current) {
+      processingWorkerRef.current.terminate();
+      processingWorkerRef.current = null;
+    }
 
-          if (fileId && previewCacheFileIdRef.current !== fileId) {
-            // Ignore stale rows for an old preview file.
-            resolve([]);
-            return;
-          }
+    setProcessingStatus({
+      state: "idle",
+      processed: 0,
+      total: 0,
+    });
+  }, []);
 
-          const cache = previewRowsCacheRef.current;
-          for (let i = 0; i < rows.length; i++) {
-            cache.set(startRow + i, rows[i]);
-          }
-          setPreviewLoadedRowCount(cache.size);
-          resolve(rows);
-        } catch (err) {
-          reject(err);
-        }
-        return;
-      }
+  const hasSessionData =
+    rawData.length > 0 ||
+    processedData.length > 0 ||
+    extractionErrors.length > 0 ||
+    previewFile !== null;
 
-      if (type === "workerError") {
+  const handleClearSession = useCallback(() => {
+    if (!hasSessionData) return;
+
+    resetProcessingWorker();
+
+    // Invalidate in-flight preview metadata requests.
+    previewRequestIdRef.current += 1;
+    cancelPendingPreviewRowRequests("Preview cleared");
+
+    setPreviewFile(null);
+    setPreviewStatus({ state: "idle", message: "" });
+    setPreviewLoadedRowCount(0);
+    pendingPreviewLoadedRowCountRef.current = 0;
+
+    previewRowsCacheByFileIdRef.current = new Map();
+    previewLoadedChunksByFileIdRef.current = new Map();
+    previewRowsCacheRef.current = new Map();
+    previewLoadedChunksRef.current = new Set();
+    previewCacheFileIdRef.current = null;
+    if (previewRowsUpdateRafRef.current) {
+      cancelAnimationFrame(previewRowsUpdateRafRef.current);
+      previewRowsUpdateRafRef.current = 0;
+    }
+
+    setProcessedData([]);
+    setExtractionErrors([]);
+    setSelectedPreviewFileId(null);
+    setRawData([]);
+    setSsManualRanges({});
+
+    // Drop all preview caches held inside the worker (and cancel any parsing).
+    resetPreviewWorker();
+  }, [
+    cancelPendingPreviewRowRequests,
+    hasSessionData,
+    resetPreviewWorker,
+    resetProcessingWorker,
+    setExtractionErrors,
+    setProcessedData,
+    setRawData,
+    setSelectedPreviewFileId,
+    setSsManualRanges,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const settings = await apiService.getDeviceAnalysisSettings();
+        if (cancelled) return;
+
+        const method = settings?.ssMethodDefault;
         if (
-          payload?.requestId !== previewRequestIdRef.current &&
-          !previewRowsRequestsRef.current.has(payload?.requestId)
+          method === "auto" ||
+          method === "manual" ||
+          method === "idWindow" ||
+          method === "legacy"
         ) {
-          return;
+          setSsMethod(method);
         }
 
-        if (previewRowsRequestsRef.current.has(payload?.requestId)) {
-          const pending = previewRowsRequestsRef.current.get(
-            payload?.requestId,
-          );
-          previewRowsRequestsRef.current.delete(payload?.requestId);
-          pending?.reject?.(
-            new Error(payload?.message || "Unknown worker error"),
-          );
-          return;
+        if (typeof settings?.ssDiagnosticsEnabled === "boolean") {
+          setSsDiagnosticsEnabled(settings.ssDiagnosticsEnabled);
         }
 
-        console.error("Preview worker error:", payload?.message);
-        setPreviewStatus({
-          state: "error",
-          message: payload?.message ?? "Preview worker error",
-        });
+        const low = Number(settings?.ssIdLow);
+        const high = Number(settings?.ssIdHigh);
+        if (Number.isFinite(low) && Number.isFinite(high) && low > 0 && high > 0) {
+          setSsIdWindow({ low: String(low), high: String(high) });
+        }
+      } catch {
+        // ignore settings load failures
       }
-    };
+    })();
 
     return () => {
-      worker.terminate();
-      previewWorkerRef.current = null;
+      cancelled = true;
     };
-  }, []);
+  }, [setSsDiagnosticsEnabled, setSsIdWindow, setSsMethod]);
+
+
+
+  useEffect(() => {
+    createPreviewWorker();
+
+    return () => {
+      cancelPendingPreviewRowRequests("Preview unmounted");
+      if (previewRowsUpdateRafRef.current) {
+        cancelAnimationFrame(previewRowsUpdateRafRef.current);
+        previewRowsUpdateRafRef.current = 0;
+      }
+      if (previewWorkerRef.current) {
+        previewWorkerRef.current.terminate();
+        previewWorkerRef.current = null;
+      }
+    };
+  }, [cancelPendingPreviewRowRequests, createPreviewWorker]);
 
   useEffect(() => {
     return () => {
@@ -194,16 +381,28 @@ const DeviceAnalysis = () => {
 
   useEffect(() => {
     if (!rawData.length) {
+      previewRequestIdRef.current += 1;
+      cancelPendingPreviewRowRequests("Preview cleared");
       setPreviewFile(null);
       setPreviewStatus({ state: "idle", message: "" });
       setSelectedPreviewFileId(null);
+      previewRowsCacheByFileIdRef.current = new Map();
+      previewLoadedChunksByFileIdRef.current = new Map();
+      previewRowsCacheRef.current = new Map();
+      previewLoadedChunksRef.current = new Set();
+      previewCacheFileIdRef.current = null;
+      if (previewRowsUpdateRafRef.current) {
+        cancelAnimationFrame(previewRowsUpdateRafRef.current);
+        previewRowsUpdateRafRef.current = 0;
+      }
+      setPreviewLoadedRowCount(0);
       return;
     }
 
     const effectiveFileId =
-      selectedPreviewFileId &&
-        rawData.some((f) => f.fileId === selectedPreviewFileId)
-        ? selectedPreviewFileId
+      deferredSelectedPreviewFileId &&
+        rawData.some((f) => f.fileId === deferredSelectedPreviewFileId)
+        ? deferredSelectedPreviewFileId
         : (rawData[0]?.fileId ?? null);
 
     const target = rawData.find((f) => f.fileId === effectiveFileId) ?? null;
@@ -228,7 +427,13 @@ const DeviceAnalysis = () => {
         maxPreviewRows: 0,
       },
     });
-  }, [previewFile?.fileId, rawData, selectedPreviewFileId]);
+  }, [
+    deferredSelectedPreviewFileId,
+    previewFile?.fileId,
+    rawData,
+    cancelPendingPreviewRowRequests,
+    setSelectedPreviewFileId,
+  ]);
 
   const getPreviewRow = useCallback((rowIndex) => {
     const idx = Number(rowIndex);
@@ -271,16 +476,10 @@ const DeviceAnalysis = () => {
       const end = Math.max(start, Math.min(totalRows, Math.floor(endRow || 0)));
       if (start >= end) return;
 
-      // Prefetch one extra chunk in both directions for smoother scrolling.
-      const paddedStart = Math.max(0, start - PREVIEW_ROW_CHUNK_SIZE);
-      const paddedEnd = Math.min(totalRows, end + PREVIEW_ROW_CHUNK_SIZE);
-
       const firstChunkStart =
-        Math.floor(paddedStart / PREVIEW_ROW_CHUNK_SIZE) *
-        PREVIEW_ROW_CHUNK_SIZE;
+        Math.floor(start / PREVIEW_ROW_CHUNK_SIZE) * PREVIEW_ROW_CHUNK_SIZE;
       const lastChunkStart =
-        Math.floor((paddedEnd - 1) / PREVIEW_ROW_CHUNK_SIZE) *
-        PREVIEW_ROW_CHUNK_SIZE;
+        Math.floor((end - 1) / PREVIEW_ROW_CHUNK_SIZE) * PREVIEW_ROW_CHUNK_SIZE;
 
       const promises = [];
       for (
@@ -338,6 +537,19 @@ const DeviceAnalysis = () => {
       setPreviewStatus({ state: "idle", message: "" });
     }
 
+    previewRowsCacheByFileIdRef.current.delete(fileId);
+    previewLoadedChunksByFileIdRef.current.delete(fileId);
+    if (previewCacheFileIdRef.current === fileId) {
+      previewCacheFileIdRef.current = null;
+      previewRowsCacheRef.current = new Map();
+      previewLoadedChunksRef.current = new Set();
+      if (previewRowsUpdateRafRef.current) {
+        cancelAnimationFrame(previewRowsUpdateRafRef.current);
+        previewRowsUpdateRafRef.current = 0;
+      }
+      setPreviewLoadedRowCount(0);
+    }
+
     const worker = previewWorkerRef.current;
     if (worker) {
       worker.postMessage({
@@ -354,306 +566,25 @@ const DeviceAnalysis = () => {
       if (!rawData.some((f) => f.fileId === next)) return;
       setSelectedPreviewFileId(next);
     },
-    [rawData],
+    [rawData, setSelectedPreviewFileId],
   );
 
   // Handler when template is applied
   const handleTemplateApplied = (config) => {
-    if (!rawData || rawData.length === 0) {
-      return {
-        ok: false,
-        type: "warning",
-        message: "Please import at least one CSV file first.",
-      };
-    }
+    const prepared = prepareDeviceAnalysisExtraction({
+      rawData,
+      config,
+      previewFile,
+      getPreviewRow,
+      t,
+    });
 
-    const warnings = [];
+    if (!prepared.ok) return prepared;
+
+    const warnings = Array.isArray(prepared.warnings) ? prepared.warnings : [];
+    const extractionConfig = prepared.extractionConfig;
+    const meta = prepared.meta ?? {};
     const stopOnError = Boolean(config?.stopOnError);
-
-    const xStart = parseCellRef(config?.xDataStart || "");
-    if (!xStart) {
-      return {
-        ok: false,
-        type: "warning",
-        message: "Please set X Data start cell (e.g. A2).",
-      };
-    }
-
-    const xEndRaw = String(config?.xDataEnd ?? "").trim();
-    const useEndKeyword = !xEndRaw || xEndRaw.toLowerCase() === "end";
-
-    if (!previewFile || !Number.isFinite(previewFile.rowCount)) {
-      return {
-        ok: false,
-        type: "warning",
-        message:
-          "Preview is still loading. Please wait a moment and try again.",
-      };
-    }
-
-    const previewRowCount = Math.max(0, Math.floor(previewFile.rowCount));
-
-    const xEnd = useEndKeyword ? null : parseCellRef(xEndRaw);
-
-    if (!useEndKeyword && !xEnd) {
-      return {
-        ok: false,
-        type: "warning",
-        message:
-          "Please set X Data end cell (e.g. A1408) or use 'End' to read until the last preview row.",
-      };
-    }
-
-    if (!useEndKeyword && xStart.colIndex !== xEnd.colIndex) {
-      return {
-        ok: false,
-        type: "warning",
-        message: "X Data start/end must be in the same column.",
-      };
-    }
-
-    const xCol = xStart.colIndex;
-    const endRow = useEndKeyword
-      ? "end"
-      : Math.max(xStart.rowIndex, xEnd.rowIndex);
-    const startRow = useEndKeyword
-      ? xStart.rowIndex
-      : Math.min(xStart.rowIndex, xEnd.rowIndex);
-
-    const total = useEndKeyword
-      ? Math.max(0, previewRowCount - startRow)
-      : endRow - startRow + 1;
-    if (total <= 0) {
-      return { ok: false, type: "warning", message: "Invalid X row range." };
-    }
-
-    const pointsRaw = String(config?.xPoints ?? "").trim();
-
-    let groupSize = null;
-    let groups = null;
-    let groupSizeCell = null;
-    let groupSizePreview = null;
-
-    if (pointsRaw) {
-      const pointsCell = parseCellRef(pointsRaw);
-      if (pointsCell) {
-        groupSizeCell = pointsCell;
-
-        // Best-effort validation using the currently previewed file (may vary per file).
-        const previewRow = getPreviewRow(pointsCell.rowIndex);
-        if (previewRow) {
-          const raw = previewRow?.[pointsCell.colIndex];
-          const parsed = _parseNumberStrict(raw);
-          const asInt =
-            parsed !== null && Number.isInteger(parsed) ? parsed : null;
-
-          if (asInt === null || asInt <= 0) {
-            return {
-              ok: false,
-              type: "warning",
-              message: `Points cell ${String(pointsRaw).toUpperCase()} must contain a positive integer.`,
-            };
-          }
-          if (asInt > total) {
-            return {
-              ok: false,
-              type: "warning",
-              message: `Points from ${String(pointsRaw).toUpperCase()} (${asInt}) cannot be larger than the X range length (${total}).`,
-            };
-          }
-          if (total % asInt !== 0) {
-            return {
-              ok: false,
-              type: "warning",
-              message: `X range has ${total} points, which is not divisible by points=${asInt} (from ${String(pointsRaw).toUpperCase()}).`,
-            };
-          }
-
-          groupSizePreview = asInt;
-        }
-      } else {
-        const points = Number(pointsRaw);
-        if (!Number.isInteger(points) || points <= 0) {
-          return {
-            ok: false,
-            type: "warning",
-            message: "X Points must be a positive integer (or a cell like B2).",
-          };
-        }
-        if (points > total) {
-          return {
-            ok: false,
-            type: "warning",
-            message: `X Points (${points}) cannot be larger than the X range length (${total}).`,
-          };
-        }
-        groupSize = points;
-      }
-    }
-
-    if (!groupSizeCell) {
-      groupSize = groupSize ?? total;
-      if (total % groupSize !== 0) {
-        return {
-          ok: false,
-          type: "warning",
-          message: `X range has ${total} points, which is not divisible by points=${groupSize}.`,
-        };
-      }
-      groups = total / groupSize;
-    }
-
-    const yColsFromToggle = Array.isArray(config?.selectedColumns)
-      ? config.selectedColumns
-      : [];
-
-    let yCols = yColsFromToggle;
-
-    if (yCols.length === 0 && (config?.yDataStart || config?.yDataEnd)) {
-      const yStart = parseCellRef(config?.yDataStart || "");
-      const yEnd = parseCellRef(config?.yDataEnd || "");
-      if (!yStart || !yEnd) {
-        return {
-          ok: false,
-          type: "warning",
-          message:
-            "Y Data start/end must be valid cells (e.g. B2 and D2) or select columns in the preview header.",
-        };
-      }
-      const yStartCol = Math.min(yStart.colIndex, yEnd.colIndex);
-      const yEndCol = Math.max(yStart.colIndex, yEnd.colIndex);
-      yCols = Array.from(
-        { length: yEndCol - yStartCol + 1 },
-        (_, i) => yStartCol + i,
-      );
-    }
-
-    const uniqueYCols = Array.from(new Set(yCols)).sort((a, b) => a - b);
-
-    if (uniqueYCols.length === 0) {
-      return {
-        ok: false,
-        type: "warning",
-        message:
-          "Please select at least one Y column (click column headers in the preview).",
-      };
-    }
-    if (uniqueYCols.includes(xCol)) {
-      return {
-        ok: false,
-        type: "warning",
-        message: "Y columns cannot include the X column.",
-      };
-    }
-
-    const extractionConfig = {
-      xCol,
-      startRow,
-      endRow,
-      yCols: uniqueYCols,
-    };
-
-    // Optional: use Y Data start/count/step for plot legend labels.
-    // When present, each "point" extracted from Y Data maps to a curve legend.
-    const yLegendStartRaw = String(config?.yDataStart ?? "").trim();
-    const yLegendCountRaw = String(config?.yCount ?? "").trim();
-    const yLegendStepRaw = String(config?.yStep ?? "").trim();
-
-    if (yLegendStartRaw && (yLegendCountRaw || yLegendStepRaw)) {
-      const yLegendStartCell = parseCellRef(yLegendStartRaw);
-      if (!yLegendStartCell) {
-        warnings.push(
-          "Y Data Start must be a valid cell (e.g. D1) when using Count/Step for legends.",
-        );
-      } else {
-        extractionConfig.yLegendStartCell = yLegendStartCell;
-
-        const parsePositiveIntOrCell = (raw, label) => {
-          if (!raw) return null;
-          const asCell = parseCellRef(raw);
-          if (asCell) return { type: "cell", value: asCell };
-
-          const asNumber = Number(raw);
-          if (!Number.isInteger(asNumber) || asNumber <= 0) {
-            warnings.push(
-              `${label} must be a positive integer (or a cell like B2).`,
-            );
-            return null;
-          }
-          return { type: "number", value: asNumber };
-        };
-
-        const parsePositiveNumberOrCell = (raw, label) => {
-          if (!raw) return null;
-          const asCell = parseCellRef(raw);
-          if (asCell) return { type: "cell", value: asCell };
-
-          const asNumber = Number(raw);
-          if (!Number.isFinite(asNumber) || asNumber <= 0) {
-            warnings.push(
-              `${label} must be a positive number (or a cell like B2).`,
-            );
-            return null;
-          }
-          return { type: "number", value: asNumber };
-        };
-
-        const countParsed = parsePositiveIntOrCell(
-          yLegendCountRaw,
-          "Y Data Count",
-        );
-        if (countParsed?.type === "cell") {
-          extractionConfig.yLegendCountCell = countParsed.value;
-        } else if (countParsed?.type === "number") {
-          extractionConfig.yLegendCount = countParsed.value;
-        }
-
-        const stepParsed = parsePositiveNumberOrCell(
-          yLegendStepRaw,
-          "Y Data Step",
-        );
-        if (stepParsed?.type === "cell") {
-          extractionConfig.yLegendStepCell = stepParsed.value;
-        } else if (stepParsed?.type === "number") {
-          extractionConfig.yLegendStep = stepParsed.value;
-        }
-
-        // Best-effort validation using the currently previewed file (may vary per file).
-        if (extractionConfig.yLegendCountCell) {
-          const previewRow = getPreviewRow(extractionConfig.yLegendCountCell.rowIndex);
-          if (previewRow) {
-            const raw = previewRow?.[extractionConfig.yLegendCountCell.colIndex];
-            const parsed = _parseNumberStrict(raw);
-            const asInt =
-              parsed !== null && Number.isInteger(parsed) ? parsed : null;
-            if (asInt === null || asInt <= 0) {
-              warnings.push(
-                `Y Data Count cell ${yLegendCountRaw.toUpperCase()} must contain a positive integer.`,
-              );
-            }
-          }
-        }
-        if (extractionConfig.yLegendStepCell) {
-          const previewRow = getPreviewRow(extractionConfig.yLegendStepCell.rowIndex);
-          if (previewRow) {
-            const raw = previewRow?.[extractionConfig.yLegendStepCell.colIndex];
-            const parsed = _parseNumberStrict(raw);
-            if (parsed === null || parsed <= 0) {
-              warnings.push(
-                `Y Data Step cell ${yLegendStepRaw.toUpperCase()} must contain a positive number.`,
-              );
-            }
-          }
-        }
-      }
-    }
-
-    if (groupSizeCell) {
-      extractionConfig.groupSizeCell = groupSizeCell;
-    } else {
-      extractionConfig.groupSize = groupSize;
-      extractionConfig.groups = groups;
-    }
 
     setProcessedData([]);
     setExtractionErrors([]);
@@ -750,16 +681,16 @@ const DeviceAnalysis = () => {
 
     processNext();
 
-    const groupSizeText = groupSizeCell
-      ? `points from ${String(pointsRaw).toUpperCase()}`
-      : `points=${groupSize}`;
+    const groupSizeText = meta.groupSizeCell
+      ? `points from ${meta.pointsRawUpper || ""}`
+      : `points=${meta.groupSize}`;
     const groupsText =
-      groupSizeCell &&
-        Number.isInteger(groupSizePreview) &&
-        groupSizePreview > 0
-        ? `, ${total / groupSizePreview} group(s)`
-        : !groupSizeCell
-          ? `, ${groups} group(s)`
+      meta.groupSizeCell &&
+        Number.isInteger(meta.groupSizePreview) &&
+        meta.groupSizePreview > 0
+        ? `, ${meta.total / meta.groupSizePreview} group(s)`
+        : !meta.groupSizeCell
+          ? `, ${meta.groups} group(s)`
           : "";
 
     const warningText = warnings.length
@@ -879,6 +810,160 @@ const DeviceAnalysis = () => {
       return exports;
     };
 
+    const buildPoints = (xArr, yArr) => {
+      if (!xArr || !yArr) return [];
+      const n = Math.min(xArr.length ?? 0, yArr.length ?? 0);
+      if (n <= 0) return [];
+      const out = new Array(n);
+      for (let i = 0; i < n; i++) {
+        out[i] = { x: xArr[i], y: yArr[i] };
+      }
+      return out;
+    };
+
+    const buildSsMetricsCsv = () => {
+      const fields = [
+        "ss_conf_version",
+        "file_id",
+        "file_name",
+        "series_id",
+        "series_name",
+        "group_index",
+        "y_col",
+        "ss_method",
+        "ss",
+        "ss_ok",
+        "ss_confidence",
+        "ss_reason",
+        "ss_x1",
+        "ss_x2",
+        "ss_r2",
+        "ss_span_dec",
+        "ss_n",
+        "ss_iLow",
+        "ss_iHigh",
+        "ss_range_source",
+      ];
+
+      const rows = [];
+      const confVersion = "ssfit_v1";
+
+      const methodDefault = String(ssMethod || "auto");
+      const idLow = Number(ssIdWindow?.low);
+      const idHigh = Number(ssIdWindow?.high);
+      const idWindowRatio =
+        Number.isFinite(idLow) &&
+          Number.isFinite(idHigh) &&
+          idLow > 0 &&
+          idHigh > 0
+          ? Math.max(idLow, idHigh) / Math.min(idLow, idHigh)
+          : null;
+
+      for (const file of processedData) {
+        const fileId = file?.fileId ?? "";
+        const fileName = file?.fileName ?? "";
+        const xGroups = Array.isArray(file?.xGroups) ? file.xGroups : [];
+        const seriesList = Array.isArray(file?.series) ? file.series : [];
+
+        for (const series of seriesList) {
+          const seriesId = series?.id ?? "";
+          const seriesName = series?.name ?? "";
+          const groupIndex = Number(series?.groupIndex);
+          const yCol = Number(series?.yCol);
+          const xArr = xGroups[groupIndex];
+          const yArr = series?.y;
+          const points = buildPoints(xArr, yArr);
+
+          const method =
+            methodDefault === "auto" ||
+              methodDefault === "manual" ||
+              methodDefault === "idWindow" ||
+              methodDefault === "legacy"
+              ? methodDefault
+              : "auto";
+
+          let fit = { ok: false, reason: "common.invalid_points" };
+          let cls = {
+            ss_ok: false,
+            ss_confidence: "fail",
+            ss_reason: "common.invalid_points",
+          };
+          let rangeSource = "";
+
+          if (method === "auto") {
+            const auto = computeSubthresholdSwingFitAuto(points);
+            fit = auto?.strict ?? { ok: false, reason: "common.invalid_points" };
+            cls = classifySsFit("auto", fit);
+          } else if (method === "manual") {
+            const auto = computeSubthresholdSwingFitAuto(points);
+            const stored =
+              fileId && seriesId ? ssManualRanges?.[fileId]?.[seriesId] : null;
+            const initRange = stored
+              ? { x1: stored.x1, x2: stored.x2, source: "manual" }
+              : auto?.strict?.ok
+                ? { x1: auto.strict.x1, x2: auto.strict.x2, source: "strict" }
+                : auto?.suggested?.ok
+                  ? {
+                    x1: auto.suggested.x1,
+                    x2: auto.suggested.x2,
+                    source: "suggested",
+                  }
+                  : null;
+
+            rangeSource = initRange?.source ?? "";
+            fit = initRange
+              ? computeSubthresholdSwingFitInRange(points, initRange.x1, initRange.x2)
+              : { ok: false, reason: "manual.range_outside_domain" };
+            cls = classifySsFit("manual", fit);
+          } else if (method === "idWindow") {
+            fit = computeSubthresholdSwingFitInIdWindow(points, idLow, idHigh);
+            cls = classifySsFit("idWindow", fit, { idWindowRatio });
+          } else if (method === "legacy") {
+            const diag = computeSubthresholdSwing(points);
+            let min = Infinity;
+            for (const p of diag ?? []) {
+              const v = Number(p?.y);
+              if (!Number.isFinite(v)) continue;
+              if (v > 0 && v < min) min = v;
+            }
+            fit = Number.isFinite(min)
+              ? { ok: true, ss: min, reason: "ok" }
+              : { ok: false, reason: "common.not_enough_points" };
+            cls = classifySsFit("legacy", fit);
+          }
+
+          const ssOk = Boolean(cls?.ss_ok);
+          const ssValue = ssOk && Number.isFinite(fit?.ss) ? fit.ss : "";
+
+          rows.push({
+            ss_conf_version: confVersion,
+            file_id: fileId,
+            file_name: fileName,
+            series_id: seriesId,
+            series_name: seriesName,
+            group_index: Number.isFinite(groupIndex) ? groupIndex : "",
+            y_col: Number.isFinite(yCol) ? yCol : "",
+            ss_method: method,
+            ss: ssValue,
+            ss_ok: ssOk ? "true" : "false",
+            ss_confidence: cls?.ss_confidence ?? "fail",
+            ss_reason: cls?.ss_reason ?? fit?.reason ?? "common.invalid_points",
+            ss_x1: ssOk && Number.isFinite(fit?.x1) ? fit.x1 : "",
+            ss_x2: ssOk && Number.isFinite(fit?.x2) ? fit.x2 : "",
+            ss_r2: ssOk && Number.isFinite(fit?.r2) ? fit.r2 : "",
+            ss_span_dec: ssOk && Number.isFinite(fit?.decadeSpan) ? fit.decadeSpan : "",
+            ss_n: ssOk && Number.isFinite(fit?.n) ? fit.n : "",
+            ss_iLow: method === "idWindow" && Number.isFinite(idLow) ? idLow : "",
+            ss_iHigh: method === "idWindow" && Number.isFinite(idHigh) ? idHigh : "",
+            ss_range_source: rangeSource,
+          });
+        }
+      }
+
+      const data = rows.map((row) => fields.map((f) => row?.[f] ?? ""));
+      return Papa.unparse({ fields, data });
+    };
+
     const exports = buildCsvExports();
 
     if (exports.length === 0) return;
@@ -887,6 +972,7 @@ const DeviceAnalysis = () => {
     for (const item of exports) {
       zip.file(item.filename, "\uFEFF" + item.csvText);
     }
+    zip.file("device_analysis_metrics.csv", "\uFEFF" + buildSsMetricsCsv());
 
     const zipBlob = await zip.generateAsync({
       type: "blob",
@@ -1080,7 +1166,7 @@ Note:
   };
 
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="w-full">
       <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-text-primary">
@@ -1127,9 +1213,19 @@ Note:
             <span className="text-sm text-text-secondary font-medium">
               Loaded {rawData.length} CSV files
             </span>
+            <button
+              type="button"
+              onClick={handleClearSession}
+              disabled={!hasSessionData}
+              className="ml-auto flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 font-medium text-sm rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <Trash2 size={18} />
+              <span>Clear Session</span>
+            </button>
           </div>
           <CsvImporter
             ref={importerRef}
+            files={rawData}
             onDataImported={handleDataImported}
             onDataRemoved={handleDataRemoved}
             onFileSelected={handlePreviewFileSelected}
@@ -1212,10 +1308,23 @@ Note:
             viewMode === "table" ? (
               <DataPreviewTable processedData={processedData} />
             ) : (
-              <AnalysisCharts processedData={processedData} />
+              <AnalysisCharts
+                processedData={processedData}
+                processingStatus={_processingStatus}
+                ssMethod={ssMethod}
+                setSsMethod={setSsMethod}
+                ssDiagnosticsEnabled={ssDiagnosticsEnabled}
+                setSsDiagnosticsEnabled={setSsDiagnosticsEnabled}
+                ssShowFitLine={ssShowFitLine}
+                setSsShowFitLine={setSsShowFitLine}
+                ssIdWindow={ssIdWindow}
+                setSsIdWindow={setSsIdWindow}
+                ssManualRanges={ssManualRanges}
+                setSsManualRanges={setSsManualRanges}
+              />
             )
           ) : (
-            <div className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border rounded-xl text-text-secondary bg-bg-surface/30">
+            <div className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border rounded-xl text-text-secondary bg-white">
               <BarChart2 size={48} className="mb-4 opacity-20" />
               <p className="text-lg font-medium">No Processed Data</p>
               <p className="text-sm">
