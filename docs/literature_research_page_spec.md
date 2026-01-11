@@ -56,8 +56,7 @@
 **必须锚点**（已落地）：
 - 结果容器：`[data-ui="literature-results-container"]`
 - 视图切换 ToggleButton wrapper：`[data-ui="literature-results-view-toggle"]`
-- 批量全选：`[data-ui="literature-select-all-btn"]`
-- 批量清空选择：`[data-ui="literature-clear-selection-btn"]`
+- 批量全选/取消：`[data-ui="literature-selection-toggle-btn"]`（当前动作：`[data-action="select-all|deselect-all"]`）
 
 **结果卡片组合锚点**（已落地）：
 - 卡片：`[data-ui="literature-result-card"][data-item-id="..."]`

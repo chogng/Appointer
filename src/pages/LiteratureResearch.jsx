@@ -1022,6 +1022,17 @@ const LiteratureResearch = () => {
 
   const selectedCount = selectedItems.length;
 
+  const allVisibleSelected = useMemo(() => {
+    if (!Array.isArray(visibleResults) || visibleResults.length === 0) return false;
+    if (!Array.isArray(selectedIds) || selectedIds.length === 0) return false;
+    const selectedSet = new Set(selectedIds);
+    const visibleIds = visibleResults.map(getLiteratureItemId).filter(Boolean);
+    if (visibleIds.length === 0) return false;
+    return visibleIds.every((id) => selectedSet.has(id));
+  }, [visibleResults, selectedIds]);
+
+  const selectionToggleAction = allVisibleSelected ? "deselect-all" : "select-all";
+
   const toggleSelectedId = (id) => {
     const resolved = typeof id === "string" ? id.trim() : "";
     if (!resolved) return;
@@ -1760,7 +1771,7 @@ const LiteratureResearch = () => {
                 >
                   <Input
                     dataUi="literature-seed-url"
-                    size="lg"
+                    size="md"
                     value={value}
                     onChange={(nextValue) => setSeedUrlAt(index, nextValue)}
                     onFocus={handleSettingsInputFocus}
@@ -1792,7 +1803,7 @@ const LiteratureResearch = () => {
                     data-cta-copy="remove url"
                     data-ui="literature-seed-url-remove-btn"
                     data-seed-index={index}
-                    className="click_btn click_btn--icon click_btn--fx click_btn--fx-muted click_btn--danger"
+                    className="click_btn click_btn--md click_btn--icon-md click_btn--fx click_btn--fx-muted click_btn--danger"
                   >
                     <span className="click_btn_content">
                       <Trash2 size={16} />
@@ -1999,9 +2010,17 @@ const LiteratureResearch = () => {
                     ? "click_btn--disabled"
                     : "click_btn--ghost click_btn--fx click_btn--fx-muted"
                 }`}
-                title={t("literature_select_all_filtered") || "Select all (filtered)"}
+                title={
+                  selectionToggleAction === "deselect-all"
+                    ? t("literature_deselect_all_filtered") ||
+                      "Deselect all (filtered)"
+                    : t("literature_select_all_filtered") || "Select all (filtered)"
+                }
                 aria-label={
-                  t("literature_select_all_filtered") || "Select all (filtered)"
+                  selectionToggleAction === "deselect-all"
+                    ? t("literature_deselect_all_filtered") ||
+                      "Deselect all (filtered)"
+                    : t("literature_select_all_filtered") || "Select all (filtered)"
                 }
                 data-style={
                   isExportingDocx ||
@@ -2013,46 +2032,18 @@ const LiteratureResearch = () => {
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="result"
-                data-cta-copy="select all"
-                data-ui="literature-select-all-btn"
+                data-cta-copy={
+                  selectionToggleAction === "deselect-all" ? "deselect all" : "select all"
+                }
+                data-action={selectionToggleAction}
+                data-ui="literature-selection-toggle-btn"
               >
                 <span className="click_btn_content">
-                  <ListChecks size={16} />
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleClearSelection}
-                disabled={
-                  isExportingDocx ||
-                  status.state === "loading" ||
-                  selectedCount === 0
-                }
-                className={`click_btn click_btn--md click_btn--icon-md ${
-                  isExportingDocx ||
-                  status.state === "loading" ||
-                  selectedCount === 0
-                    ? "click_btn--disabled"
-                    : "click_btn--ghost click_btn--fx click_btn--fx-muted"
-                }`}
-                title={t("literature_clear_selection") || "Clear selection"}
-                aria-label={t("literature_clear_selection") || "Clear selection"}
-                data-style={
-                  isExportingDocx ||
-                  status.state === "loading" ||
-                  selectedCount === 0
-                    ? "disabled"
-                    : "ghost"
-                }
-                data-icon="with"
-                data-cta="Literature research"
-                data-cta-position="result"
-                data-cta-copy="clear selection"
-                data-ui="literature-clear-selection-btn"
-              >
-                <span className="click_btn_content">
-                  <ListX size={16} />
+                  {selectionToggleAction === "deselect-all" ? (
+                    <ListX size={16} />
+                  ) : (
+                    <ListChecks size={16} />
+                  )}
                 </span>
               </button>
             </div>
