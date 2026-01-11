@@ -187,6 +187,10 @@ body {
     @apply h-[38px];
   }
 
+  .click_btn--icon-md {
+    @apply w-[38px] px-0;
+  }
+
   /* Icon-only buttons (e.g. remove row actions) */
   .click_btn--icon {
     @apply h-[42px] w-[42px] px-0;

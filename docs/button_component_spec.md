@@ -54,6 +54,7 @@
 - 基础：
   - `.click_btn`
   - `.click_btn--md`
+  - `.click_btn--icon-md`（icon-only 方形按钮：38×38；需搭配 `.click_btn--md`）
   - `.click_btn--icon`（icon-only 方形按钮：42×42）
   - `.click_btn_content`
   - `.click_btn--fx`（提供 ring/hover 的 box-shadow 扩张动效）
@@ -66,7 +67,7 @@
 
 约束：
 
- - 变体必须与 `.click_btn--fx` 同时使用（否则 `before:*` 相关样式不生效）。
+ - 需要 ring/hover 扩张动效时，使用 `.click_btn--fx`（并按需叠加 `.click_btn--fx-muted`）。
  - Disabled 必须同时满足：`disabled` 属性 + `.click_btn--disabled`。
  - 若需要 `group-hover:*` / `group-focus:*` 这类子元素效果，再在 JSX 中额外添加 `group` 类（Tailwind 不允许在 `@apply` 中使用 `group`）。
 

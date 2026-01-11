@@ -1819,15 +1819,16 @@ const LiteratureResearch = () => {
               type="button"
               onClick={handleExportDocx}
               disabled={isExportingDocx || selectedCount === 0}
-              className={`group relative inline-flex items-center justify-center px-4 h-[38px] rounded-xl text-sm transition-all before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors ${isExportingDocx || selectedCount === 0
-                ? "text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border"
-                : "text-text-secondary hover:text-text-primary before:bg-transparent before:border before:border-border hover:before:scale-[1.02]"
-                }`}
+              className={`click_btn click_btn--md ${
+                isExportingDocx || selectedCount === 0
+                  ? "click_btn--disabled"
+                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+              }`}
               title={exportDocxLabel}
-              aria-label="literature-export-docx-btn"
+              aria-label={exportDocxLabel}
               data-ui="literature-export-docx-btn"
             >
-              <span className="relative z-10 flex items-center gap-2">
+              <span className="click_btn_content">
                 {isExportingDocx ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
@@ -1844,15 +1845,16 @@ const LiteratureResearch = () => {
               type="button"
               onClick={handleExportJson}
               disabled={isExportingDocx || selectedCount === 0}
-              className={`group relative inline-flex items-center justify-center px-4 h-[38px] rounded-xl text-sm transition-all before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors ${isExportingDocx || selectedCount === 0
-                ? "text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border"
-                : "text-text-secondary hover:text-text-primary before:bg-transparent before:border before:border-border hover:before:scale-[1.02]"
-                }`}
+              className={`click_btn click_btn--md ${
+                isExportingDocx || selectedCount === 0
+                  ? "click_btn--disabled"
+                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+              }`}
               title={t("literature_export_json") || "Export JSON"}
-              aria-label="literature-export-json-btn"
+              aria-label={t("literature_export_json") || "Export JSON"}
               data-ui="literature-export-json-btn"
             >
-              <span className="relative z-10 flex items-center gap-2">
+              <span className="click_btn_content">
                 <FileJson size={16} />
                 {(t("literature_export_json") || "Export JSON") +
                   (selectedCount > 0 ? ` (${selectedCount})` : "")}
@@ -1867,17 +1869,18 @@ const LiteratureResearch = () => {
                 status.state === "loading" ||
                 isAnyTranslationInFlight
               }
-              className={`group relative inline-flex items-center justify-center px-4 h-[38px] rounded-xl text-sm transition-all before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors ${isExportingDocx ||
+              className={`click_btn click_btn--md ${
+                isExportingDocx ||
                 status.state === "loading" ||
                 isAnyTranslationInFlight
-                ? "text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border"
-                : "text-text-secondary hover:text-text-primary before:bg-transparent before:border before:border-border hover:before:scale-[1.02]"
-                }`}
+                  ? "click_btn--disabled"
+                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+              }`}
               title={t("literature_clear_session") || "Clear session"}
-              aria-label="literature-clear-session-btn"
+              aria-label={t("literature_clear_session") || "Clear session"}
               data-ui="literature-clear-session-btn"
             >
-              <span className="relative z-10 flex items-center gap-2">
+              <span className="click_btn_content">
                 <Trash2 size={16} />
                 {t("literature_clear_session") || "Clear session"}
               </span>
@@ -1989,22 +1992,32 @@ const LiteratureResearch = () => {
                   status.state === "loading" ||
                   visibleResults.length === 0
                 }
-                className={`group relative inline-flex items-center justify-center px-4 h-[38px] rounded-xl text-sm transition-all before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors ${isExportingDocx ||
+                className={`click_btn click_btn--md click_btn--icon-md ${
+                  isExportingDocx ||
                   status.state === "loading" ||
                   visibleResults.length === 0
-                  ? "text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border"
-                  : "text-text-secondary hover:text-text-primary before:bg-transparent before:border before:border-border hover:before:scale-[1.02]"
-                  }`}
-                title={
+                    ? "click_btn--disabled"
+                    : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+                }`}
+                title={t("literature_select_all_filtered") || "Select all (filtered)"}
+                aria-label={
                   t("literature_select_all_filtered") || "Select all (filtered)"
                 }
-                aria-label="literature-select-all-btn"
+                data-style={
+                  isExportingDocx ||
+                  status.state === "loading" ||
+                  visibleResults.length === 0
+                    ? "disabled"
+                    : "ghost"
+                }
+                data-icon="with"
+                data-cta="Literature research"
+                data-cta-position="result"
+                data-cta-copy="select all"
                 data-ui="literature-select-all-btn"
               >
-                <span className="relative z-10 flex items-center gap-2">
+                <span className="click_btn_content">
                   <ListChecks size={16} />
-                  {t("literature_select_all_filtered") ||
-                    "Select all (filtered)"}
                 </span>
               </button>
 
@@ -2016,19 +2029,30 @@ const LiteratureResearch = () => {
                   status.state === "loading" ||
                   selectedCount === 0
                 }
-                className={`group relative inline-flex items-center justify-center px-4 h-[38px] rounded-xl text-sm transition-all before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors ${isExportingDocx ||
+                className={`click_btn click_btn--md click_btn--icon-md ${
+                  isExportingDocx ||
                   status.state === "loading" ||
                   selectedCount === 0
-                  ? "text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border"
-                  : "text-text-secondary hover:text-text-primary before:bg-transparent before:border before:border-border hover:before:scale-[1.02]"
-                  }`}
+                    ? "click_btn--disabled"
+                    : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+                }`}
                 title={t("literature_clear_selection") || "Clear selection"}
-                aria-label="literature-clear-selection-btn"
+                aria-label={t("literature_clear_selection") || "Clear selection"}
+                data-style={
+                  isExportingDocx ||
+                  status.state === "loading" ||
+                  selectedCount === 0
+                    ? "disabled"
+                    : "ghost"
+                }
+                data-icon="with"
+                data-cta="Literature research"
+                data-cta-position="result"
+                data-cta-copy="clear selection"
                 data-ui="literature-clear-selection-btn"
               >
-                <span className="relative z-10 flex items-center gap-2">
+                <span className="click_btn_content">
                   <ListX size={16} />
-                  {t("literature_clear_selection") || "Clear selection"}
                 </span>
               </button>
             </div>
