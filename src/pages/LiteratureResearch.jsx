@@ -23,6 +23,8 @@ import { useLiteratureResearchSession } from "../hooks/useLiteratureResearchSess
 import ToggleButton from "../components/ui/ToggleButton";
 import Toast from "../components/ui/Toast";
 import DatePicker from "../components/ui/DatePicker";
+import Input from "../components/ui/Input";
+import Card from "../components/ui/Card";
 
 const NATURE_EXAMPLES = [
   "https://www.nature.com/nature/research-articles",
@@ -34,7 +36,7 @@ const SCIENCE_EXAMPLES = [
   "https://www.science.org/",
 ];
 
-const LITERATURE_SESSION_STATE_VERSION = 1;
+const LITERATURE_SESSION_STATE_VERSION = 2;
 
 const pruneTranslationsForSession = (value) => {
   if (!value || typeof value !== "object") return {};
@@ -63,6 +65,17 @@ const pruneTranslationsForSession = (value) => {
 const getLiteratureItemId = (item) =>
   String(item?.id || item?.articleUrl || item?.title || "").trim();
 
+const normalizeSeedUrlsList = (value) =>
+  (Array.isArray(value) ? value : [])
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+
+const areStringArraysEqual = (a, b) => {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  return a.every((item, idx) => item === b[idx]);
+};
+
 const LiteratureResearch = () => {
   const containerRef = useRef(null);
   const { user } = useAuth();
@@ -72,19 +85,88 @@ const LiteratureResearch = () => {
   const today = format(new Date(), "yyyy-MM-dd");
   const defaultStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
 
-  const [seedUrls, setSeedUrls] = useState([""]);
+  const [seedUrlsBySourceType, setSeedUrlsBySourceType] = useState({
+    nature: [""],
+    science: [""],
+  });
+
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(today);
-  const [maxResults, setMaxResults] = useState(100);
+  const [maxResults, setMaxResults] = useState("");
 
   const [sourceType, setSourceType] = useState("nature"); // "nature" | "science"
 
-  const [settingsReady, setSettingsReady] = useState(false);
-  const lastSavedSettingsJsonRef = useRef("");
-  const [_settingsSync, setSettingsSync] = useState({
-    state: "idle", // idle | saving | saved | error
-    message: "",
+  const seedUrls = seedUrlsBySourceType[sourceType] || [""];
+
+  const seedUrlsBySourceTypeRef = useRef(seedUrlsBySourceType);
+  const sourceTypeRef = useRef(sourceType);
+  const maxResultsRef = useRef(maxResults);
+
+  useEffect(() => {
+    seedUrlsBySourceTypeRef.current = seedUrlsBySourceType;
+  }, [seedUrlsBySourceType]);
+
+  useEffect(() => {
+    sourceTypeRef.current = sourceType;
+  }, [sourceType]);
+
+  useEffect(() => {
+    maxResultsRef.current = maxResults;
+  }, [maxResults]);
+
+  const committedSettingsRef = useRef({
+    seedUrlsBySourceType: { nature: [], science: [] },
+    maxResults: null,
   });
+
+  const seedUrlsDirtyBySourceRef = useRef({
+    nature: false,
+    science: false,
+  });
+  const lastEditedSeedSourceRef = useRef(null);
+  const maxResultsDirtyRef = useRef(false);
+  const settingsSyncQueueRef = useRef(Promise.resolve());
+  const settingsAutosaveTimerRef = useRef(null);
+  const settingsFocusCountRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const userIdRef = useRef(user?.id ?? null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user?.id]);
+
+  const setSeedUrlsForSourceType = (nextSeedUrls) => {
+    const resolvedNextSeedUrls =
+      Array.isArray(nextSeedUrls) && nextSeedUrls.length ? nextSeedUrls : [""];
+
+    seedUrlsDirtyBySourceRef.current[sourceType] = true;
+    lastEditedSeedSourceRef.current = sourceType;
+
+    seedUrlsBySourceTypeRef.current = {
+      ...seedUrlsBySourceTypeRef.current,
+      [sourceType]: resolvedNextSeedUrls,
+    };
+    setSeedUrlsBySourceType((prev) => ({
+      ...prev,
+      [sourceType]: resolvedNextSeedUrls,
+    }));
+
+    scheduleSettingsAutosave();
+  };
+
+  const handleMaxResultsInputChange = (nextValue) => {
+    maxResultsDirtyRef.current = true;
+    maxResultsRef.current = nextValue;
+    setMaxResults(nextValue);
+    scheduleSettingsAutosave();
+  };
 
   const [status, setStatus] = useState({
     state: "idle", // idle | loading | error | done
@@ -96,12 +178,11 @@ const LiteratureResearch = () => {
 
   const [hasTranslationApiKey, setHasTranslationApiKey] = useState(false);
 
-
   const [translations, setTranslations] = useState({});
   const translateInFlightRef = useRef(false);
   const isAnyTranslationInFlight = useMemo(
     () => Object.values(translations).some((v) => v?.state === "loading"),
-    [translations],
+    [translations]
   );
 
   const [docxExport, setDocxExport] = useState({
@@ -112,7 +193,8 @@ const LiteratureResearch = () => {
   const isExportingDocx = docxExport.state !== "idle";
   const exportDocxLabel = useMemo(() => {
     if (docxExport.state === "translating") {
-      return `${t("literature_export_docx_translating")} (${docxExport.current}/${docxExport.total})`;
+      return `${t("literature_export_docx_translating")} (${docxExport.current
+        }/${docxExport.total})`;
     }
     if (docxExport.state === "building") {
       return t("literature_export_docx_building");
@@ -149,11 +231,16 @@ const LiteratureResearch = () => {
 
   const hasRestoredSessionRef = useRef(false);
   const isRestoringSessionRef = useRef(false);
+  const restoredUserIdRef = useRef(null);
 
   useEffect(() => {
     const userId = user?.id ?? null;
     if (!userId) return;
     if (!literatureSession?.getSession) return;
+    if (restoredUserIdRef.current === userId) return;
+    restoredUserIdRef.current = userId;
+    hasRestoredSessionRef.current = false;
+    isRestoringSessionRef.current = false;
 
     const parsed = literatureSession.getSession(userId);
     if (!parsed || parsed?.v !== LITERATURE_SESSION_STATE_VERSION) return;
@@ -161,33 +248,58 @@ const LiteratureResearch = () => {
     hasRestoredSessionRef.current = true;
     isRestoringSessionRef.current = true;
 
+    const restoredSeedUrlsBySourceType =
+      parsed?.seedUrlsBySourceType &&
+        typeof parsed.seedUrlsBySourceType === "object"
+        ? {
+          nature: Array.isArray(parsed.seedUrlsBySourceType.nature)
+            ? parsed.seedUrlsBySourceType.nature
+            : [],
+          science: Array.isArray(parsed.seedUrlsBySourceType.science)
+            ? parsed.seedUrlsBySourceType.science
+            : [],
+        }
+        : null;
+
     const restoredSeedUrls = Array.isArray(parsed?.seedUrls)
       ? parsed.seedUrls
       : null;
 
-    const restoredStartDate = typeof parsed?.startDate === "string"
-      ? parsed.startDate
-      : null;
-    const restoredEndDate = typeof parsed?.endDate === "string"
-      ? parsed.endDate
-      : null;
+    const restoredStartDate =
+      typeof parsed?.startDate === "string" ? parsed.startDate : null;
+    const restoredEndDate =
+      typeof parsed?.endDate === "string" ? parsed.endDate : null;
 
     const restoredMaxResults =
-      typeof parsed?.maxResults === "number" && Number.isFinite(parsed.maxResults)
-        ? Math.max(1, Math.min(100, Math.trunc(parsed.maxResults)))
-        : null;
+      typeof parsed?.maxResults === "string" ? parsed.maxResults : null;
 
-    if (restoredSeedUrls && restoredSeedUrls.length > 0) {
-      setSeedUrls(restoredSeedUrls);
+    if (restoredSeedUrlsBySourceType) {
+      setSeedUrlsBySourceType((prev) => ({
+        ...prev,
+        nature: restoredSeedUrlsBySourceType.nature.length
+          ? restoredSeedUrlsBySourceType.nature
+          : [""],
+        science: restoredSeedUrlsBySourceType.science.length
+          ? restoredSeedUrlsBySourceType.science
+          : [""],
+      }));
+    } else if (restoredSeedUrls && restoredSeedUrls.length > 0) {
+      setSeedUrlsBySourceType((prev) => ({
+        ...prev,
+        [parsed?.sourceType === "science" ? "science" : "nature"]:
+          restoredSeedUrls.length ? restoredSeedUrls : [""],
+      }));
     }
     if (restoredStartDate) setStartDate(restoredStartDate);
     if (restoredEndDate) setEndDate(restoredEndDate);
-    if (restoredMaxResults) setMaxResults(restoredMaxResults);
+    if (typeof restoredMaxResults === "string")
+      setMaxResults(restoredMaxResults);
 
     if (parsed?.sourceType === "science") setSourceType("science");
     else if (parsed?.sourceType === "nature") setSourceType("nature");
 
-    if (typeof parsed?.keywordInput === "string") setKeywordInput(parsed.keywordInput);
+    if (typeof parsed?.keywordInput === "string")
+      setKeywordInput(parsed.keywordInput);
     if (parsed?.keywordMode === "all") setKeywordMode("all");
     else if (parsed?.keywordMode === "any") setKeywordMode("any");
     if (parsed?.resultView === "matched") setResultView("matched");
@@ -198,13 +310,18 @@ const LiteratureResearch = () => {
     if (parsed?.status?.state) {
       setStatus({
         state: parsed.status.state,
-        message: typeof parsed.status.message === "string" ? parsed.status.message : "",
+        message:
+          typeof parsed.status.message === "string"
+            ? parsed.status.message
+            : "",
       });
     } else if (Array.isArray(parsed?.results) && parsed.results.length > 0) {
       setStatus({ state: "done", message: "" });
     }
 
-    const restoredTranslations = pruneTranslationsForSession(parsed?.translations);
+    const restoredTranslations = pruneTranslationsForSession(
+      parsed?.translations
+    );
     if (Object.keys(restoredTranslations).length > 0) {
       setTranslations(restoredTranslations);
     }
@@ -216,30 +333,17 @@ const LiteratureResearch = () => {
         .filter(Boolean);
       setSelectedIds([...new Set(cleaned)]);
     }
-
-    if (restoredSeedUrls || restoredMaxResults) {
-      const seedUrlsForSettings = (restoredSeedUrls ?? [])
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
-        .filter(Boolean);
-      lastSavedSettingsJsonRef.current = JSON.stringify({
-        seedUrls: seedUrlsForSettings,
-        maxResults: restoredMaxResults ?? maxResults,
-      });
-    }
-
-    setSettingsReady(true);
     queueMicrotask(() => {
       isRestoringSessionRef.current = false;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [literatureSession, maxResults, user?.id]);
+  }, [literatureSession, user?.id]);
 
   const sanitizedSeedUrls = useMemo(
     () =>
       seedUrls
         .map((v) => (typeof v === "string" ? v.trim() : ""))
         .filter(Boolean),
-    [seedUrls],
+    [seedUrls]
   );
 
   useEffect(() => {
@@ -251,58 +355,95 @@ const LiteratureResearch = () => {
         const data = await apiService.getLiteratureSettings();
         if (cancelled) return;
 
-        const savedSeedUrls = Array.isArray(data?.seedUrls)
+        const hasSeedUrlsBySourceType =
+          data?.seedUrlsBySourceType &&
+          typeof data.seedUrlsBySourceType === "object";
+
+        const savedNatureSeedUrls = normalizeSeedUrlsList(
+          data?.seedUrlsBySourceType?.nature
+        );
+        const savedScienceSeedUrls = normalizeSeedUrlsList(
+          data?.seedUrlsBySourceType?.science
+        );
+
+        const legacySeedUrls = Array.isArray(data?.seedUrls)
           ? data.seedUrls
             .map((value) => (typeof value === "string" ? value.trim() : ""))
             .filter(Boolean)
           : [];
 
-        const resolvedSeedUrls = savedSeedUrls.length ? savedSeedUrls : [""];
+        const committedSeedUrlsBySourceType = hasSeedUrlsBySourceType
+          ? { nature: savedNatureSeedUrls, science: savedScienceSeedUrls }
+          : (() => {
+            const split = { nature: [], science: [] };
+            for (const url of legacySeedUrls) {
+              if (String(url || "").includes("science.org"))
+                split.science.push(url);
+              else split.nature.push(url);
+            }
+            return split;
+          })();
+
+        const resolvedSeedUrlsBySourceType = {
+          nature: committedSeedUrlsBySourceType.nature.length
+            ? committedSeedUrlsBySourceType.nature
+            : [""],
+          science: committedSeedUrlsBySourceType.science.length
+            ? committedSeedUrlsBySourceType.science
+            : [""],
+        };
+
         const resolvedStartDate =
           typeof data?.startDate === "string" && data.startDate
             ? data.startDate
             : defaultStart;
         const resolvedEndDate =
-          typeof data?.endDate === "string" && data.endDate ? data.endDate : today;
+          typeof data?.endDate === "string" && data.endDate
+            ? data.endDate
+            : today;
+
         const resolvedMaxResults =
-          typeof data?.maxResults === "number" && Number.isFinite(data.maxResults)
-            ? Math.max(1, Math.min(100, Math.trunc(data.maxResults)))
-            : 100;
+          typeof data?.maxResults === "number" &&
+            Number.isFinite(data.maxResults)
+            ? data.maxResults
+            : null;
+
+        const resolvedSourceType =
+          data?.sourceType === "science" || data?.sourceType === "nature"
+            ? data.sourceType
+            : (() => {
+              const hasScience =
+                committedSeedUrlsBySourceType.science.length > 0;
+              const hasNature =
+                committedSeedUrlsBySourceType.nature.length > 0;
+              if (hasScience && !hasNature) return "science";
+              return "nature";
+            })();
+
+        committedSettingsRef.current = {
+          seedUrlsBySourceType: committedSeedUrlsBySourceType,
+          maxResults: resolvedMaxResults,
+        };
 
         if (!hasRestoredSessionRef.current) {
-          setSeedUrls(resolvedSeedUrls);
+          setSeedUrlsBySourceType((prev) => ({
+            ...prev,
+            nature: resolvedSeedUrlsBySourceType.nature,
+            science: resolvedSeedUrlsBySourceType.science,
+          }));
           setStartDate(resolvedStartDate);
           setEndDate(resolvedEndDate);
-          setMaxResults(resolvedMaxResults);
-
-          // Detect source type from first URL
-          const firstUrl = resolvedSeedUrls[0] || "";
-          if (firstUrl.includes("science.org")) {
-            setSourceType("science");
-          } else {
-            setSourceType("nature");
-          }
-        }
-
-        if (!lastSavedSettingsJsonRef.current) {
-          lastSavedSettingsJsonRef.current = JSON.stringify({
-            seedUrls: resolvedSeedUrls
-              .map((value) => (typeof value === "string" ? value.trim() : ""))
-              .filter(Boolean),
-            maxResults: resolvedMaxResults,
-          });
+          setMaxResults(
+            resolvedMaxResults == null ? "" : String(resolvedMaxResults)
+          );
+          setSourceType(resolvedSourceType);
         }
 
         setHasTranslationApiKey(Boolean(data?.hasTranslationApiKey));
-      } catch (error) {
-        if (!cancelled) {
-          setSettingsSync({
-            state: "error",
-            message: error?.message || String(error),
-          });
-        }
+      } catch {
+        // best-effort only; search will still work with user-provided inputs
       } finally {
-        if (!cancelled) setSettingsReady(true);
+        // no-op
       }
     })();
 
@@ -311,45 +452,281 @@ const LiteratureResearch = () => {
     };
   }, [defaultStart, today, user?.id]);
 
-  useEffect(() => {
-    if (!settingsReady) return;
+  const enqueueSettingsSync = (job) => {
+    const run = () => Promise.resolve().then(job);
+    const next = settingsSyncQueueRef.current.then(run, run);
+    settingsSyncQueueRef.current = next.catch(() => { });
+    return next;
+  };
 
-    const payload = {
-      seedUrls: sanitizedSeedUrls,
-      maxResults,
-    };
+  const cancelSettingsAutosave = () => {
+    if (!settingsAutosaveTimerRef.current) return;
+    clearTimeout(settingsAutosaveTimerRef.current);
+    settingsAutosaveTimerRef.current = null;
+  };
 
-    const json = JSON.stringify(payload);
-    if (json === lastSavedSettingsJsonRef.current) return;
+  const scheduleSettingsAutosave = () => {
+    cancelSettingsAutosave();
 
-    setSettingsSync({ state: "saving", message: "" });
-    const timer = setTimeout(async () => {
-      try {
-        await apiService.updateLiteratureSettings(payload);
-        lastSavedSettingsJsonRef.current = json;
-        setSettingsSync({ state: "saved", message: "" });
+    const seedSource = lastEditedSeedSourceRef.current;
+    const hasSeedDirty =
+      seedSource && Boolean(seedUrlsDirtyBySourceRef.current?.[seedSource]);
+    const hasMaxDirty = Boolean(maxResultsDirtyRef.current);
+    if (!hasSeedDirty && !hasMaxDirty) return;
+
+    if (settingsFocusCountRef.current > 0) return;
+    settingsAutosaveTimerRef.current = setTimeout(() => {
+      const latestSeedSource = lastEditedSeedSourceRef.current;
+      const seedUrlsToPersist =
+        latestSeedSource && seedUrlsDirtyBySourceRef.current?.[latestSeedSource]
+          ? normalizeSeedUrlsList(
+            seedUrlsBySourceTypeRef.current?.[latestSeedSource]
+          )
+          : [];
+
+      syncSettingsForFetch({
+        seedSource: latestSeedSource,
+        seedUrlsToPersist,
+      }).catch(() => { });
+    }, 1500);
+  };
+
+  const handleSettingsInputFocus = () => {
+    settingsFocusCountRef.current += 1;
+    cancelSettingsAutosave();
+  };
+
+  const handleSettingsInputBlur = () => {
+    settingsFocusCountRef.current = Math.max(
+      0,
+      settingsFocusCountRef.current - 1
+    );
+    scheduleSettingsAutosave();
+  };
+
+  const syncSettingsForFetch = ({ seedSource, seedUrlsToPersist }) => {
+    return enqueueSettingsSync(async () => {
+      const updates = {};
+
+      const shouldSyncSeedUrls =
+        seedSource && Boolean(seedUrlsDirtyBySourceRef.current?.[seedSource]);
+      if (shouldSyncSeedUrls) {
+        const committedSeedUrls =
+          committedSettingsRef.current.seedUrlsBySourceType?.[seedSource] || [];
+        const nextSeedUrls = normalizeSeedUrlsList(seedUrlsToPersist);
+        if (!areStringArraysEqual(nextSeedUrls, committedSeedUrls)) {
+          updates.seedUrls = nextSeedUrls;
+          updates.seedSource = seedSource;
+        } else {
+          seedUrlsDirtyBySourceRef.current[seedSource] = false;
+        }
+      }
+
+      if (maxResultsDirtyRef.current) {
+        const maxResultsTrimmed = String(maxResultsRef.current || "").trim();
+        const nextMaxResults =
+          maxResultsTrimmed === ""
+            ? null
+            : (() => {
+              const parsed = Number(maxResultsTrimmed);
+              if (!Number.isFinite(parsed)) {
+                throw new Error(
+                  t("literature_max_results_invalid") ||
+                  "最大返回条数必须是数字。"
+                );
+              }
+              return Math.max(1, Math.trunc(parsed));
+            })();
+
+        const committedMaxResults =
+          committedSettingsRef.current.maxResults == null
+            ? null
+            : Number(committedSettingsRef.current.maxResults);
+
+        if (
+          (nextMaxResults == null && committedMaxResults != null) ||
+          (nextMaxResults != null && committedMaxResults == null) ||
+          (nextMaxResults != null &&
+            committedMaxResults != null &&
+            nextMaxResults !== committedMaxResults)
+        ) {
+          updates.maxResults = nextMaxResults;
+        } else {
+          maxResultsDirtyRef.current = false;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return;
+      }
+
+      const data = await apiService.updateLiteratureSettings(updates);
+      const nextCommittedSeedUrlsBySourceType =
+        data?.seedUrlsBySourceType &&
+          typeof data.seedUrlsBySourceType === "object"
+          ? {
+            nature: normalizeSeedUrlsList(data.seedUrlsBySourceType.nature),
+            science: normalizeSeedUrlsList(data.seedUrlsBySourceType.science),
+          }
+          : committedSettingsRef.current.seedUrlsBySourceType || {
+            nature: [],
+            science: [],
+          };
+      committedSettingsRef.current = {
+        seedUrlsBySourceType: nextCommittedSeedUrlsBySourceType,
+        maxResults:
+          data?.maxResults == null
+            ? null
+            : Number.isFinite(Number(data.maxResults))
+              ? Number(data.maxResults)
+              : null,
+      };
+
+      if (
+        seedSource &&
+        Object.prototype.hasOwnProperty.call(updates, "seedUrls")
+      ) {
+        seedUrlsDirtyBySourceRef.current[seedSource] = false;
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
+        maxResultsDirtyRef.current = false;
+      }
+
+      if (isMountedRef.current) {
         setToast({
           isVisible: true,
           message: t("literature_settings_saved") || "设置已同步",
           type: "success",
         });
-      } catch (error) {
-        setSettingsSync({
-          state: "error",
-          message: error?.message || String(error),
-        });
+      }
+    }).catch((error) => {
+      if (isMountedRef.current) {
         setToast({
           isVisible: true,
           message:
-            (t("literature_settings_save_failed") || "璁剧疆鍚屾澶辫触") +
-            (error?.message ? `锛?{error.message}` : ""),
+            (t("literature_settings_save_failed") || "设置同步失败") +
+            (error?.message ? ` (${error.message})` : ""),
           type: "error",
         });
       }
-    }, 800);
+      throw error;
+    });
+  };
 
-    return () => clearTimeout(timer);
-  }, [settingsReady, sanitizedSeedUrls, maxResults, t]);
+  useEffect(() => {
+    return () => {
+      cancelSettingsAutosave();
+
+      const updates = {};
+
+      const committedSeedUrlsBySourceType = committedSettingsRef.current
+        .seedUrlsBySourceType || {
+        nature: [],
+        science: [],
+      };
+
+      const nextSeedUrlsBySourceType = {
+        nature: normalizeSeedUrlsList(seedUrlsBySourceTypeRef.current?.nature),
+        science: normalizeSeedUrlsList(
+          seedUrlsBySourceTypeRef.current?.science
+        ),
+      };
+
+      const dirtySources = ["nature", "science"].filter(
+        (source) => seedUrlsDirtyBySourceRef.current?.[source]
+      );
+
+      const seedUrlsShouldUpdate = dirtySources.some((source) => {
+        const committedList = committedSeedUrlsBySourceType[source] || [];
+        const nextList = nextSeedUrlsBySourceType[source] || [];
+        if (areStringArraysEqual(nextList, committedList)) {
+          seedUrlsDirtyBySourceRef.current[source] = false;
+          return false;
+        }
+        return true;
+      });
+
+      if (seedUrlsShouldUpdate) {
+        updates.seedUrlsBySourceType = nextSeedUrlsBySourceType;
+      }
+
+      if (maxResultsDirtyRef.current) {
+        const raw = String(maxResultsRef.current || "").trim();
+        const parsed =
+          raw === ""
+            ? null
+            : (() => {
+              const n = Number(raw);
+              if (!Number.isFinite(n)) return null;
+              return Math.max(1, Math.trunc(n));
+            })();
+
+        const committedMaxResults =
+          committedSettingsRef.current.maxResults == null
+            ? null
+            : Number(committedSettingsRef.current.maxResults);
+
+        if (
+          (parsed == null && committedMaxResults != null) ||
+          (parsed != null && committedMaxResults == null) ||
+          (parsed != null &&
+            committedMaxResults != null &&
+            parsed !== committedMaxResults)
+        ) {
+          updates.maxResults = parsed;
+        } else {
+          maxResultsDirtyRef.current = false;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) return;
+
+      apiService
+        .updateLiteratureSettings(updates)
+        .then((data) => {
+          const nextCommittedSeedUrlsBySourceType =
+            data?.seedUrlsBySourceType &&
+              typeof data.seedUrlsBySourceType === "object"
+              ? {
+                nature: normalizeSeedUrlsList(
+                  data.seedUrlsBySourceType.nature
+                ),
+                science: normalizeSeedUrlsList(
+                  data.seedUrlsBySourceType.science
+                ),
+              }
+              : committedSettingsRef.current.seedUrlsBySourceType || {
+                nature: [],
+                science: [],
+              };
+          committedSettingsRef.current = {
+            seedUrlsBySourceType: nextCommittedSeedUrlsBySourceType,
+            maxResults:
+              data?.maxResults == null
+                ? null
+                : Number.isFinite(Number(data.maxResults))
+                  ? Number(data.maxResults)
+                  : null,
+          };
+          if (
+            Object.prototype.hasOwnProperty.call(
+              updates,
+              "seedUrlsBySourceType"
+            )
+          ) {
+            for (const source of ["nature", "science"]) {
+              seedUrlsDirtyBySourceRef.current[source] = false;
+            }
+          }
+          if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
+            maxResultsDirtyRef.current = false;
+          }
+        })
+        .catch(() => {
+          // ignore on unmount
+        });
+    };
+  }, []);
 
   useEffect(() => {
     const userId = user?.id ?? null;
@@ -360,7 +737,7 @@ const LiteratureResearch = () => {
     const snapshot = {
       v: LITERATURE_SESSION_STATE_VERSION,
       savedAt: Date.now(),
-      seedUrls,
+      seedUrlsBySourceType,
       startDate,
       endDate,
       maxResults,
@@ -377,13 +754,13 @@ const LiteratureResearch = () => {
     literatureSession.setSession(userId, snapshot);
   }, [
     endDate,
+    maxResults,
     keywordInput,
     keywordMode,
-    maxResults,
     resultView,
     results,
     selectedIds,
-    seedUrls,
+    seedUrlsBySourceType,
     sourceType,
     startDate,
     status,
@@ -397,7 +774,8 @@ const LiteratureResearch = () => {
     return [...list].sort((a, b) => {
       const da = a?.publishedDate || "";
       const db = b?.publishedDate || "";
-      if (da === db) return String(a?.title || "").localeCompare(b?.title || "");
+      if (da === db)
+        return String(a?.title || "").localeCompare(b?.title || "");
       if (!da) return 1;
       if (!db) return -1;
       return db.localeCompare(da);
@@ -476,7 +854,8 @@ const LiteratureResearch = () => {
           typeof translation?.targetLang === "string" && translation.targetLang
             ? translation.targetLang
             : null;
-        const hasAbstract = typeof item?.abstract === "string" && item.abstract.trim();
+        const hasAbstract =
+          typeof item?.abstract === "string" && item.abstract.trim();
         const canTranslate =
           Boolean(hasAbstract) &&
           !isTranslating &&
@@ -499,12 +878,15 @@ const LiteratureResearch = () => {
             t("literature_translate_wait") ||
             "Another translation is in progress. Please wait.";
         } else if (!hasTranslationApiKey) {
-          translateTitle = t("personal_api_key_required") || "Set API Key to translate.";
+          translateTitle =
+            t("personal_api_key_required") || "Set API Key to translate.";
         }
 
         return (
           <article
             key={item?.id || item?.articleUrl || item?.title}
+            data-ui="literature-result-card"
+            data-item-id={String(id)}
             onClick={() => toggleSelectedId(id)}
             className={`border rounded-2xl p-5 shadow-sm cursor-pointer transition-all duration-200 ${isSelected
               ? "border-black bg-black/5"
@@ -523,6 +905,8 @@ const LiteratureResearch = () => {
                       onClick={(e) => e.stopPropagation()}
                       className="text-text-primary font-semibold hover:text-accent transition-colors truncate max-w-full"
                       title={item?.title}
+                      data-ui="literature-result-title-link"
+                      data-item-id={String(id)}
                     >
                       {item?.title || item?.articleUrl}
                     </a>
@@ -539,6 +923,8 @@ const LiteratureResearch = () => {
                         : "border-border text-text-tertiary opacity-40 cursor-not-allowed"
                         }`}
                       title={translateTitle}
+                      data-ui="literature-result-translate-btn"
+                      data-item-id={String(id)}
                     >
                       {isTranslating ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -561,8 +947,11 @@ const LiteratureResearch = () => {
                       title={
                         item?.downloadable
                           ? t("literature_download") || "涓嬭浇"
-                          : t("literature_download_unavailable") || "鏃犲彲涓嬭浇鏂囦欢"
+                          : t("literature_download_unavailable") ||
+                          "鏃犲彲涓嬭浇鏂囦欢"
                       }
+                      data-ui="literature-result-download-btn"
+                      data-item-id={String(id)}
                     >
                       <Download size={16} />
                     </button>
@@ -571,7 +960,10 @@ const LiteratureResearch = () => {
                   <div className="mt-2 flex items-center gap-2 text-xs text-text-tertiary">
                     <span className="inline-flex items-center gap-1 px-0 py-0.5 rounded-md text-text-secondary">
                       {item?.sourceContext ? (
-                        <span className="truncate max-w-[300px]" title={item.sourceContext}>
+                        <span
+                          className="truncate max-w-[300px]"
+                          title={item.sourceContext}
+                        >
                           {item.sourceContext
                             .split(/脙鈥毭偮穦脗路/g)
                             .map((s) => s.trim())
@@ -603,11 +995,15 @@ const LiteratureResearch = () => {
               {isTranslated && !showOriginal && (
                 <div className="mb-2 text-xs text-text-tertiary">
                   {translatedTargetLang === "zh"
-                    ? t("literature_translation_label_zh") || "Chinese translation"
-                    : t("literature_translation_label_en") || "English translation"}
+                    ? t("literature_translation_label_zh") ||
+                    "Chinese translation"
+                    : t("literature_translation_label_en") ||
+                    "English translation"}
                 </div>
               )}
-              {abstractText || (t("literature_no_abstract") || "（该条目暂无摘要）")}
+              {abstractText ||
+                t("literature_no_abstract") ||
+                "（该条目暂无摘要）"}
             </div>
           </article>
         );
@@ -658,29 +1054,24 @@ const LiteratureResearch = () => {
   };
 
   const setSeedUrlAt = (index, value) => {
-    setSeedUrls((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+    setSeedUrlsForSourceType(
+      seedUrls.map((prevValue, i) => (i === index ? value : prevValue))
+    );
   };
 
   const removeSeedUrlAt = (index) => {
-    setSeedUrls((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      return next.length ? next : [""];
-    });
+    const next = seedUrls.filter((_, i) => i !== index);
+    setSeedUrlsForSourceType(next.length ? next : [""]);
   };
 
   const addSeedUrl = () => {
-    setSeedUrls((prev) => [...prev, ""]);
+    setSeedUrlsForSourceType([...seedUrls, ""]);
   };
-
-
 
   const handleTranslate = async (item) => {
     const id = getLiteratureItemId(item);
-    const abstract = typeof item?.abstract === "string" ? item.abstract.trim() : "";
+    const abstract =
+      typeof item?.abstract === "string" ? item.abstract.trim() : "";
     if (!id || !abstract) return;
 
     const targetLang = "zh";
@@ -701,9 +1092,7 @@ const LiteratureResearch = () => {
     if (!hasTranslationApiKey) {
       setToast({
         isVisible: true,
-        message:
-          t("personal_api_key_required") ||
-          "Please enter your API Key.",
+        message: t("personal_api_key_required") || "Please enter your API Key.",
         type: "error",
       });
       return;
@@ -723,7 +1112,9 @@ const LiteratureResearch = () => {
         targetLang,
       });
       const translatedText =
-        typeof data?.translatedText === "string" ? data.translatedText.trim() : "";
+        typeof data?.translatedText === "string"
+          ? data.translatedText.trim()
+          : "";
       if (!translatedText) {
         throw new Error("Translation returned empty text");
       }
@@ -761,22 +1152,11 @@ const LiteratureResearch = () => {
     }
   };
 
-
   const handleSourceChange = (newSource) => {
+    sourceTypeRef.current = newSource;
     setSourceType(newSource);
-    // Optionally reset seed URLs if they look like they belong to the other source
-    setSeedUrls((prev) => {
-      const isCurrentlyScience = prev.some((u) => u.includes("science.org"));
-      const isCurrentlyNature = prev.some((u) => u.includes("nature.com"));
-
-      if (newSource === "science" && isCurrentlyNature) {
-        return ["https://www.science.org/journal/sciadv"];
-      }
-      if (newSource === "nature" && isCurrentlyScience) {
-        return ["https://www.nature.com/nature/research-articles"];
-      }
-      return prev;
-    });
+    // Preserve user input when switching. Source-specific placeholders/examples are
+    // already shown elsewhere; forcing defaults here wipes state unexpectedly.
   };
 
   const handleSearch = async () => {
@@ -784,8 +1164,25 @@ const LiteratureResearch = () => {
       setStatus({
         state: "error",
         message:
-          t("literature_seed_urls_required") ||
-          "请先填写至少一个入口链接。",
+          t("literature_seed_urls_required") || "请先填写至少一个入口链接。",
+      });
+      return;
+    }
+
+    cancelSettingsAutosave();
+
+    try {
+      await syncSettingsForFetch({
+        seedSource: sourceType,
+        seedUrlsToPersist: sanitizedSeedUrls,
+      });
+    } catch (error) {
+      setStatus({
+        state: "error",
+        message:
+          error?.message ||
+          t("literature_settings_save_failed") ||
+          "设置同步失败",
       });
       return;
     }
@@ -798,7 +1195,11 @@ const LiteratureResearch = () => {
         seedUrls: sanitizedSeedUrls,
         startDate,
         endDate,
-        maxResults,
+        maxResults:
+          String(maxResults || "").trim() &&
+            Number.isFinite(Number(String(maxResults || "").trim()))
+            ? Number(String(maxResults || "").trim())
+            : null,
       };
       const data = await apiService.searchLiterature(payload);
       setResults(Array.isArray(data) ? data : []);
@@ -843,8 +1244,7 @@ const LiteratureResearch = () => {
     if (!hasTranslationApiKey) {
       setToast({
         isVisible: true,
-        message:
-          t("personal_api_key_required") || "Please enter your API Key.",
+        message: t("personal_api_key_required") || "Please enter your API Key.",
         type: "error",
       });
       return;
@@ -863,7 +1263,9 @@ const LiteratureResearch = () => {
 
     const resolvedDocTitle = (() => {
       const journalTitles = exportItems
-        .map((i) => (typeof i?.journalTitle === "string" ? i.journalTitle.trim() : ""))
+        .map((i) =>
+          typeof i?.journalTitle === "string" ? i.journalTitle.trim() : ""
+        )
         .filter(Boolean);
       const unique = [...new Set(journalTitles)];
       if (unique.length === 1) return unique[0];
@@ -874,14 +1276,22 @@ const LiteratureResearch = () => {
 
     const prevTranslateLock = translateInFlightRef.current;
     translateInFlightRef.current = true;
-    setDocxExport({ state: "translating", current: 0, total: exportItems.length });
+    setDocxExport({
+      state: "translating",
+      current: 0,
+      total: exportItems.length,
+    });
 
     try {
       const lines = [];
       for (let index = 0; index < exportItems.length; index += 1) {
         const item = exportItems[index];
-        const id = String(item?.id || item?.articleUrl || item?.title || "").trim();
-        const title = normalizeDocText(item?.title || item?.articleUrl || `Item ${index + 1}`);
+        const id = String(
+          item?.id || item?.articleUrl || item?.title || ""
+        ).trim();
+        const title = normalizeDocText(
+          item?.title || item?.articleUrl || `Item ${index + 1}`
+        );
         const abstractEn =
           typeof item?.abstract === "string" ? item.abstract.trim() : "";
 
@@ -890,7 +1300,9 @@ const LiteratureResearch = () => {
           const existing = translations[id];
           if (
             existing?.state === "done" &&
-            String(existing?.targetLang || "").toLowerCase().startsWith("zh") &&
+            String(existing?.targetLang || "")
+              .toLowerCase()
+              .startsWith("zh") &&
             typeof existing?.text === "string" &&
             existing.text.trim()
           ) {
@@ -898,7 +1310,13 @@ const LiteratureResearch = () => {
           } else {
             setTranslations((prev) => ({
               ...prev,
-              [id]: { state: "loading", text: "", error: "", showOriginal: false, targetLang: "zh" },
+              [id]: {
+                state: "loading",
+                text: "",
+                error: "",
+                showOriginal: false,
+                targetLang: "zh",
+              },
             }));
             try {
               const data = await apiService.translateLiteratureAbstract({
@@ -907,7 +1325,9 @@ const LiteratureResearch = () => {
                 targetLang: "zh",
               });
               const translatedText =
-                typeof data?.translatedText === "string" ? data.translatedText.trim() : "";
+                typeof data?.translatedText === "string"
+                  ? data.translatedText.trim()
+                  : "";
               abstractZh = normalizeDocText(translatedText);
               if (!abstractZh) {
                 throw new Error("Translation returned empty text");
@@ -934,7 +1354,8 @@ const LiteratureResearch = () => {
                 },
               }));
               throw new Error(
-                `Translation failed for "${title}": ${error?.message || String(error)}`,
+                `Translation failed for "${title}": ${error?.message || String(error)
+                }`
               );
             }
           }
@@ -946,13 +1367,23 @@ const LiteratureResearch = () => {
           abstractZh: abstractZh || "",
           hasAbstract: Boolean(abstractEn),
         });
-        setDocxExport({ state: "translating", current: index + 1, total: exportItems.length });
+        setDocxExport({
+          state: "translating",
+          current: index + 1,
+          total: exportItems.length,
+        });
       }
 
       setDocxExport((prev) => ({ ...prev, state: "building" }));
 
-      const { Document, Packer, Paragraph, TextRun, AlignmentType, LineRuleType } =
-        await import("docx");
+      const {
+        Document,
+        Packer,
+        Paragraph,
+        TextRun,
+        AlignmentType,
+        LineRuleType,
+      } = await import("docx");
 
       const spacing = {
         before: 0,
@@ -1004,7 +1435,7 @@ const LiteratureResearch = () => {
                 size: 24,
               }),
             ],
-          }),
+          })
         );
 
         if (entry.hasAbstract) {
@@ -1016,12 +1447,13 @@ const LiteratureResearch = () => {
                 new TextRun({
                   text:
                     entry.abstractZh ||
-                    (t("literature_no_abstract") || "(No abstract available)"),
+                    t("literature_no_abstract") ||
+                    "(No abstract available)",
                   font: fontSong,
                   size: 24,
                 }),
               ],
-            }),
+            })
           );
         }
       }
@@ -1035,7 +1467,9 @@ const LiteratureResearch = () => {
       });
 
       const blob = await Packer.toBlob(doc);
-      const fileName = `${safeFilePart(resolvedDocTitle)}_${safeFilePart(startDate)}-${safeFilePart(endDate)}.docx`;
+      const fileName = `${safeFilePart(resolvedDocTitle)}_${safeFilePart(
+        startDate
+      )}-${safeFilePart(endDate)}.docx`;
       const url = URL.createObjectURL(blob);
       try {
         const a = document.createElement("a");
@@ -1107,7 +1541,9 @@ const LiteratureResearch = () => {
       if (seen.has(doi)) continue;
       seen.add(doi);
 
-      const title = String(item?.title || item?.articleUrl || item?.id || doi).trim();
+      const title = String(
+        item?.title || item?.articleUrl || item?.id || doi
+      ).trim();
       if (!title) continue;
 
       const entry = { doi, title };
@@ -1120,7 +1556,9 @@ const LiteratureResearch = () => {
       if (articleUrl) entry.articleUrl = articleUrl;
 
       const publishedDate =
-        typeof item?.publishedDate === "string" ? item.publishedDate.trim() : "";
+        typeof item?.publishedDate === "string"
+          ? item.publishedDate.trim()
+          : "";
       if (/^\d{4}-\d{2}-\d{2}$/.test(publishedDate)) {
         entry.publishedDate = publishedDate;
       }
@@ -1135,7 +1573,9 @@ const LiteratureResearch = () => {
     };
 
     const jsonText = JSON.stringify(payload, null, 2);
-    const blob = new Blob([jsonText], { type: "application/json;charset=utf-8" });
+    const blob = new Blob([jsonText], {
+      type: "application/json;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
 
     try {
@@ -1156,12 +1596,8 @@ const LiteratureResearch = () => {
     });
   };
 
-
   return (
-    <div
-      className="w-full min-h-screen relative"
-      ref={containerRef}
-    >
+    <div className="w-full min-h-screen relative" ref={containerRef}>
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">
           {t("literature_research_title") || "鏂囩尞璋冪爺"}
@@ -1172,11 +1608,11 @@ const LiteratureResearch = () => {
         </p>
       </div>
 
-      <section className="bg-bg-surface border border-border rounded-2xl p-6 shadow-sm">
-          <div className="ui-toolbar_warp">
-            <div>
-
+      <Card as="section">
+        <div className="ui-toolbar_warp">
+          <div data-ui="literature-source-toggle">
             <ToggleButton
+              idBase="literature-source"
               value={sourceType}
               onChange={handleSourceChange}
               options={[
@@ -1187,11 +1623,15 @@ const LiteratureResearch = () => {
           </div>
 
           <div className="ui-filter_warp" aria-label="date filter warp">
-            <div className="date_btn_warp">
-              <label className="date_btn_label">
+            <div className="date_btn_warp" data-ui="literature-start-date">
+              <label
+                className="date_btn_label"
+                data-ui="literature-start-date-label"
+              >
                 {t("literature_start_date") || "开始日期"}
               </label>
               <DatePicker
+                dataUi="literature-start-date"
                 value={startDate}
                 onChange={setStartDate}
                 placeholder={t("literature_start_date") || "开始日期"}
@@ -1203,11 +1643,15 @@ const LiteratureResearch = () => {
                 aria-label="start date"
               />
             </div>
-            <div className="date_btn_warp">
-              <label className="date_btn_label">
+            <div className="date_btn_warp" data-ui="literature-end-date">
+              <label
+                className="date_btn_label"
+                data-ui="literature-end-date-label"
+              >
                 {t("literature_end_date") || "鎴鏃ユ湡"}
               </label>
               <DatePicker
+                dataUi="literature-end-date"
                 value={endDate}
                 onChange={setEndDate}
                 placeholder={t("literature_end_date") || "鎴鏃ユ湡"}
@@ -1218,21 +1662,35 @@ const LiteratureResearch = () => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <label className="text-sm font-medium text-text-secondary whitespace-nowrap">
+              <label
+                className="ui-input_label"
+                htmlFor="literature-max-results"
+                data-ui="literature-max-results-label"
+              >
                 {t("literature_max_results") || "最大返回条数"}
               </label>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={maxResults}
-                onChange={(e) =>
-                  setMaxResults(
-                    Math.max(1, Math.min(100, Math.trunc(Number(e.target.value) || 0))),
-                  )
-                }
-                className="w-24 px-3 py-2 rounded-xl bg-bg-page border border-border-200 focus:outline-none focus:ring-1 focus:ring-black text-sm text-text-primary [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              <Input
+                dataUi="literature-max-results"
+                type="text"
+                id="literature-max-results"
+                name="maxResults"
+                value={String(maxResults ?? "")}
+                onChange={handleMaxResultsInputChange}
+                onFocus={handleSettingsInputFocus}
+                onBlur={handleSettingsInputBlur}
+                inputClassName="w-24 rounded-lg"
+                cta="Literature research"
+                ctaPosition="date filter warp"
+                ctaCopy="max results"
                 aria-label="max results input"
+                inputMode="numeric"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoComplete="new-password"
+                aria-autocomplete="none"
+                data-form-type="other"
+                data-lpignore="true"
               />
             </div>
           </div>
@@ -1240,6 +1698,7 @@ const LiteratureResearch = () => {
           <div className="ui-button_warp">
             <div className="ui-button_row">
               <button
+                data-ui="literature-add-url-btn"
                 data-style="ghost"
                 data-icon="with"
                 data-cta="Literature research"
@@ -1257,6 +1716,7 @@ const LiteratureResearch = () => {
               </button>
 
               <button
+                data-ui="literature-fetch-btn"
                 data-style={status.state === "loading" ? "disabled" : "primary"}
                 data-icon="with"
                 data-cta="Literature research"
@@ -1290,35 +1750,51 @@ const LiteratureResearch = () => {
               </label>
             </div>
 
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2" data-ui="literature-seed-url-list">
               {seedUrls.map((value, index) => (
                 <div
                   key={`${index}`}
                   className="flex items-center gap-2 group"
+                  data-ui="literature-seed-url-row"
+                  data-seed-index={index}
                 >
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">
-                      <LinkIcon size={16} />
-                    </span>
-                    <input
-                      value={value}
-                      onChange={(e) => setSeedUrlAt(index, e.target.value)}
-                      placeholder={
-                        sourceType === "science"
-                          ? "https://www.science.org"
-                          : "https://www.nature.com"
-                      }
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-bg-page border border-border-200 focus:outline-none focus:ring-1 focus:ring-black text-sm text-text-primary placeholder:text-text-tertiary"
-                      aria-label="literature-seed-url-input"
-                    />
-                  </div>
+                  <Input
+                    dataUi="literature-seed-url"
+                    size="lg"
+                    value={value}
+                    onChange={(nextValue) => setSeedUrlAt(index, nextValue)}
+                    onFocus={handleSettingsInputFocus}
+                    onBlur={handleSettingsInputBlur}
+                    inputClassName="rounded-lg"
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    placeholder={
+                      sourceType === "science"
+                        ? "https://www.science.org"
+                        : "https://www.nature.com"
+                    }
+                    leftIcon={LinkIcon}
+                    className="flex-1"
+                    aria-label={`${t("literature_seed_urls") || "Seed URL"} ${index + 1
+                      }`}
+                    data-seed-index={index}
+                  />
                   <button
                     type="button"
                     onClick={() => removeSeedUrlAt(index)}
-                    className="relative group h-[42px] w-[42px] flex items-center justify-center p-0 rounded-xl text-text-tertiary transition-colors hover:text-red-500 before:content-[''] before:absolute before:inset-0 before:rounded-xl before:border before:border-border before:bg-transparent before:pointer-events-none before:transition-transform before:transition-colors hover:before:scale-[1.02]"
                     title={t("literature_remove_url") || "绉婚櫎"}
+                    aria-label={t("literature_remove_url") || "Remove URL"}
+                    data-style="ghost"
+                    data-icon="with"
+                    data-cta="Literature research"
+                    data-cta-position="seed urls"
+                    data-cta-copy="remove url"
+                    data-ui="literature-seed-url-remove-btn"
+                    data-seed-index={index}
+                    className="click_btn click_btn--icon click_btn--fx click_btn--fx-muted click_btn--danger"
                   >
-                    <span className="relative z-10">
+                    <span className="click_btn_content">
                       <Trash2 size={16} />
                     </span>
                   </button>
@@ -1333,16 +1809,11 @@ const LiteratureResearch = () => {
             {status.message}
           </div>
         )}
-      </section>
+      </Card>
 
       <section className="mt-8">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2
-            className="text-lg font-semibold text-text-primary"
-            aria-label="literature-keyword-matching-title"
-          >
-            {t("literature_keyword_matching") || "Keyword Matching"}
-          </h2>
+        <div className="ui-section_head ui-section_head--gap">
+
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
@@ -1354,6 +1825,7 @@ const LiteratureResearch = () => {
                 }`}
               title={exportDocxLabel}
               aria-label="literature-export-docx-btn"
+              data-ui="literature-export-docx-btn"
             >
               <span className="relative z-10 flex items-center gap-2">
                 {isExportingDocx ? (
@@ -1362,7 +1834,9 @@ const LiteratureResearch = () => {
                   <FileDown size={16} />
                 )}
                 {exportDocxLabel}
-                {!isExportingDocx && selectedCount > 0 ? ` (${selectedCount})` : ""}
+                {!isExportingDocx && selectedCount > 0
+                  ? ` (${selectedCount})`
+                  : ""}
               </span>
             </button>
 
@@ -1376,6 +1850,7 @@ const LiteratureResearch = () => {
                 }`}
               title={t("literature_export_json") || "Export JSON"}
               aria-label="literature-export-json-btn"
+              data-ui="literature-export-json-btn"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <FileJson size={16} />
@@ -1383,8 +1858,6 @@ const LiteratureResearch = () => {
                   (selectedCount > 0 ? ` (${selectedCount})` : "")}
               </span>
             </button>
-
-
 
             <button
               type="button"
@@ -1402,6 +1875,7 @@ const LiteratureResearch = () => {
                 }`}
               title={t("literature_clear_session") || "Clear session"}
               aria-label="literature-clear-session-btn"
+              data-ui="literature-clear-session-btn"
             >
               <span className="relative z-10 flex items-center gap-2">
                 <Trash2 size={16} />
@@ -1411,88 +1885,101 @@ const LiteratureResearch = () => {
           </div>
         </div>
 
-        <div className="bg-bg-surface border border-border rounded-2xl p-4 mb-4">
+        <Card
+          as="section"
+          dataUi="literature-keyword-panel"
+          variant="panel"
+          className="mb-4"
+        >
           <div className="ui-toolbar_warp">
-            <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2"
+              data-ui="literature-keyword-mode-toggle"
+            >
               <ToggleButton
                 options={[
-                  { value: "any", label: t("literature_match_any") || "浠绘剰鍖归厤" },
-                  { value: "all", label: t("literature_match_all") || "鍏ㄩ儴鍖归厤" },
+                  {
+                    value: "any",
+                    label: t("literature_match_any") || "浠绘剰鍖归厤",
+                  },
+                  {
+                    value: "all",
+                    label: t("literature_match_all") || "鍏ㄩ儴鍖归厤",
+                  },
                 ]}
                 value={keywordMode}
                 onChange={setKeywordMode}
                 className="w-fit"
                 groupLabel="literature-match-mode-segment"
               />
-
-
             </div>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-3" data-ui="literature-keywords-warp">
             <textarea
+              data-ui="literature-keywords-input"
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
-              placeholder={
-                t("literature_keywords_placeholder") ||
-                "例如：quantum, AI safety, microfluidics（用空格/换行/逗号分隔）"
-              }
+              placeholder="关键词匹配：two-dimensional, wafer, AI 等（用空格/换行/逗号分隔）"
               rows={2}
-              className="w-full px-3 py-2.5 rounded-xl bg-bg-page border border-border-200 focus:outline-none focus:ring-1 focus:ring-black text-sm text-text-primary placeholder:text-text-tertiary resize-y"
+              className="w-full px-3 py-2.5 rounded-lg bg-bg-page border border-border-200 focus:outline-none focus:ring-1 focus:ring-black text-sm text-text-primary placeholder:text-text-tertiary resize-y"
             />
             <div className="mt-2 text-xs text-text-tertiary">
-              {(t("literature_keywords_count") || "当前关键词") + `：${keywords.length}`}
+              {(t("literature_keywords_count") || "当前关键词") +
+                `：${keywords.length}`}
             </div>
-
           </div>
-        </div>
+        </Card>
 
         <h2
-          className="text-lg font-semibold text-text-primary mb-4"
+          className="ui-section_title ui-section_title--spaced"
           aria-label="literature-results-title"
         >
           {t("literature_results_title") || "检索结果"}
         </h2>
-        <div
-          className="bg-bg-surface border border-border rounded-2xl p-6 shadow-sm min-h-[600px]"
+        <Card
+          dataUi="literature-results-container"
+          className="min-h-[600px]"
           aria-label="literature-results-container"
         >
-          <div className="ui-toolbar_wrap">
-            <ToggleButton
-              options={[
-                {
-                  value: "all",
-                  label:
-                    (t("literature_view_all") || "鍏ㄩ儴") +
-                    ` (${sortedResults.length})`,
-                  cta: "Literature research",
-                  ctaPosition: "result",
-                  ctaCopy: "all",
-                },
-                {
-                  value: "matched",
-                  label:
-                    (t("literature_view_matched") || "匹配") +
-                    ` (${matchedResults.length})`,
-                  cta: "Literature research",
-                  ctaPosition: "result",
-                  ctaCopy: "matched",
-                },
-                {
-                  value: "unmatched",
-                  label:
-                    (t("literature_view_unmatched") || "未匹配") +
-                    ` (${unmatchedResults.length})`,
-                  cta: "Literature research",
-                  ctaPosition: "result",
-                  ctaCopy: "unmatched",
-                },
-              ]}
-              value={resultView}
-              onChange={setResultView}
-              className="w-fit"
-              groupLabel="Literature results view"
-            />
+          <div className="ui-toolbar_warp">
+            <div data-ui="literature-results-view-toggle">
+              <ToggleButton
+                options={[
+                  {
+                    value: "all",
+                    label:
+                      (t("literature_view_all") || "鍏ㄩ儴") +
+                      ` (${sortedResults.length})`,
+                    cta: "Literature research",
+                    ctaPosition: "result",
+                    ctaCopy: "all",
+                  },
+                  {
+                    value: "matched",
+                    label:
+                      (t("literature_view_matched") || "匹配") +
+                      ` (${matchedResults.length})`,
+                    cta: "Literature research",
+                    ctaPosition: "result",
+                    ctaCopy: "matched",
+                  },
+                  {
+                    value: "unmatched",
+                    label:
+                      (t("literature_view_unmatched") || "未匹配") +
+                      ` (${unmatchedResults.length})`,
+                    cta: "Literature research",
+                    ctaPosition: "result",
+                    ctaCopy: "unmatched",
+                  },
+                ]}
+                value={resultView}
+                onChange={setResultView}
+                className="w-fit"
+                groupLabel="Literature results view"
+              />
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -1508,19 +1995,27 @@ const LiteratureResearch = () => {
                   ? "text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border"
                   : "text-text-secondary hover:text-text-primary before:bg-transparent before:border before:border-border hover:before:scale-[1.02]"
                   }`}
-                title={t("literature_select_all_filtered") || "Select all (filtered)"}
+                title={
+                  t("literature_select_all_filtered") || "Select all (filtered)"
+                }
                 aria-label="literature-select-all-btn"
+                data-ui="literature-select-all-btn"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   <ListChecks size={16} />
-                  {t("literature_select_all_filtered") || "Select all (filtered)"}
+                  {t("literature_select_all_filtered") ||
+                    "Select all (filtered)"}
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={handleClearSelection}
-                disabled={isExportingDocx || status.state === "loading" || selectedCount === 0}
+                disabled={
+                  isExportingDocx ||
+                  status.state === "loading" ||
+                  selectedCount === 0
+                }
                 className={`group relative inline-flex items-center justify-center px-4 h-[38px] rounded-xl text-sm transition-all before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors ${isExportingDocx ||
                   status.state === "loading" ||
                   selectedCount === 0
@@ -1529,6 +2024,7 @@ const LiteratureResearch = () => {
                   }`}
                 title={t("literature_clear_selection") || "Clear selection"}
                 aria-label="literature-clear-selection-btn"
+                data-ui="literature-clear-selection-btn"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   <ListX size={16} />
@@ -1543,13 +2039,14 @@ const LiteratureResearch = () => {
                 {t("literature_no_results") || "没有找到符合条件的文章。"}
               </p>
               <p className="text-sm mt-1">
-                {t("literature_no_results_hint") || "尝试调整日期范围或入口链接。"}
+                {t("literature_no_results_hint") ||
+                  "尝试调整日期范围或入口链接。"}
               </p>
             </div>
           )}
 
           {renderResultCards(visibleResults)}
-        </div>
+        </Card>
       </section>
 
       <Toast

@@ -505,9 +505,11 @@ class ApiService {
     if (endpoint === "/literature/settings" && method === "GET") {
       return {
         seedUrls: [],
+        seedUrlsBySourceType: { nature: [], science: [] },
+        sourceType: "nature",
         startDate: null,
         endDate: null,
-        maxResults: 100,
+        maxResults: null,
         hasTranslationApiKey: false,
         hasDefaultTranslationApiKey: false,
         translationApiKeySource: null,
@@ -530,6 +532,11 @@ class ApiService {
         parsed = null;
       }
 
+      const seedSource =
+        parsed?.seedSource === "nature" || parsed?.seedSource === "science"
+          ? parsed.seedSource
+          : null;
+
       const translationModel =
         typeof parsed?.translationModel === "string" && parsed.translationModel.trim()
           ? parsed.translationModel.trim()
@@ -543,11 +550,35 @@ class ApiService {
           ? parsed.translationProvider.trim()
           : null;
 
+      const seedUrls = Array.isArray(parsed?.seedUrls) ? parsed.seedUrls : [];
+      const seedUrlsBySourceTypeRaw = parsed?.seedUrlsBySourceType;
+      const seedUrlsBySourceType =
+        seedUrlsBySourceTypeRaw && typeof seedUrlsBySourceTypeRaw === "object"
+          ? {
+              nature: Array.isArray(seedUrlsBySourceTypeRaw.nature)
+                ? seedUrlsBySourceTypeRaw.nature
+                : [],
+              science: Array.isArray(seedUrlsBySourceTypeRaw.science)
+                ? seedUrlsBySourceTypeRaw.science
+                : [],
+            }
+          : {
+              nature: seedSource === "nature" ? seedUrls : [],
+              science: seedSource === "science" ? seedUrls : [],
+            };
+
+      const sourceType =
+        parsed?.sourceType === "nature" || parsed?.sourceType === "science"
+          ? parsed.sourceType
+          : seedSource;
+
       return {
-        seedUrls: Array.isArray(parsed?.seedUrls) ? parsed.seedUrls : [],
+        seedUrls,
+        seedUrlsBySourceType,
+        sourceType,
         startDate: typeof parsed?.startDate === "string" ? parsed.startDate : null,
         endDate: typeof parsed?.endDate === "string" ? parsed.endDate : null,
-        maxResults: typeof parsed?.maxResults === "number" ? parsed.maxResults : 100,
+        maxResults: typeof parsed?.maxResults === "number" ? parsed.maxResults : null,
         hasTranslationApiKey: Boolean(hasUserKey),
         hasDefaultTranslationApiKey: false,
         translationApiKeySource: hasUserKey ? "user" : null,

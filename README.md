@@ -490,6 +490,11 @@ cd server && npm run init-db
 
 Template 会以**第一个导入的 CSV**作为预览基准，但会对**所有已导入 CSV**应用同一套提取规则。
 
+相关计算/实现说明：
+- gm（`dI/dX` / `dI/dLegend @ fixed X`）：`docs/gm_spec_v1.md`
+- On/Off（`|I|on` / `|I|off` / `Ion/Ioff`）：`docs/onoff_spec_v1.md`
+- Origin 一键出图集成方案：`docs/origin_integration_spec_v1.md`
+
 ### 1）设置真实 X（必填）
 
 - 在「X Data」里填写或选择 `Start Cell` / `End Cell`（例如 `A2` 到 `A1408`）。

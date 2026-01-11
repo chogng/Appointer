@@ -287,7 +287,7 @@ const Dashboard = () => {
       <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity Column */}
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="ui-section_head">
             <div className="flex items-center gap-2">
               <Activity size={20} className="text-accent" />
               <h2 className="text-xl font-serif font-medium text-text-primary">

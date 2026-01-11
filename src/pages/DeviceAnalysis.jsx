@@ -1282,7 +1282,7 @@ Note:
 
         {/* 3. Visualization/Analysis - Full Width */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="ui-section_head">
             <h2 className="text-xl font-bold text-text-primary">
               Analysis & Visualization
             </h2>

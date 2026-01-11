@@ -21,8 +21,9 @@
 每个按钮必须使用：
 
 - `<button type="button">`
-- 推荐提供 `aria-label`（当按钮文案不够清晰时）
+- 推荐提供 `aria-label`（当按钮文案不够清晰时）；若按钮为 **icon-only（仅 icon、无可见文本）则必须提供** `aria-label`
   - `aria-label` 的取值应是“人类可读的短语”，允许包含空格；不要用 `-` 之类把它当作机器标识符。
+- icon-only 按钮可选提供 `title` 作为 tooltip，但 **不能替代** `aria-label`
 - 若不可点击：使用原生 `disabled`
 - 推荐提供 `data-style="primary|ghost|disabled"`（稳定风格标记，便于测试/脚本）
 - 推荐提供 `data-icon="with|without"`（是否包含 icon 的稳定标记）
@@ -53,11 +54,14 @@
 - 基础：
   - `.click_btn`
   - `.click_btn--md`
+  - `.click_btn--icon`（icon-only 方形按钮：42×42）
   - `.click_btn_content`
-  - `.click_btn--fx`（提供 before 背景与缩放动效的基础）
+  - `.click_btn--fx`（提供 ring/hover 的 box-shadow 扩张动效）
+  - `.click_btn--fx-muted`（非 toolbar 场景的通用浅色 ring 变量）
 - 变体：
   - `.click_btn--primary`（主按钮：accent 背景）
   - `.click_btn--ghost`（幽灵按钮：边框/透明背景）
+  - `.click_btn--danger`（危险操作：默认弱提示，hover 变红）
   - `.click_btn--disabled`（禁用态）
 
 约束：
@@ -123,6 +127,23 @@
 >
   <span class="click_btn_content">
     Fetching...
+  </span>
+</button>
+```
+
+### 5.3 Icon-only（例如删除/移除）
+
+```html
+<button
+  type="button"
+  aria-label="remove url"
+  title="Remove URL"
+  data-style="ghost"
+  data-icon="with"
+  class="click_btn click_btn--icon click_btn--fx click_btn--fx-muted click_btn--danger"
+>
+  <span class="click_btn_content">
+    <!-- icon -->
   </span>
 </button>
 ```

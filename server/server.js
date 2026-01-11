@@ -185,16 +185,52 @@ function sanitizeDeviceAnalysisSettings(input) {
   return { patch, errors };
 }
 
+function sanitizeSeedUrlsList(input) {
+  const values = Array.isArray(input) ? input : [];
+  return values
+    .map((value) => (value == null ? "" : String(value)))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 50);
+}
+
+function splitSeedUrlsBySourceType(input) {
+  const nature = [];
+  const science = [];
+
+  for (const value of Array.isArray(input) ? input : []) {
+    const url = value == null ? "" : String(value).trim();
+    if (!url) continue;
+    if (url.includes("science.org")) science.push(url);
+    else nature.push(url);
+  }
+
+  return {
+    nature: sanitizeSeedUrlsList(nature),
+    science: sanitizeSeedUrlsList(science),
+  };
+}
+
 function sanitizeLiteratureSettings(input) {
   const src = isPlainObject(input) ? input : {};
 
-  const seedUrls = Array.isArray(src.seedUrls)
-    ? src.seedUrls
-      .map((value) => (value == null ? "" : String(value)))
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .slice(0, 50)
-    : [];
+  const seedUrls = sanitizeSeedUrlsList(src.seedUrls);
+
+  const seedSourceRaw = src.seedSource;
+  const seedSource =
+    seedSourceRaw === "nature" || seedSourceRaw === "science" ? seedSourceRaw : null;
+
+  const sourceTypeRaw = src.sourceType;
+  const sourceType =
+    sourceTypeRaw === "nature" || sourceTypeRaw === "science" ? sourceTypeRaw : null;
+
+  const seedUrlsBySourceTypeRaw = src.seedUrlsBySourceType;
+  const seedUrlsBySourceType = isPlainObject(seedUrlsBySourceTypeRaw)
+    ? {
+        nature: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.nature),
+        science: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.science),
+      }
+    : null;
 
   const startDate = isValidDateString(src.startDate) ? src.startDate : "";
   const endDate = isValidDateString(src.endDate) ? src.endDate : "";
@@ -203,8 +239,8 @@ function sanitizeLiteratureSettings(input) {
   const maxResultsNumber =
     typeof maxResultsRaw === "number" ? maxResultsRaw : Number(maxResultsRaw);
   const maxResults = Number.isFinite(maxResultsNumber)
-    ? Math.max(1, Math.min(100, Math.trunc(maxResultsNumber)))
-    : 100;
+    ? Math.max(1, Math.trunc(maxResultsNumber))
+    : null;
 
   const translationApiKeyRaw = Object.prototype.hasOwnProperty.call(src, "translationApiKey")
     ? src.translationApiKey
@@ -244,6 +280,9 @@ function sanitizeLiteratureSettings(input) {
 
   return {
     seedUrls,
+    seedUrlsBySourceType,
+    seedSource,
+    sourceType,
     startDate,
     endDate,
     maxResults,
@@ -261,6 +300,20 @@ function mergeLiteratureSettings(existingSettings, patchInput) {
 
   const next = { ...existing };
 
+  const existingSeedUrlsBySourceTypeRaw = next.seedUrlsBySourceType;
+  if (isPlainObject(existingSeedUrlsBySourceTypeRaw)) {
+    next.seedUrlsBySourceType = {
+      nature: sanitizeSeedUrlsList(existingSeedUrlsBySourceTypeRaw.nature),
+      science: sanitizeSeedUrlsList(existingSeedUrlsBySourceTypeRaw.science),
+    };
+  } else {
+    next.seedUrlsBySourceType = splitSeedUrlsBySourceType(next.seedUrls);
+  }
+
+  if (next.sourceType !== "science" && next.sourceType !== "nature") {
+    next.sourceType = null;
+  }
+
   if (!Object.prototype.hasOwnProperty.call(next, "translationApiKey")) {
     const legacyKey =
       typeof next.bigmodelApiKey === "string" ? next.bigmodelApiKey.trim() : "";
@@ -276,8 +329,37 @@ function mergeLiteratureSettings(existingSettings, patchInput) {
   delete next.bigmodelApiKey;
   delete next.bigmodelModel;
 
+  if (
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlsBySourceType") &&
+    sanitized.seedUrlsBySourceType
+  ) {
+    next.seedUrlsBySourceType = sanitized.seedUrlsBySourceType;
+    const resolvedSourceType =
+      sanitized.sourceType ||
+      sanitized.seedSource ||
+      (next.sourceType === "science" || next.sourceType === "nature" ? next.sourceType : null) ||
+      "nature";
+    next.sourceType = resolvedSourceType;
+    next.seedUrls = next.seedUrlsBySourceType[resolvedSourceType] || [];
+  }
+
   if (Object.prototype.hasOwnProperty.call(patch, "seedUrls")) {
+    const targetSourceType =
+      sanitized.seedSource ||
+      sanitized.sourceType ||
+      (next.sourceType === "science" || next.sourceType === "nature" ? next.sourceType : null) ||
+      (sanitized.seedUrls.some((url) => url.includes("science.org")) ? "science" : "nature");
+
+    next.seedUrlsBySourceType = isPlainObject(next.seedUrlsBySourceType)
+      ? next.seedUrlsBySourceType
+      : { nature: [], science: [] };
+    next.seedUrlsBySourceType[targetSourceType] = sanitized.seedUrls;
+    next.sourceType = targetSourceType;
     next.seedUrls = sanitized.seedUrls;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, "sourceType")) {
+    next.sourceType = sanitized.sourceType;
   }
   if (Object.prototype.hasOwnProperty.call(patch, "startDate")) {
     next.startDate = sanitized.startDate;
@@ -310,13 +392,35 @@ function mergeLiteratureSettings(existingSettings, patchInput) {
     next.translationBaseUrl = sanitized.translationBaseUrl;
   }
 
-  if (!Array.isArray(next.seedUrls)) next.seedUrls = [];
+  if (!isPlainObject(next.seedUrlsBySourceType)) {
+    next.seedUrlsBySourceType = { nature: [], science: [] };
+  }
+  if (!Array.isArray(next.seedUrlsBySourceType.nature)) next.seedUrlsBySourceType.nature = [];
+  if (!Array.isArray(next.seedUrlsBySourceType.science))
+    next.seedUrlsBySourceType.science = [];
+
+  if (next.sourceType !== "science" && next.sourceType !== "nature") {
+    next.sourceType =
+      next.seedUrlsBySourceType.science.length > 0 &&
+      next.seedUrlsBySourceType.nature.length === 0
+        ? "science"
+        : "nature";
+  }
+
+  next.seedUrls =
+    next.seedUrlsBySourceType[next.sourceType] ||
+    next.seedUrlsBySourceType.nature ||
+    [];
   if (typeof next.startDate !== "string") next.startDate = "";
   if (typeof next.endDate !== "string") next.endDate = "";
-  const maxResultsNumber = Number(next.maxResults);
-  next.maxResults = Number.isFinite(maxResultsNumber)
-    ? Math.max(1, Math.min(100, Math.trunc(maxResultsNumber)))
-    : 100;
+  if (next.maxResults == null) {
+    next.maxResults = null;
+  } else {
+    const maxResultsNumber = Number(next.maxResults);
+    next.maxResults = Number.isFinite(maxResultsNumber)
+      ? Math.max(1, Math.trunc(maxResultsNumber))
+      : null;
+  }
 
   if (typeof next.translationApiKey !== "string") {
     next.translationApiKey = next.translationApiKey ? String(next.translationApiKey) : null;
@@ -368,6 +472,46 @@ const literatureDownloadTokens = new Map();
 
 const LITERATURE_TRANSLATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const literatureTranslationCache = new Map();
+
+// ============ Device Analysis -> Origin export jobs (ephemeral, in-memory index) ============
+
+const ORIGIN_JOB_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const originJobs = new Map(); // jobId -> { userId, token, expiresAt, filePath, fileName }
+const ORIGIN_JOB_DIR = path.join(os.tmpdir(), "appointer-origin-jobs");
+
+async function ensureOriginJobDir() {
+  await fs.promises.mkdir(ORIGIN_JOB_DIR, { recursive: true });
+}
+
+function sanitizeOriginJobFilename(value) {
+  const raw = typeof value === "string" ? value : value == null ? "" : String(value);
+  const trimmed = raw.trim();
+  const safeBase = (trimmed || "device_analysis_origin.zip")
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+  const withExt = safeBase.toLowerCase().endsWith(".zip") ? safeBase : `${safeBase}.zip`;
+  return withExt.length > 200 ? withExt.slice(0, 200) : withExt;
+}
+
+async function cleanupOriginJobs() {
+  const now = Date.now();
+  for (const [jobId, job] of originJobs.entries()) {
+    if (!job || !Number.isFinite(job.expiresAt) || job.expiresAt > now) continue;
+    originJobs.delete(jobId);
+    if (job.filePath) {
+      try {
+        await fs.promises.unlink(job.filePath);
+      } catch {
+        // ignore best-effort cleanup
+      }
+    }
+  }
+}
+
+setInterval(() => {
+  cleanupOriginJobs().catch(() => { });
+}, 60 * 1000).unref();
 
 const SYSTEM_SETTINGS_KEYS = {
   literatureDefaultTranslationApiKey: "literature.translationApiKeyDefault",
@@ -2930,6 +3074,93 @@ app.delete(
   },
 );
 
+// ============ Device Analysis -> Origin jobs ============
+
+app.post(
+  "/api/device-analysis/origin/jobs",
+  authenticateToken,
+  express.raw({ type: ["application/zip", "application/octet-stream"], limit: "25mb" }),
+  async (req, res) => {
+    try {
+      await cleanupOriginJobs();
+      await ensureOriginJobDir();
+
+      const zipBuffer = req.body;
+      if (!Buffer.isBuffer(zipBuffer) || zipBuffer.length === 0) {
+        return res.status(400).json({ error: "Missing ZIP payload" });
+      }
+
+      const jobId = makeId("da_origin_job");
+      const token = randomUUID();
+      const expiresAt = Date.now() + ORIGIN_JOB_TTL_MS;
+      const fileName = sanitizeOriginJobFilename(req.get("x-origin-filename"));
+      const filePath = path.join(ORIGIN_JOB_DIR, `${jobId}.zip`);
+
+      await fs.promises.writeFile(filePath, zipBuffer);
+
+      originJobs.set(jobId, {
+        userId: req.user.id,
+        token,
+        expiresAt,
+        filePath,
+        fileName,
+      });
+
+      res.status(201).json({
+        jobId,
+        token,
+        expiresAt: new Date(expiresAt).toISOString(),
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.get("/api/device-analysis/origin/jobs/:id/package", async (req, res) => {
+  try {
+    await cleanupOriginJobs();
+
+    const jobId = String(req.params.id || "");
+    const token = String(req.query.token || "");
+
+    const job = originJobs.get(jobId);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    if (!token || token !== job.token) {
+      return res.status(403).json({ error: "Invalid token" });
+    }
+
+    if (!Number.isFinite(job.expiresAt) || Date.now() > job.expiresAt) {
+      originJobs.delete(jobId);
+      if (job.filePath) {
+        try {
+          await fs.promises.unlink(job.filePath);
+        } catch {
+          // ignore best-effort cleanup
+        }
+      }
+      return res.status(410).json({ error: "Job expired" });
+    }
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${job.fileName || "device_analysis_origin.zip"}"`,
+    );
+
+    res.sendFile(job.filePath, (err) => {
+      if (err) {
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to send package" });
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============ Device Analysis Settings ============
 
 app.get(
@@ -3335,12 +3566,31 @@ app.get("/api/literature/settings", authenticateToken, async (req, res) => {
     );
 
     const config = safeJsonParse(row?.configJson, {});
-    const seedUrls = Array.isArray(config?.seedUrls)
-      ? config.seedUrls
-        .map((value) => (value == null ? "" : String(value)))
-        .map((value) => value.trim())
-        .filter(Boolean)
-      : [];
+
+    const seedUrlsBySourceTypeRaw = isPlainObject(config?.seedUrlsBySourceType)
+      ? config.seedUrlsBySourceType
+      : null;
+
+    const seedUrlsBySourceType = seedUrlsBySourceTypeRaw
+      ? {
+          nature: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.nature),
+          science: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.science),
+        }
+      : splitSeedUrlsBySourceType(config?.seedUrls);
+
+    const storedSourceType =
+      config?.sourceType === "science" || config?.sourceType === "nature"
+        ? config.sourceType
+        : null;
+
+    const sourceType =
+      storedSourceType ||
+      (seedUrlsBySourceType.science.length > 0 && seedUrlsBySourceType.nature.length === 0
+        ? "science"
+        : "nature");
+
+    const seedUrls =
+      sourceType === "science" ? seedUrlsBySourceType.science : seedUrlsBySourceType.nature;
 
     const startDate = isValidDateString(config?.startDate)
       ? config.startDate
@@ -3379,6 +3629,8 @@ app.get("/api/literature/settings", authenticateToken, async (req, res) => {
 	    const provider = await getTranslationProvider(db);
 
 	    res.json({
+	      seedUrlsBySourceType,
+	      sourceType,
 	      seedUrls,
 	      startDate,
       endDate,
@@ -3440,7 +3692,21 @@ app.patch("/api/literature/settings", authenticateToken, async (req, res) => {
     const hasTranslationApiKey = hasUserKey || globalKey.hasKey;
     const translationApiKeySource = hasUserKey ? "user" : globalKey.hasKey ? "default" : null;
 
+    const seedUrlsBySourceType = isPlainObject(settings?.seedUrlsBySourceType)
+      ? {
+          nature: sanitizeSeedUrlsList(settings.seedUrlsBySourceType.nature),
+          science: sanitizeSeedUrlsList(settings.seedUrlsBySourceType.science),
+        }
+      : { nature: [], science: [] };
+
+    const sourceType =
+      settings?.sourceType === "science" || settings?.sourceType === "nature"
+        ? settings.sourceType
+        : null;
+
     res.json({
+      seedUrlsBySourceType,
+      sourceType,
       seedUrls: Array.isArray(settings.seedUrls) ? settings.seedUrls : [],
       startDate: settings.startDate || null,
       endDate: settings.endDate || null,

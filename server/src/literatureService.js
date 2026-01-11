@@ -564,7 +564,7 @@ export async function searchLiterature({
   seedUrls,
   startDate,
   endDate,
-  maxResults = 100,
+  maxResults = null,
 } = {}) {
   const start = normalizeDateInput(startDate);
   const end = normalizeDateInput(endDate);
@@ -580,7 +580,8 @@ export async function searchLiterature({
     throw new Error("seedUrls must include at least one valid URL");
   }
 
-  const cap = Math.max(1, Math.min(100, Math.trunc(Number(maxResults) || 100)));
+  const capNumber = Number(maxResults);
+  const cap = Number.isFinite(capNumber) ? Math.max(1, Math.trunc(capNumber)) : 100;
   const results = [];
   const seenIds = new Set();
 

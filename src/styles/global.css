@@ -3,452 +3,659 @@
 @tailwind utilities;
 
 :root {
-    color-scheme: light;
+  color-scheme: light;
 }
 
 html {
-    scroll-behavior: smooth;
+  scroll-behavior: smooth;
 }
 
 body {
-    @apply bg-bg-page text-text-primary antialiased;
+  @apply bg-bg-page text-text-primary antialiased;
 }
 
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    scrollbar-width: thin;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: thin;
 }
 
 body {
-    font-family: var(--font-family-base);
-    background-color: var(--color-bg);
-    color: var(--color-text-primary);
-    font-size: var(--font-size-base);
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-family-base);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer components {
-    .ui-tabs__menu {
-        @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
-    }
+  /* Card */
+  .ui-card {
+    @apply bg-bg-surface border border-border rounded-2xl;
+  }
 
-    .ui-tabs__btn {
-        @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
-    }
+  .ui-card--default {
+    @apply p-6 shadow-sm;
+  }
 
-    .ui-tabs__btn--sm {
-        @apply h-6 text-xs;
-    }
+  .ui-card--panel {
+    @apply p-4;
+  }
 
-    .ui-tabs__btn--md {
-        @apply h-[38px] text-sm;
-    }
+  .ui-card--flat {
+    @apply border-transparent;
+  }
 
-    .ui-tabs__btn--active {
-        @apply bg-white text-black shadow-sm;
-    }
+  /* Section */
+  .ui-section_head {
+    @apply flex items-center justify-between mb-4;
+  }
 
-    .ui-tabs__btn--inactive {
-        @apply text-gray-500 hover:text-gray-900;
-    }
+  .ui-section_head--gap {
+    @apply gap-3;
+  }
 
-    .ui-tabs__btn-icon {
-        @apply inline-flex;
-    }
+  .ui-section_title {
+    @apply text-lg font-semibold text-text-primary;
+  }
 
-    .ui-tabs__btn-text {
-        @apply inline-flex;
-    }
+  .ui-section_title--spaced {
+    @apply mb-4;
+  }
 
-    .ui-toggle__menu {
-        @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
-    }
+  .ui-tabs__menu {
+    @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
+  }
 
-    /* Preferred (simpler) alias */
-    .toggle_menu {
-        @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
-    }
+  .ui-tabs__btn {
+    @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
+  }
 
-    .ui-toolbar_wrap {
-        @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
-    }
+  .ui-tabs__btn--sm {
+    @apply h-6 text-xs;
+  }
 
-    .ui-toolbar_warp {
-        @apply w-full flex items-center gap-4 flex-wrap overflow-visible;
-        scrollbar-width: none; /* Firefox */
-    }
+  .ui-tabs__btn--md {
+    @apply h-[38px] text-sm;
+  }
 
-    .ui-toolbar_warp::-webkit-scrollbar {
-        display: none; /* Chrome/Safari */
-    }
+  .ui-tabs__btn--active {
+    @apply bg-white text-black shadow-sm;
+  }
 
-    .ui-button_warp {
-        @apply flex flex-col items-end gap-1 ml-auto;
-    }
+  .ui-tabs__btn--inactive {
+    @apply text-gray-500 hover:text-gray-900;
+  }
 
-    .ui-button_row {
-        @apply flex items-center gap-2;
-    }
+  .ui-tabs__btn-icon {
+    @apply inline-flex;
+  }
 
-    .ui-filter_warp {
-        @apply flex flex-wrap items-center gap-2 lg:gap-4 min-w-0;
-    }
+  .ui-tabs__btn-text {
+    @apply inline-flex;
+  }
 
-    .date_btn_label {
-        @apply text-sm font-medium text-text-secondary whitespace-nowrap hidden sm:block;
-    }
+  .ui-toggle__menu {
+    @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
+  }
 
-    .date_btn_warp {
-        @apply flex items-center gap-2 min-w-0 flex-1;
-    }
+  /* Preferred (simpler) alias */
+  .toggle_menu {
+    @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
+  }
 
-    .date_btn {
-        @apply flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer bg-bg-page select-none h-[38px] overflow-hidden shrink min-w-0;
-    }
+  .ui-toolbar_wrap {
+    @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
+  }
 
-    .date_btn--open {
-        @apply border-black ring-1 ring-black/5;
-    }
+  /* Backward/forward compatible alias:
+     - `wrap` was used historically
+     - `warp` appears in some pages
+     Keep them visually consistent to avoid layout regressions. */
+  .ui-toolbar_warp {
+    @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
+  }
 
-    .date_btn--closed {
-        @apply border-border-200 hover:border-text-secondary;
-    }
+  .ui-toolbar_warp--scroll {
+    @apply w-full flex items-center gap-4 flex-wrap overflow-visible;
+    scrollbar-width: none;
+    /* Firefox */
+  }
 
-    .date_btn_text {
-        @apply flex-1 text-sm truncate;
-    }
+  .ui-toolbar_warp--scroll::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+  }
 
-    .date_btn_text--value {
-        @apply text-text-primary;
-    }
+  .ui-button_warp {
+    @apply flex flex-col items-end gap-1 ml-auto;
+  }
 
-    .date_btn_text--placeholder {
-        @apply text-text-tertiary;
-    }
+  .ui-button_row {
+    @apply flex items-center gap-2;
+  }
 
-    .date_btn_icon {
-        @apply text-text-tertiary inline-flex;
-    }
+  .ui-filter_warp {
+    @apply flex flex-wrap items-center gap-2 lg:gap-4 min-w-0;
+  }
 
+  .date_btn_label {
+    @apply text-sm font-medium text-text-secondary whitespace-nowrap hidden sm:block;
+  }
 
-    /* App buttons */
-    .click_btn {
-        @apply relative inline-flex items-center justify-center px-4 rounded-xl text-sm transition-all;
-    }
+  .date_btn_warp {
+    @apply flex items-center gap-2 min-w-0 flex-1;
+  }
 
-    .click_btn--md {
-        @apply h-[38px];
-    }
+  .date_btn {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer bg-bg-page select-none h-[38px] overflow-hidden shrink min-w-0;
+  }
 
-    .click_btn_content {
-        @apply relative z-10 flex items-center gap-2;
-    }
+  .date_btn--open {
+    @apply border-black ring-1 ring-black/5;
+  }
 
-    .click_btn--fx {
-        @apply before:content-[''] before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:transition-transform before:transition-colors;
-    }
+  .date_btn--closed {
+    @apply border-border-200;
+  }
 
-    .click_btn--primary {
-        @apply text-white before:bg-accent before:scale-100 hover:before:scale-[1.02];
-    }
+  .date_btn_text {
+    @apply flex-1 text-sm truncate;
+  }
 
-    .click_btn--ghost {
-        @apply text-text-secondary hover:text-text-primary before:border before:border-border before:bg-transparent hover:before:scale-[1.02];
-    }
+  .date_btn_text--value {
+    @apply text-text-primary;
+  }
 
-    .click_btn--disabled {
-        @apply text-text-secondary cursor-not-allowed before:bg-bg-200 before:border before:border-border;
-    }
+  .date_btn_text--placeholder {
+    @apply text-text-tertiary;
+  }
 
-    /* Preferred (no ui- prefix, underscore style) */
-    .toggle_btn {
-        @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
-    }
+  .date_btn_icon {
+    @apply text-text-tertiary inline-flex;
+  }
 
-    .toggle_btn--sm {
-        @apply h-6 text-xs;
-    }
+  /* App buttons */
+  .click_btn {
+    @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm transition-all;
+  }
 
-    .toggle_btn--md {
-        @apply h-[38px] text-sm;
-    }
+  .click_btn--md {
+    @apply h-[38px];
+  }
 
-    .toggle_btn--active {
-        @apply bg-white text-black shadow-sm;
-    }
+  /* Icon-only buttons (e.g. remove row actions) */
+  .click_btn--icon {
+    @apply h-[42px] w-[42px] px-0;
+  }
 
-    .toggle_btn--inactive {
-        @apply text-gray-500 hover:text-gray-900;
-    }
+  .click_btn_content {
+    @apply relative z-10 flex items-center gap-2;
+  }
 
-    .toggle_btn_icon {
-        @apply inline-flex;
-    }
+  /* FX: Claude-like "scale" illusion via box-shadow spread (no transform)
+     Two-layer shadow:
+       - layer 1 uses background color to "fill" the edge
+       - layer 2 is the visible border that expands on hover
 
-    .toggle_btn_text {
-        @apply inline-flex;
-    }
+     Defaults can be overridden per-button via CSS variables:
+       --click-fx-bg: background color
+       --click-fx-border: border / ring color
+       --click-fx-border-hover: hover border / ring color (defaults to --click-fx-border)
+  */
+  .click_btn--fx {
+    @apply relative;
+    --click-fx-bg: transparent;
+    --click-fx-border: currentColor;
+    --click-fx-border-hover: var(--click-fx-border);
+
+    /* When combined with variants that already render a real border (e.g. ghost),
+       use shadow-only ring by default to avoid a visible double-stroke. */
+    border-color: transparent;
+
+    box-shadow: 0 0 0 0 var(--click-fx-bg), 0 0 0 1px var(--click-fx-border);
+    transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
+      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+
+  .click_btn--fx:hover {
+    box-shadow: 0 0 0 1px var(--click-fx-bg),
+      0 0 0 2px var(--click-fx-border-hover);
+  }
+
+  /* Common muted ring for FX buttons outside toolbars */
+  .click_btn--fx-muted {
+    --click-fx-bg: rgb(250, 249, 245);
+    --click-fx-border: #d1d1d1;
+    --click-fx-border-hover: #d1d1d1;
+  }
+
+  /* Keep semantic variants for colors/typography */
+  .click_btn--primary {
+    @apply text-white bg-accent;
+  }
+
+  /* Align toolbar buttons with the demo rings.
+     - Primary + FX: fixed dark ring (Claude-like)
+     - Ghost + FX: keep default ghost ring color, but still shadow-only (no real border)
+     Scoped to `.ui-toolbar_warp` to avoid global surprises. */
+  .ui-toolbar_warp .click_btn--primary.click_btn--fx {
+    --click-fx-bg: rgb(20, 20, 19);
+    --click-fx-border: rgb(48, 48, 46);
+    --click-fx-border-hover: rgb(48, 48, 46);
+  }
+
+  .ui-toolbar_warp .click_btn--ghost.click_btn--fx {
+    --click-fx-bg: rgb(250, 249, 245);
+    --click-fx-border: #d1d1d1;
+    --click-fx-border-hover: #d1d1d1;
+  }
+
+  .click_btn--ghost {
+    @apply text-text-secondary hover:text-text-primary bg-transparent border border-border;
+    /* Avoid hard-coupling border to text color so demos can set borderColor independently */
+  }
+
+  .click_btn--danger {
+    @apply text-text-tertiary hover:text-red-500;
+  }
+
+  /* If ghost is combined with FX, let FX's ring (box-shadow) be the only visible border */
+  .click_btn--ghost.click_btn--fx {
+    border-color: transparent;
+    border-width: 0;
+  }
+
+  /* Demo helper: force remove real border so only the FX shadow ring remains */
+  .demo_no-border {
+    border-width: 0 !important;
+  }
+
+  .click_btn--disabled {
+    @apply text-text-secondary cursor-not-allowed bg-bg-200 border border-border;
+  }
+
+  /* Claude-like "scale" illusion: hover uses box-shadow spread, not transform */
+  .click_btn--claude-shadow {
+    @apply inline-flex items-center justify-center px-4 h-[38px] rounded-lg text-sm;
+    color: rgb(250, 249, 245);
+    background-color: rgb(20, 20, 19);
+    box-shadow: rgb(20, 20, 19) 0 0 0 0, rgb(48, 48, 46) 0 0 0 1px;
+    transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
+      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+
+  .click_btn--claude-shadow:hover {
+    /* two-layer spread creates the "bigger" feel */
+    box-shadow: 0 0 0 1px rgb(20, 20, 19), 0 0 0 2px rgb(48, 48, 46);
+  }
+
+  /* Preferred (no ui- prefix, underscore style) */
+  .toggle_btn {
+    @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
+  }
+
+  .toggle_btn--sm {
+    @apply h-6 text-xs;
+  }
+
+  .toggle_btn--md {
+    @apply h-[38px] text-sm;
+  }
+
+  .toggle_btn--active {
+    @apply bg-white text-black shadow-sm;
+  }
+
+  .toggle_btn--inactive {
+    @apply text-gray-500 hover:text-gray-900;
+  }
+
+  .toggle_btn_icon {
+    @apply inline-flex;
+  }
+
+  .toggle_btn_text {
+    @apply inline-flex;
+  }
+
+  /* Input */
+  .ui-input_warp {
+    @apply space-y-2;
+  }
+
+  .ui-input_label {
+    @apply text-sm font-medium text-text-secondary;
+  }
+
+  .ui-input_field {
+    @apply flex items-center gap-2 px-3 py-2 rounded-xl border transition-all bg-bg-page;
+  }
+
+  .ui-input_field--sm {
+    @apply h-6 text-xs;
+  }
+
+  .ui-input_field--md {
+    @apply h-[38px] text-sm;
+  }
+
+  .ui-input_field--lg {
+    @apply h-[42px] text-sm;
+  }
+
+  .ui-input_field[data-state="enable"] {
+    @apply border-border-200;
+  }
+
+  .ui-input_field[data-state="enable"]:focus-within {
+    @apply border-border-200;
+  }
+
+  /* Literature: max-results uses a slightly tighter radius */
+  [data-ui="literature-max-results"] .ui-input_field {
+    @apply rounded-lg;
+  }
+
+  /* Literature: seed-url uses a slightly tighter radius */
+  [data-ui="literature-seed-url"] .ui-input_field {
+    @apply rounded-lg;
+  }
+
+  /* Literature inputs: hover does not change border (keep it calm like DateButton) */
+
+  /* System focus outline only for keyboard navigation (Tab) */
+  html[data-nav="keyboard"] .ui-input_field[data-state="enable"]:focus-within {
+    outline: auto;
+  }
+
+  .ui-input_field[data-state="error"] {
+    @apply border-red-500 ring-1 ring-red-500/10;
+  }
+
+  .ui-input_field[data-state="disabled"] {
+    @apply opacity-60 cursor-not-allowed;
+  }
+
+  .ui-input_icon {
+    @apply text-text-tertiary inline-flex;
+  }
+
+  .ui-input_native {
+    @apply flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary;
+  }
+
+  .ui-input_right {
+    @apply inline-flex items-center;
+  }
+
+  .ui-input_error {
+    @apply text-xs text-red-600;
+  }
+
+  .ui-input_hint {
+    @apply text-xs text-text-tertiary;
+  }
 }
 
 a {
-    text-decoration: none;
-    color: inherit;
+  text-decoration: none;
+  color: inherit;
 }
 
 button {
-    font-family: inherit;
-    /*border: none;*/
-    background: none;
-    cursor: pointer;
+  font-family: inherit;
+  /*border: none;*/
+  background: none;
+  cursor: pointer;
 }
 
 input,
 select,
 textarea {
-    font-family: inherit;
-    outline: none;
+  font-family: inherit;
+  outline: none;
 }
 
 .no-focus-outline:focus,
 .no-focus-outline:focus-visible {
-    outline: none !important;
+  outline: none !important;
 }
 
 /* Utilities */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 var(--spacing-md);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
 }
 
 .glass {
-    background: linear-gradient(135deg,
-            rgba(255, 255, 255, 0.45) 0%,
-            rgba(255, 255, 255, 0.25) 100%);
-    backdrop-filter: blur(40px) saturate(210%);
-    -webkit-backdrop-filter: blur(40px) saturate(210%);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow:
-        0 8px 32px 0 rgba(0, 0, 0, 0.08),
-        inset 0 0 0 1px var(--color-highlight);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08),
+    inset 0 0 0 1px var(--color-highlight);
 }
 
 .dark .glass {
-    background: linear-gradient(135deg,
-            rgba(28, 28, 30, 0.4) 0%,
-            rgba(28, 28, 30, 0.2) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    135deg,
+    rgba(28, 28, 30, 0.4) 0%,
+    rgba(28, 28, 30, 0.2) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .hover-lift {
-    transition:
-        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
-    box-shadow: var(--shadow-premium);
+  box-shadow: var(--shadow-premium);
 }
 
 /* Fix: Ensure card with open dropdown is above others */
 .hover-lift:has([data-state="open"]) {
-    z-index: 50 !important;
-    position: relative;
+  z-index: 50 !important;
+  position: relative;
 }
 
 /* Global Scrollbar Styling */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: rgba(148, 163, 184, 0.3);
-    /* Slate-400 equivalent with opacity */
-    border-radius: 100vh;
-    border: 2px solid transparent;
-    background-clip: content-box;
+  background-color: rgba(148, 163, 184, 0.3);
+  /* Slate-400 equivalent with opacity */
+  border-radius: 100vh;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(148, 163, 184, 0.5);
+  background-color: rgba(148, 163, 184, 0.5);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Optional: Keep .custom-scrollbar for specific forcing if needed, but global covers it */
 .custom-scrollbar {
-    /* Fallback for firefox */
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+  /* Fallback for firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
 
 .bg-grain {
-    pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    opacity: 0.04;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.04;
 }
 
 @layer utilities {
+  /* Hide number input spinners (Chrome/Safari/Edge + Firefox) */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
-    /* Hide number input spinners (Chrome/Safari/Edge + Firefox) */
-    .no-spinner::-webkit-outer-spin-button,
-    .no-spinner::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
+  .no-spinner {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  .can-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-accent/20 focus:ring-offset-2 focus:ring-offset-bg-100;
+  }
+
+  .can-focus-blue {
+    @apply focus:outline-none focus:ring-2 focus:ring-accent-focus focus:ring-offset-2 focus:ring-offset-bg-100;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(32px);
+      opacity: 0;
     }
 
-    .no-spinner {
-        -moz-appearance: textfield;
-        appearance: textfield;
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideInLeft {
+    from {
+      transform: translateX(-32px);
+      opacity: 0;
     }
 
-    .can-focus {
-        @apply focus:outline-none focus:ring-2 focus:ring-accent/20 focus:ring-offset-2 focus:ring-offset-bg-100;
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
     }
 
-    .can-focus-blue {
-        @apply focus:outline-none focus:ring-2 focus:ring-accent-focus focus:ring-offset-2 focus:ring-offset-bg-100;
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes slideDownFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
     }
 
-    @keyframes slideInRight {
-        from {
-            transform: translateX(32px);
-            opacity: 0;
-        }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
     }
 
-    @keyframes slideInLeft {
-        from {
-            transform: translateX(-32px);
-            opacity: 0;
-        }
+    to {
+      opacity: 1;
+    }
+  }
 
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+  .animate-slide-in-right {
+    animation: slideInRight 0.9s ease-out forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.9s ease-out forwards;
+  }
+
+  .animate-fade-out {
+    animation: fadeOut 0.85s ease-in forwards;
+  }
+
+  .animate-slide-down-fade-in {
+    animation: slideDownFadeIn 0.8s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+  }
+
+  /* Staggered text animation classes */
+  .stagger-text-word {
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  @keyframes float-slow {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
     }
 
-    @keyframes fadeOut {
-        from {
-            opacity: 1;
-        }
-
-        to {
-            opacity: 0;
-        }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
     }
 
-    @keyframes slideDownFadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(-20px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
     }
+  }
 
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
+  .animate-float-slow {
+    animation: float-slow 20s ease-in-out infinite;
+  }
 
-        to {
-            opacity: 1;
-        }
-    }
-
-    .animate-slide-in-right {
-        animation: slideInRight 0.9s ease-out forwards;
-    }
-
-    .animate-slide-in-left {
-        animation: slideInLeft 0.9s ease-out forwards;
-    }
-
-    .animate-fade-out {
-        animation: fadeOut 0.85s ease-in forwards;
-    }
-
-    .animate-slide-down-fade-in {
-        animation: slideDownFadeIn 0.8s ease-out forwards;
-    }
-
-    .animate-fade-in {
-        animation: fadeIn 0.8s ease-out forwards;
-    }
-
-    /* Staggered text animation classes */
-    .stagger-text-word {
-        opacity: 0;
-        animation: fadeIn 0.5s ease-out forwards;
-    }
-
-    @keyframes float-slow {
-
-        0%,
-        100% {
-            transform: translate(0, 0) scale(1);
-        }
-
-        33% {
-            transform: translate(30px, -50px) scale(1.1);
-        }
-
-        66% {
-            transform: translate(-20px, 20px) scale(0.9);
-        }
-    }
-
-    .animate-float-slow {
-        animation: float-slow 20s ease-in-out infinite;
-    }
-
-    .animate-float-slower {
-        animation: float-slow 30s ease-in-out infinite reverse;
-    }
+  .animate-float-slower {
+    animation: float-slow 30s ease-in-out infinite reverse;
+  }
 }
 
 /* Fix: Remove default focus outline from Recharts wrapper and internals */
 .recharts-wrapper,
 .recharts-surface,
 .recharts-responsive-container {
-    outline: none !important;
-    border: none !important;
+  outline: none !important;
+  border: none !important;
 }
 
 .recharts-wrapper:focus,
 .recharts-wrapper:active,
 .recharts-surface:focus,
 .recharts-surface:active {
-    outline: none !important;
-    border: none !important;
+  outline: none !important;
+  border: none !important;
 }
 
 /* Specific fix for the SVG element causing focus rings */
 *:focus:not(:focus-visible) {
-    outline: none !important;
+  outline: none !important;
 }

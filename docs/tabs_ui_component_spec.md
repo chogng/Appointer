@@ -2,6 +2,10 @@
 
 本文定义 `src/components/ui/Tabs.jsx` 的 **DOM 结构、状态模型、键盘交互、ID/aria-controls 规则、样式约定**。
 
+相关规范：
+
+- 稳定选择器与标记：`docs/stable_selectors_spec.md`（建议样式/测试优先使用 `data-ui` 与 `id/htmlFor`，避免超长 selector）
+
 关键决策：
 
 - 视觉样式：与 ToggleButton 一致（同为 pill buttons 风格）
@@ -178,7 +182,12 @@ type TabsProps = {
 ## 9. 参考模板
 
 ```html
-<div role="tablist" aria-label="Device tabs" data-tabs="menu" class="ui-tabs__menu">
+<div
+  role="tablist"
+  aria-label="Device tabs"
+  data-tabs="menu"
+  class="ui-tabs__menu"
+>
   <button
     data-icon="without"
     data-tabs="tab"
@@ -208,10 +217,19 @@ type TabsProps = {
   </button>
 </div>
 
-<section id="panel-device-overview" role="tabpanel" aria-labelledby="tab-device-overview">
+<section
+  id="panel-device-overview"
+  role="tabpanel"
+  aria-labelledby="tab-device-overview"
+>
   ...
 </section>
-<section id="panel-device-usage" role="tabpanel" aria-labelledby="tab-device-usage" hidden>
+<section
+  id="panel-device-usage"
+  role="tabpanel"
+  aria-labelledby="tab-device-usage"
+  hidden
+>
   ...
 </section>
 ```

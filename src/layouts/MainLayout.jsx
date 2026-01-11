@@ -305,6 +305,11 @@ const MainLayout = () => {
       label: t("literature_research") || "Literature Research",
       path: "/literature-research",
     },
+    {
+      icon: BookOpen,
+      label: "Button FX Demo",
+      path: "/button-fx-demo",
+    },
     { icon: DevicesIcon, label: t("devices"), path: "/devices" },
     { icon: Package, label: t("inventory"), path: "/inventory" },
     { icon: BookingIcon, label: t("booking"), path: "/reservations" },
@@ -353,7 +358,11 @@ const MainLayout = () => {
             className="w-6 h-6 object-contain shrink-0"
           />
           <span
-            className={`text-xl font-bold truncate transition-all duration-500 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100"}`}
+            className={`text-xl font-bold truncate transition-all duration-500 ${
+              isCollapsed
+                ? "max-w-0 opacity-0 ml-0"
+                : "max-w-[150px] opacity-100"
+            }`}
           >
             Appointer
           </span>
@@ -364,7 +373,11 @@ const MainLayout = () => {
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`
                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
-                            ${isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"}
+                            ${
+                              isCollapsed
+                                ? "opacity-0 pointer-events-none"
+                                : "opacity-100"
+                            }
                         `}
             aria-label={collapseMenuLabel}
             data-testid={collapseTestId}
@@ -404,7 +417,11 @@ const MainLayout = () => {
             >
               <item.icon size={20} className="shrink-0" />
               <span
-                className={`truncate transition-all duration-500 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[150px] opacity-100"}`}
+                className={`truncate transition-all duration-500 ${
+                  isCollapsed
+                    ? "max-w-0 opacity-0 ml-0"
+                    : "max-w-[150px] opacity-100"
+                }`}
               >
                 {item.label}
               </span>
@@ -414,7 +431,9 @@ const MainLayout = () => {
 
         {/* MiniCalendar */}
         <div
-          className={`mb-4 px-2 transition-all duration-500 overflow-hidden ${isCollapsed ? "opacity-0 max-h-0" : "opacity-100 max-h-[300px]"}`}
+          className={`mb-4 px-2 transition-all duration-500 overflow-hidden ${
+            isCollapsed ? "opacity-0 max-h-0" : "opacity-100 max-h-[300px]"
+          }`}
         >
           <MiniCalendar className="bg-transparent p-0" />
         </div>

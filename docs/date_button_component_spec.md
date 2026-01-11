@@ -68,7 +68,7 @@ DateButton（可点击区域）：
 
 - `.date_btn`：基础样式（尺寸、padding、圆角、背景、边框、交互等）
 - `.date_btn--open`：打开态（强调边框/ring）
-- `.date_btn--closed`：关闭态（默认边框 + hover）
+- `.date_btn--closed`：关闭态（默认边框；hover 不改变 border）
 - `.date_btn_icon`：日历图标容器（颜色/对齐）
 
 ---

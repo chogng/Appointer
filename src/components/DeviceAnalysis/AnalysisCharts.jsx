@@ -11,6 +11,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import Papa from "papaparse";
+import JSZip from "jszip";
 import CanvasMultiLineChart from "./CanvasMultiLineChart";
 import {
   computeCentralDerivative,
@@ -669,6 +671,9 @@ const AnalysisCharts = ({
     yDecadeStep: 1,
   });
 
+  const [originBusy, setOriginBusy] = useState(false);
+  const [originStatus, setOriginStatus] = useState({ type: "idle", message: "" }); // idle | ok | error
+
   useEffect(() => {
     let cancelled = false;
 
@@ -784,6 +789,11 @@ const AnalysisCharts = ({
     [effectiveActiveFileId, processedData],
   );
 
+  const focusedSeries = useMemo(() => {
+    if (!activeFile?.series?.length || !focusedSeriesId) return null;
+    return activeFile.series.find((s) => s.id === focusedSeriesId) ?? null;
+  }, [activeFile, focusedSeriesId]);
+
   useEffect(() => {
     const list = activeFile?.series ?? [];
     if (!list.length) {
@@ -802,6 +812,246 @@ const AnalysisCharts = ({
     if (!Number.isFinite(num) || num <= 0) return null;
     return num;
   }, [areaInput]);
+
+  const originBridgeScheme = "appointer-origin";
+
+  const sanitizeFilename = (name, { max = 180 } = {}) => {
+    const raw = String(name || "export")
+      .replace(/[/\\?%*:|"<>]/g, "_")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!raw) return "export";
+    return raw.length > max ? raw.slice(0, max) : raw;
+  };
+
+  const triggerDownloadBlob = (filename, blob) => {
+    const url = URL.createObjectURL(blob);
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", url);
+    downloadAnchorNode.setAttribute("download", filename);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const makePairsExpr = (xyPairCount) => {
+    const pairs = [];
+    const count = Math.max(1, Number(xyPairCount) || 1);
+    for (let i = 0; i < count; i++) {
+      pairs.push(`(${i * 2 + 1},${i * 2 + 2})`);
+    }
+    return `(${pairs.join(",")})`; // e.g. ((1,2),(3,4))
+  };
+
+  const buildOgsScript = (csvFileName, xyPairCount) => {
+    const pairsExpr = makePairsExpr(xyPairCount);
+    const safeCsv = String(csvFileName || "data.csv").replace(/"/g, "");
+
+    return `[Main]
+// Auto plot exported Device Analysis CSV in Origin
+// Usage:
+//   1) Put CSV and this OGS in the same folder, set Origin current folder to it, then run:
+//        run.section("${safeCsv.replace(/\\.csv$/i, ".ogs")}", Main)
+//   2) Or pass CSV full path as %1:
+//        run.section("${safeCsv.replace(/\\.csv$/i, ".ogs")}", Main, "C:\\\\path\\\\${safeCsv}")
+
+string csv$ = "%1";
+if(csv$ == "")
+{
+    csv$ = "${safeCsv}";
+}
+
+// If CSV not found (exist returns -1), prompt user to select a CSV file.
+if(exist(csv$) < 0)
+{
+    dlgfile group:=*.csv;
+    csv$ = fname$;
+}
+
+newbook;
+impCSV fname:=csv$;
+
+// Plot XY XY pairs: (1,2) (3,4) ...
+plotxy iy:=${pairsExpr} plot:=202;
+type -b "Plotted %(csv$)";
+`;
+  };
+
+  const resolveOriginBridgeApiBaseUrl = () => {
+    const override = String(import.meta.env?.VITE_ORIGINBRIDGE_API_BASE_URL || "").trim();
+    if (override) return override.replace(/\/$/, "");
+
+    const apiBaseRaw = String(import.meta.env?.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+    try {
+      // absolute (e.g. https://host/api)
+      const absolute = new URL(apiBaseRaw).toString();
+      return absolute.replace(/\/$/, "");
+    } catch {
+      // relative (e.g. /api)
+      try {
+        return new URL(apiBaseRaw, window.location.origin).toString().replace(/\/$/, "");
+      } catch {
+        return "/api";
+      }
+    }
+  };
+
+  const createOriginJob = async (zipBlob, { filename }) => {
+    const apiBase = String(import.meta.env?.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+    const response = await fetch(`${apiBase}/device-analysis/origin/jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/zip",
+        "x-origin-filename": filename,
+      },
+      credentials: "include",
+      body: zipBlob,
+    });
+
+    if (!response.ok) {
+      let message = "Request failed";
+      try {
+        const parsed = await response.json();
+        message = parsed?.error || parsed?.message || message;
+      } catch {
+        const text = await response.text().catch(() => "");
+        if (text) message = text;
+      }
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  };
+
+  const buildOriginPackageForFocusedSeries = async () => {
+    if (!activeFile?.fileId || !focusedSeries) {
+      throw new Error("No curve selected");
+    }
+
+    const groupIndex = Number(focusedSeries?.groupIndex);
+    const xArr = activeFile?.xGroups?.[groupIndex];
+    const yArr = focusedSeries?.y;
+
+    if (!xArr || !yArr) {
+      throw new Error("Missing curve data");
+    }
+
+    const rowCount = Math.min(xArr.length ?? 0, yArr.length ?? 0);
+    if (rowCount <= 0) {
+      throw new Error("Empty curve data");
+    }
+
+    const headers = ["x1", "y1"];
+    const rows = new Array(rowCount);
+    for (let i = 0; i < rowCount; i++) {
+      rows[i] = [xArr[i] ?? "", yArr[i] ?? ""];
+    }
+
+    const csvText = Papa.unparse({ fields: headers, data: rows });
+
+    const base = sanitizeFilename(activeFile?.fileName ?? "device_analysis").replace(/\.csv$/i, "");
+    const seriesName = sanitizeFilename(focusedSeries?.name ?? "curve").replace(/\.csv$/i, "");
+    const csvName = `${base}__${seriesName}.csv`;
+    const ogsName = `${base}__${seriesName}.ogs`;
+    const zipName = `${base}__${seriesName}__origin.zip`;
+
+    const readme = `Device Analysis -> Origin package (single curve)
+
+Files:
+- *.csv: exported data (x1,y1)
+- *.ogs: Origin LabTalk script to import CSV and plot automatically
+
+How to use (manual fallback):
+1) Unzip this package to a folder.
+2) Open Origin.
+3) (Optional) Set Origin current folder to the unzip folder (Command Window: cd "path")
+4) Run the script (Script Window):
+   run.section("${ogsName}", Main)
+   - If the CSV file is not found, Origin will prompt you to select it.
+`;
+
+    const zip = new JSZip();
+    zip.file("README_ORIGIN.txt", readme);
+    zip.file(csvName, "\uFEFF" + csvText);
+    zip.file(ogsName, buildOgsScript(csvName, 1));
+    zip.file(
+      "manifest.json",
+      JSON.stringify(
+        {
+          version: "origin_package_v1",
+          kind: "single_curve",
+          fileId: activeFile.fileId,
+          fileName: activeFile.fileName ?? null,
+          seriesId: focusedSeries.id,
+          seriesName: focusedSeries.name ?? null,
+          groupIndex,
+          yCol: Number.isFinite(Number(focusedSeries?.yCol)) ? Number(focusedSeries.yCol) : null,
+          csvName,
+          ogsName,
+        },
+        null,
+        2,
+      ),
+    );
+
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    return { zipBlob, zipName, csvName, ogsName };
+  };
+
+  const handleDownloadOriginPackage = async () => {
+    if (originBusy) return;
+    setOriginStatus({ type: "idle", message: "" });
+
+    try {
+      setOriginBusy(true);
+      const pkg = await buildOriginPackageForFocusedSeries();
+      triggerDownloadBlob(pkg.zipName, pkg.zipBlob);
+      setOriginStatus({ type: "ok", message: "Origin package downloaded." });
+    } catch (err) {
+      const msg = err?.message ? String(err.message) : "Failed to build Origin package";
+      setOriginStatus({ type: "error", message: msg });
+    } finally {
+      setOriginBusy(false);
+    }
+  };
+
+  const handleOpenInOrigin = async () => {
+    if (originBusy) return;
+    setOriginStatus({ type: "idle", message: "" });
+
+    try {
+      setOriginBusy(true);
+
+      const pkg = await buildOriginPackageForFocusedSeries();
+      const job = await createOriginJob(pkg.zipBlob, { filename: pkg.zipName });
+
+      const apiBase = resolveOriginBridgeApiBaseUrl();
+      const jobId = String(job?.jobId || "");
+      const token = String(job?.token || "");
+      if (!jobId || !token) throw new Error("Invalid job response");
+
+      const url = `${originBridgeScheme}://open?apiBase=${encodeURIComponent(apiBase)}&jobId=${encodeURIComponent(jobId)}&token=${encodeURIComponent(token)}`;
+      window.location.href = url;
+
+      setOriginStatus({
+        type: "ok",
+        message: "Requested OriginBridge to open Origin. If nothing happens, install OriginBridge or download the package.",
+      });
+    } catch (err) {
+      const msg = err?.message ? String(err.message) : "Failed to open in Origin";
+      setOriginStatus({ type: "error", message: msg });
+    } finally {
+      setOriginBusy(false);
+    }
+  };
 
   const ssApplicable = useMemo(() => {
     const curveType = String(activeFile?.curveType || "").toLowerCase();
@@ -1889,12 +2139,48 @@ const AnalysisCharts = ({
       />
 
       <div className="bg-bg-surface border border-border rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-lg font-bold text-text-primary">{plotLabel}</h2>
-          <span className="text-xs text-text-secondary">
-            (active file only)
-          </span>
+        <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-text-primary">{plotLabel}</h2>
+            <span className="text-xs text-text-secondary">
+              (active file only)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={originBusy || !focusedSeries}
+              onClick={handleDownloadOriginPackage}
+              className="h-8"
+            >
+              Download Origin ZIP
+            </Button>
+            <Button
+              variant="dark"
+              size="sm"
+              disabled={originBusy || !focusedSeries}
+              onClick={handleOpenInOrigin}
+              className="h-8"
+            >
+              Open in Origin
+            </Button>
+          </div>
         </div>
+
+        {originStatus?.message ? (
+          <div
+            className={`text-xs mb-3 ${originStatus.type === "error"
+              ? "text-red-500"
+              : originStatus.type === "ok"
+                ? "text-green-500"
+                : "text-text-secondary"
+              }`}
+          >
+            {originStatus.message}
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-3 mb-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -2034,6 +2320,25 @@ const AnalysisCharts = ({
                 )}
               </div>
 
+              {activeFile?.series?.length ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-text-secondary whitespace-nowrap">
+                    Curve:
+                  </span>
+                  <Dropdown
+                    value={focusedSeriesId ?? ""}
+                    onChange={(next) => setFocusedSeriesId(next)}
+                    options={(activeFile?.series ?? []).map((s) => ({
+                      value: s.id,
+                      label: s.name,
+                    }))}
+                    className="w-[200px]"
+                    triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
+                    placeholder="Select curve"
+                  />
+                </div>
+              ) : null}
+
               {effectivePlotType === "gm" ? (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-text-secondary whitespace-nowrap">
@@ -2056,23 +2361,6 @@ const AnalysisCharts = ({
 
               {effectivePlotType === "ss" ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-text-secondary whitespace-nowrap">
-                      Focus:
-                    </span>
-                    <Dropdown
-                      value={focusedSeriesId ?? ""}
-                      onChange={(next) => setFocusedSeriesId(next)}
-                      options={(activeFile?.series ?? []).map((s) => ({
-                        value: s.id,
-                        label: s.name,
-                      }))}
-                      className="w-[160px]"
-                      triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
-                      placeholder="Select curve"
-                    />
-                  </div>
-
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-text-secondary whitespace-nowrap">
                       SS:

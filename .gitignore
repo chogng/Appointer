@@ -36,3 +36,9 @@ dist-ssr
 
 # .claude artifacts
 .claude/
+
+# .snow artifacts
+.snow/
+
+# Local debug snippets
+mcp-claude-hover-snippet.js
