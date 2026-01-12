@@ -1028,7 +1028,29 @@ const LiteratureResearch = () => {
             key={item?.id || item?.articleUrl || item?.title}
             data-ui="literature-result-card"
             data-item-id={String(id)}
-            onClick={() => toggleSelectedId(id)}
+            onClick={(e) => {
+              const selection = window.getSelection?.();
+              const hasSelection = Boolean(
+                selection &&
+                !selection.isCollapsed &&
+                String(selection.toString?.() || "").trim(),
+              );
+
+              if (hasSelection) {
+                const anchorNode = selection.anchorNode;
+                const focusNode = selection.focusNode;
+                if (
+                  anchorNode &&
+                  focusNode &&
+                  e.currentTarget.contains(anchorNode) &&
+                  e.currentTarget.contains(focusNode)
+                ) {
+                  return;
+                }
+              }
+
+              toggleSelectedId(id);
+            }}
             className={`border rounded-2xl p-5 shadow-sm cursor-pointer transition-all duration-200 ${isSelected
               ? "border-black bg-black/5"
               : "border-border bg-bg-surface hover:shadow-md"
@@ -1133,15 +1155,7 @@ const LiteratureResearch = () => {
             </div>
 
             <div className="mt-4 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
-              {isTranslated && !showOriginal && (
-                <div className="mb-2 text-xs text-text-tertiary">
-                  {translatedTargetLang === "zh"
-                    ? t("literature_translation_label_zh") ||
-                    "Chinese translation"
-                    : t("literature_translation_label_en") ||
-                    "English translation"}
-                </div>
-              )}
+
               {abstractText ||
                 t("literature_no_abstract") ||
                 "（该条目暂无摘要）"}
@@ -1793,7 +1807,7 @@ const LiteratureResearch = () => {
           </div>
 
           <div className="ui-filter_warp" aria-label="date filter warp">
-            <div className="date_btn_warp" data-ui="literature-start-date">
+            <div className="date_btn_warp flex-none" data-ui="literature-start-date">
               <label
                 className="date_btn_label"
                 data-ui="literature-start-date-label"
@@ -1808,12 +1822,12 @@ const LiteratureResearch = () => {
                 cta="Literature research"
                 ctaPosition="date filter warp"
                 ctaCopy="start date"
-                className="min-w-0 flex-1"
+                className="min-w-0"
                 textClassName="hidden sm:block"
                 aria-label="start date"
               />
             </div>
-            <div className="date_btn_warp" data-ui="literature-end-date">
+            <div className="date_btn_warp flex-none" data-ui="literature-end-date">
               <label
                 className="date_btn_label"
                 data-ui="literature-end-date-label"
@@ -1825,7 +1839,7 @@ const LiteratureResearch = () => {
                 value={endDate}
                 onChange={setEndDate}
                 placeholder={t("literature_end_date") || "鎴鏃ユ湡"}
-                className="min-w-0 flex-1"
+                className="min-w-0"
                 textClassName="hidden sm:block"
                 aria-label="end date"
               />
@@ -1848,7 +1862,7 @@ const LiteratureResearch = () => {
                 onChange={handleMaxResultsInputChange}
                 onFocus={handleSettingsInputFocus}
                 onBlur={handleSettingsInputBlur}
-                inputClassName="w-24 rounded-lg"
+                inputClassName="w-24"
                 cta="Literature research"
                 ctaPosition="date filter warp"
                 ctaCopy="max results"
@@ -2116,7 +2130,7 @@ const LiteratureResearch = () => {
                 data-ui="literature-selected-count-label"
               >
                 <span>{t("literature_selected_count") || "当前选中"}：</span>
-                <span className="font-mono">{selectedCount}</span>
+                <span className="">{selectedCount}</span>
               </div>
 
               <button
