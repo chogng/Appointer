@@ -3,7 +3,6 @@ import {
   Check,
   Download,
   FileDown,
-  FileJson,
   Languages,
   Link as LinkIcon,
   Loader2,
@@ -14,6 +13,7 @@ import {
   FlaskConical,
   ListChecks,
   ListX,
+  RefreshCw,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { apiService } from "../services/apiService";
@@ -248,7 +248,7 @@ const LiteratureResearch = () => {
     if (docxExport.state === "building") {
       return t("literature_export_docx_building");
     }
-    return t("literature_export_docx");
+    return "DOCX";
   }, [docxExport, t]);
 
   const [keywordInput, setKeywordInput] = useState("");
@@ -1935,25 +1935,29 @@ const LiteratureResearch = () => {
                   data-ui="literature-seed-url-row"
                   data-seed-index={index}
                 >
-                  <label
-                    className="ui-check_warp"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSeedUrlSelectedAt(index, seedUrlSelected[index] === false)
+                    }
+                    className="click_btn click_btn--md click_btn--icon-md-tight click_btn--fx click_btn--ghost click_btn--fx-muted bg-bg-page"
+                    title={
+                      seedUrlSelected[index] !== false
+                        ? "Include (Enabled)"
+                        : "Exclude (Disabled)"
+                    }
+                    aria-label={`Include seed url ${index + 1}`}
+                    aria-pressed={seedUrlSelected[index] !== false}
                     data-ui="literature-seed-url-select"
                     data-seed-index={index}
-                    title="include in fetch"
                   >
-                    <input
-                      type="checkbox"
-                      className="ui-check_native"
-                      checked={seedUrlSelected[index] !== false}
-                      onChange={(e) =>
-                        setSeedUrlSelectedAt(index, e.target.checked)
-                      }
-                      aria-label={`Include Seed URL ${index + 1} in fetch`}
-                    />
-                    <span className="ui-check_box" aria-hidden="true">
-                      <Check size={16} className="ui-check_icon" />
+                    <span className="click_btn_content">
+                      <Check
+                        size={16}
+                        className="ui-seed-url-check"
+                      />
                     </span>
-                  </label>
+                  </button>
                   <Input
                     dataUi="literature-seed-url"
                     size="md"
@@ -1988,7 +1992,7 @@ const LiteratureResearch = () => {
                     data-cta-copy="remove url"
                     data-ui="literature-seed-url-remove-btn"
                     data-seed-index={index}
-                    className="click_btn click_btn--md click_btn--icon-md click_btn--fx click_btn--fx-muted click_btn--danger"
+                    className="click_btn click_btn--md click_btn--icon-md-tight click_btn--fx click_btn--fx-muted click_btn--danger"
                   >
                     <span className="click_btn_content">
                       <Trash2 size={16} />
@@ -2008,82 +2012,6 @@ const LiteratureResearch = () => {
       </Card>
 
       <section className="mt-8">
-        <div className="ui-section_head ui-section_head--gap">
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={handleExportDocx}
-              disabled={isExportingDocx || selectedCount === 0}
-              className={`click_btn click_btn--md ${
-                isExportingDocx || selectedCount === 0
-                  ? "click_btn--disabled"
-                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
-              }`}
-              title={exportDocxLabel}
-              aria-label={exportDocxLabel}
-              data-ui="literature-export-docx-btn"
-            >
-              <span className="click_btn_content">
-                {isExportingDocx ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <FileDown size={16} />
-                )}
-                {exportDocxLabel}
-                {!isExportingDocx && selectedCount > 0
-                  ? ` (${selectedCount})`
-                  : ""}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportJson}
-              disabled={isExportingDocx || selectedCount === 0}
-              className={`click_btn click_btn--md ${
-                isExportingDocx || selectedCount === 0
-                  ? "click_btn--disabled"
-                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
-              }`}
-              title={t("literature_export_json") || "Export JSON"}
-              aria-label={t("literature_export_json") || "Export JSON"}
-              data-ui="literature-export-json-btn"
-            >
-              <span className="click_btn_content">
-                <FileJson size={16} />
-                {(t("literature_export_json") || "Export JSON") +
-                  (selectedCount > 0 ? ` (${selectedCount})` : "")}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleClearPageSession}
-              disabled={
-                isExportingDocx ||
-                status.state === "loading" ||
-                isAnyTranslationInFlight
-              }
-              className={`click_btn click_btn--md ${
-                isExportingDocx ||
-                status.state === "loading" ||
-                isAnyTranslationInFlight
-                  ? "click_btn--disabled"
-                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
-              }`}
-              title={t("literature_clear_session") || "Clear session"}
-              aria-label={t("literature_clear_session") || "Clear session"}
-              data-ui="literature-clear-session-btn"
-            >
-              <span className="click_btn_content">
-                <Trash2 size={16} />
-                {t("literature_clear_session") || "Clear session"}
-              </span>
-            </button>
-          </div>
-        </div>
-
         <Card
           as="section"
           dataUi="literature-keyword-panel"
@@ -2119,7 +2047,10 @@ const LiteratureResearch = () => {
               data-ui="literature-keywords-input"
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
-              placeholder="关键词匹配：two-dimensional, wafer, AI 等（用空格/换行/逗号分隔）"
+              placeholder={
+                t("literature_keywords_placeholder") ||
+                "关键词匹配：two-dimensional, wafer, AI 等（用空格/换行/逗号分隔）"
+              }
               rows={2}
               className="w-full px-3 py-2.5 rounded-lg bg-bg-page border border-border-200 focus:outline-none focus:ring-1 focus:ring-black text-sm text-text-primary placeholder:text-text-tertiary resize-y"
             />
@@ -2180,6 +2111,14 @@ const LiteratureResearch = () => {
               />
             </div>
             <div className="flex items-center gap-2">
+              <div
+                className="text-xs text-text-tertiary px-2"
+                data-ui="literature-selected-count-label"
+              >
+                <span>{t("literature_selected_count") || "当前选中"}：</span>
+                <span className="font-mono">{selectedCount}</span>
+              </div>
+
               <button
                 type="button"
                 onClick={handleSelectAllVisible}
@@ -2188,29 +2127,28 @@ const LiteratureResearch = () => {
                   status.state === "loading" ||
                   visibleResults.length === 0
                 }
-                className={`click_btn click_btn--md click_btn--icon-md ${
-                  isExportingDocx ||
+                className={`click_btn click_btn--md click_btn--icon-md ${isExportingDocx ||
                   status.state === "loading" ||
                   visibleResults.length === 0
-                    ? "click_btn--disabled"
-                    : "click_btn--ghost click_btn--fx click_btn--fx-muted"
-                }`}
+                  ? "click_btn--disabled"
+                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+                  }`}
                 title={
                   selectionToggleAction === "deselect-all"
                     ? t("literature_deselect_all_filtered") ||
-                      "Deselect all (filtered)"
+                    "Deselect all (filtered)"
                     : t("literature_select_all_filtered") || "Select all (filtered)"
                 }
                 aria-label={
                   selectionToggleAction === "deselect-all"
                     ? t("literature_deselect_all_filtered") ||
-                      "Deselect all (filtered)"
+                    "Deselect all (filtered)"
                     : t("literature_select_all_filtered") || "Select all (filtered)"
                 }
                 data-style={
                   isExportingDocx ||
-                  status.state === "loading" ||
-                  visibleResults.length === 0
+                    status.state === "loading" ||
+                    visibleResults.length === 0
                     ? "disabled"
                     : "ghost"
                 }
@@ -2229,6 +2167,79 @@ const LiteratureResearch = () => {
                   ) : (
                     <ListChecks size={16} />
                   )}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportDocx}
+                disabled={isExportingDocx || selectedCount === 0}
+                className={`click_btn click_btn--md click_btn--fx ${isExportingDocx || selectedCount === 0
+                  ? "click_btn--disabled"
+                  : "click_btn--primary"
+                  }`}
+                title={exportDocxLabel}
+                aria-label={exportDocxLabel}
+                data-style={isExportingDocx || selectedCount === 0 ? "disabled" : "primary"}
+                data-icon="with"
+                data-cta="Literature research"
+                data-cta-position="result"
+                data-cta-copy="export docx"
+                data-ui="literature-export-docx-btn"
+              >
+                <span className="click_btn_content">
+                  {isExportingDocx ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <FileDown size={16} />
+                  )}
+                  {exportDocxLabel}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportJson}
+                disabled={isExportingDocx || selectedCount === 0}
+                className={`click_btn click_btn--md click_btn--fx ${isExportingDocx || selectedCount === 0
+                  ? "click_btn--disabled"
+                  : "click_btn--primary"
+                  }`}
+                title={t("literature_export_json") || "Export JSON"}
+                aria-label={t("literature_export_json") || "Export JSON"}
+                data-style={isExportingDocx || selectedCount === 0 ? "disabled" : "primary"}
+                data-icon="with"
+                data-cta="Literature research"
+                data-cta-position="result"
+                data-cta-copy="export json"
+                data-ui="literature-export-json-btn"
+              >
+                <span className="click_btn_content">
+                  <FileDown size={16} />
+                  {"JSON"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearPageSession}
+                disabled={
+                  isExportingDocx ||
+                  status.state === "loading" ||
+                  isAnyTranslationInFlight
+                }
+                className={`click_btn click_btn--md click_btn--icon-md ${isExportingDocx ||
+                  status.state === "loading" ||
+                  isAnyTranslationInFlight
+                  ? "click_btn--disabled"
+                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+                  }`}
+                title={t("literature_clear_session") || "Clear session"}
+                aria-label={t("literature_clear_session") || "Clear session"}
+                data-ui="literature-clear-session-btn"
+              >
+                <span className="click_btn_content">
+                  <RefreshCw size={16} className="transition-transform duration-500 hover:rotate-180" />
                 </span>
               </button>
             </div>
