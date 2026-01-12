@@ -480,7 +480,7 @@ body {
 
   /* Checkbox (icon-only, 38×38 by default) */
   .ui-check_warp {
-    @apply relative inline-flex items-center justify-center h-[38px] w-[38px] rounded-lg border border-border-200 bg-bg-page;
+    @apply relative inline-flex items-center justify-center h-[38px] w-[38px] rounded-lg bg-transparent transition-colors hover:bg-bg-surface-hover/60;
   }
 
   .ui-check_native {
@@ -488,7 +488,7 @@ body {
   }
 
   .ui-check_box {
-    @apply inline-flex items-center justify-center text-text-tertiary;
+    @apply absolute inset-0 inline-flex items-center justify-center rounded-lg text-text-tertiary;
   }
 
   .ui-check_icon {
@@ -498,7 +498,7 @@ body {
   }
 
   .ui-check_native:checked+.ui-check_box {
-    @apply text-text-primary;
+    @apply text-text-primary bg-bg-surface-hover/70;
   }
 
   .ui-check_native:checked+.ui-check_box .ui-check_icon {

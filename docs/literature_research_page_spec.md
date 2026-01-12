@@ -35,10 +35,16 @@
 ## 3. Seed URLs 区域
 
 **组合锚点**（已落地）：
+- 标题旁抓取计数：`[data-ui="literature-seed-url-fetch-count"]`（展示 `Nature A / Science B`，仅统计“勾选且非空”的链接）
 - 列表容器：`[data-ui="literature-seed-url-list"]`
 - 行容器：`[data-ui="literature-seed-url-row"][data-seed-index="0"]`
+- 勾选框：`[data-ui="literature-seed-url-select"][data-seed-index="0"]`
 - 输入框：`[data-ui="literature-seed-url-input"][data-seed-index="0"]`
 - 删除按钮：`[data-ui="literature-seed-url-remove-btn"][data-seed-index="0"]`
+
+**行为规则（抓取范围）**
+- Nature/Science 面板仅用于“显示/编辑”各自的 Seed URLs，不参与决定抓取范围。
+- 点击“开始抓取”时，会合并 `Nature + Science` 两边 **勾选且非空** 的入口链接后发起抓取。
 
 ## 4. Keyword Matching / Export / Clear
 

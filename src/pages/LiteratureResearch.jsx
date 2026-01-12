@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Check,
   Download,
   FileDown,
   FileJson,
@@ -70,6 +71,16 @@ const normalizeSeedUrlsList = (value) =>
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter(Boolean);
 
+const normalizeSeedUrlSelectedList = (value, desiredLen) => {
+  const list = Array.isArray(value) ? value : [];
+  const n = Math.max(0, Math.floor(Number(desiredLen) || 0));
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    out[i] = typeof list[i] === "boolean" ? list[i] : true;
+  }
+  return out;
+};
+
 const areStringArraysEqual = (a, b) => {
   if (!Array.isArray(a) || !Array.isArray(b)) return false;
   if (a.length !== b.length) return false;
@@ -90,6 +101,11 @@ const LiteratureResearch = () => {
     science: [""],
   });
 
+  const [seedUrlSelectedBySourceType, setSeedUrlSelectedBySourceType] = useState({
+    nature: [true],
+    science: [true],
+  });
+
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(today);
   const [maxResults, setMaxResults] = useState("");
@@ -97,6 +113,7 @@ const LiteratureResearch = () => {
   const [sourceType, setSourceType] = useState("nature"); // "nature" | "science"
 
   const seedUrls = seedUrlsBySourceType[sourceType] || [""];
+  const seedUrlSelected = seedUrlSelectedBySourceType[sourceType] || [];
 
   const seedUrlsBySourceTypeRef = useRef(seedUrlsBySourceType);
   const sourceTypeRef = useRef(sourceType);
@@ -104,6 +121,38 @@ const LiteratureResearch = () => {
 
   useEffect(() => {
     seedUrlsBySourceTypeRef.current = seedUrlsBySourceType;
+  }, [seedUrlsBySourceType]);
+
+  useEffect(() => {
+    setSeedUrlSelectedBySourceType((prev) => {
+      const prevNature = prev?.nature;
+      const prevScience = prev?.science;
+      const nextNature = normalizeSeedUrlSelectedList(
+        prevNature,
+        seedUrlsBySourceType?.nature?.length ?? 0,
+      );
+      const nextScience = normalizeSeedUrlSelectedList(
+        prevScience,
+        seedUrlsBySourceType?.science?.length ?? 0,
+      );
+
+      const natureSame =
+        Array.isArray(prevNature) &&
+        prevNature.length === nextNature.length &&
+        prevNature.every((v, i) => v === nextNature[i]);
+      const scienceSame =
+        Array.isArray(prevScience) &&
+        prevScience.length === nextScience.length &&
+        prevScience.every((v, i) => v === nextScience[i]);
+
+      if (natureSame && scienceSame) return prev;
+
+      return {
+        ...prev,
+        nature: nextNature.length ? nextNature : [true],
+        science: nextScience.length ? nextScience : [true],
+      };
+    });
   }, [seedUrlsBySourceType]);
 
   useEffect(() => {
@@ -261,6 +310,19 @@ const LiteratureResearch = () => {
         }
         : null;
 
+    const restoredSeedUrlSelectedBySourceType =
+      parsed?.seedUrlSelectedBySourceType &&
+        typeof parsed.seedUrlSelectedBySourceType === "object"
+        ? {
+          nature: Array.isArray(parsed.seedUrlSelectedBySourceType.nature)
+            ? parsed.seedUrlSelectedBySourceType.nature
+            : [],
+          science: Array.isArray(parsed.seedUrlSelectedBySourceType.science)
+            ? parsed.seedUrlSelectedBySourceType.science
+            : [],
+        }
+        : null;
+
     const restoredSeedUrls = Array.isArray(parsed?.seedUrls)
       ? parsed.seedUrls
       : null;
@@ -274,20 +336,46 @@ const LiteratureResearch = () => {
       typeof parsed?.maxResults === "string" ? parsed.maxResults : null;
 
     if (restoredSeedUrlsBySourceType) {
-      setSeedUrlsBySourceType((prev) => ({
-        ...prev,
+      const nextSeedUrlsBySourceType = {
         nature: restoredSeedUrlsBySourceType.nature.length
           ? restoredSeedUrlsBySourceType.nature
           : [""],
         science: restoredSeedUrlsBySourceType.science.length
           ? restoredSeedUrlsBySourceType.science
           : [""],
-      }));
-    } else if (restoredSeedUrls && restoredSeedUrls.length > 0) {
+      };
+
       setSeedUrlsBySourceType((prev) => ({
         ...prev,
-        [parsed?.sourceType === "science" ? "science" : "nature"]:
-          restoredSeedUrls.length ? restoredSeedUrls : [""],
+        ...nextSeedUrlsBySourceType,
+      }));
+
+      if (restoredSeedUrlSelectedBySourceType) {
+        setSeedUrlSelectedBySourceType((prev) => ({
+          ...prev,
+          nature: normalizeSeedUrlSelectedList(
+            restoredSeedUrlSelectedBySourceType.nature,
+            nextSeedUrlsBySourceType.nature.length,
+          ),
+          science: normalizeSeedUrlSelectedList(
+            restoredSeedUrlSelectedBySourceType.science,
+            nextSeedUrlsBySourceType.science.length,
+          ),
+        }));
+      }
+    } else if (restoredSeedUrls && restoredSeedUrls.length > 0) {
+      const restoredSource =
+        parsed?.sourceType === "science" ? "science" : "nature";
+      const nextSeedUrls = restoredSeedUrls.length ? restoredSeedUrls : [""];
+
+      setSeedUrlsBySourceType((prev) => ({
+        ...prev,
+        [restoredSource]: nextSeedUrls,
+      }));
+
+      setSeedUrlSelectedBySourceType((prev) => ({
+        ...prev,
+        [restoredSource]: normalizeSeedUrlSelectedList(null, nextSeedUrls.length),
       }));
     }
     if (restoredStartDate) setStartDate(restoredStartDate);
@@ -338,12 +426,44 @@ const LiteratureResearch = () => {
     });
   }, [literatureSession, user?.id]);
 
-  const sanitizedSeedUrls = useMemo(
-    () =>
-      seedUrls
-        .map((v) => (typeof v === "string" ? v.trim() : ""))
-        .filter(Boolean),
-    [seedUrls]
+  const fetchSeedUrlsBySourceType = useMemo(() => {
+    const out = { nature: [], science: [] };
+    for (const source of ["nature", "science"]) {
+      const urls = seedUrlsBySourceType?.[source] || [];
+      const selected = seedUrlSelectedBySourceType?.[source] || [];
+      for (let i = 0; i < urls.length; i++) {
+        const url = typeof urls[i] === "string" ? urls[i].trim() : "";
+        if (!url) continue;
+        if (selected[i] === false) continue;
+        out[source].push(url);
+      }
+    }
+    return out;
+  }, [seedUrlSelectedBySourceType, seedUrlsBySourceType]);
+
+  const fetchSeedUrls = useMemo(() => {
+    const list = [
+      ...(fetchSeedUrlsBySourceType.nature || []),
+      ...(fetchSeedUrlsBySourceType.science || []),
+    ];
+    const seen = new Set();
+    const out = [];
+    for (const url of list) {
+      const key = String(url || "").trim();
+      if (!key) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(key);
+    }
+    return out;
+  }, [fetchSeedUrlsBySourceType]);
+
+  const fetchSeedUrlCounts = useMemo(
+    () => ({
+      nature: fetchSeedUrlsBySourceType.nature.length,
+      science: fetchSeedUrlsBySourceType.science.length,
+    }),
+    [fetchSeedUrlsBySourceType]
   );
 
   useEffect(() => {
@@ -613,6 +733,25 @@ const LiteratureResearch = () => {
     });
   };
 
+  const syncAllDirtySettingsForFetch = async () => {
+    const dirtySources = ["nature", "science"].filter(
+      (source) => seedUrlsDirtyBySourceRef.current?.[source]
+    );
+
+    // Even if no seed-url changes, still sync maxResults if needed.
+    if (dirtySources.length === 0) {
+      await syncSettingsForFetch({ seedSource: null, seedUrlsToPersist: [] });
+      return;
+    }
+
+    for (const source of dirtySources) {
+      await syncSettingsForFetch({
+        seedSource: source,
+        seedUrlsToPersist: seedUrlsBySourceTypeRef.current?.[source] || [],
+      });
+    }
+  };
+
   useEffect(() => {
     return () => {
       cancelSettingsAutosave();
@@ -738,6 +877,7 @@ const LiteratureResearch = () => {
       v: LITERATURE_SESSION_STATE_VERSION,
       savedAt: Date.now(),
       seedUrlsBySourceType,
+      seedUrlSelectedBySourceType,
       startDate,
       endDate,
       maxResults,
@@ -766,6 +906,7 @@ const LiteratureResearch = () => {
     status,
     translations,
     literatureSession,
+    seedUrlSelectedBySourceType,
     user?.id,
   ]);
 
@@ -1070,12 +1211,33 @@ const LiteratureResearch = () => {
     );
   };
 
+  const setSeedUrlSelectedAt = (index, checked) => {
+    setSeedUrlSelectedBySourceType((prev) => {
+      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
+      const desiredLen = seedUrls.length;
+      const nextList = normalizeSeedUrlSelectedList(prevList, desiredLen);
+      if (index >= 0 && index < nextList.length) {
+        nextList[index] = Boolean(checked);
+      }
+      return { ...prev, [sourceType]: nextList.length ? nextList : [true] };
+    });
+  };
+
   const removeSeedUrlAt = (index) => {
+    setSeedUrlSelectedBySourceType((prev) => {
+      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
+      const nextList = prevList.filter((_, i) => i !== index);
+      return { ...prev, [sourceType]: nextList.length ? nextList : [true] };
+    });
     const next = seedUrls.filter((_, i) => i !== index);
     setSeedUrlsForSourceType(next.length ? next : [""]);
   };
 
   const addSeedUrl = () => {
+    setSeedUrlSelectedBySourceType((prev) => {
+      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
+      return { ...prev, [sourceType]: [...prevList, true] };
+    });
     setSeedUrlsForSourceType([...seedUrls, ""]);
   };
 
@@ -1171,11 +1333,11 @@ const LiteratureResearch = () => {
   };
 
   const handleSearch = async () => {
-    if (sanitizedSeedUrls.length === 0) {
+    if (fetchSeedUrls.length === 0) {
       setStatus({
         state: "error",
         message:
-          t("literature_seed_urls_required") || "请先填写至少一个入口链接。",
+          t("literature_seed_urls_required") || "请先选择至少一个入口链接。",
       });
       return;
     }
@@ -1183,10 +1345,7 @@ const LiteratureResearch = () => {
     cancelSettingsAutosave();
 
     try {
-      await syncSettingsForFetch({
-        seedSource: sourceType,
-        seedUrlsToPersist: sanitizedSeedUrls,
-      });
+      await syncAllDirtySettingsForFetch();
     } catch (error) {
       setStatus({
         state: "error",
@@ -1203,7 +1362,7 @@ const LiteratureResearch = () => {
     setSelectedIds([]);
     try {
       const payload = {
-        seedUrls: sanitizedSeedUrls,
+        seedUrls: fetchSeedUrls,
         startDate,
         endDate,
         maxResults:
@@ -1759,6 +1918,13 @@ const LiteratureResearch = () => {
               <label className="text-sm font-semibold text-text-primary">
                 {t("literature_seed_urls") || "文献种子链接"}
               </label>
+              <span
+                className="text-xs text-text-secondary whitespace-nowrap"
+                data-ui="literature-seed-url-fetch-count"
+              >
+                (Nature {fetchSeedUrlCounts.nature} / Science{" "}
+                {fetchSeedUrlCounts.science})
+              </span>
             </div>
 
             <div className="mt-3 space-y-2" data-ui="literature-seed-url-list">
@@ -1769,6 +1935,25 @@ const LiteratureResearch = () => {
                   data-ui="literature-seed-url-row"
                   data-seed-index={index}
                 >
+                  <label
+                    className="ui-check_warp"
+                    data-ui="literature-seed-url-select"
+                    data-seed-index={index}
+                    title="include in fetch"
+                  >
+                    <input
+                      type="checkbox"
+                      className="ui-check_native"
+                      checked={seedUrlSelected[index] !== false}
+                      onChange={(e) =>
+                        setSeedUrlSelectedAt(index, e.target.checked)
+                      }
+                      aria-label={`Include Seed URL ${index + 1} in fetch`}
+                    />
+                    <span className="ui-check_box" aria-hidden="true">
+                      <Check size={16} className="ui-check_icon" />
+                    </span>
+                  </label>
                   <Input
                     dataUi="literature-seed-url"
                     size="md"
