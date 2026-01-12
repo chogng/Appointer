@@ -3648,7 +3648,8 @@ app.get("/api/literature/settings", authenticateToken, async (req, res) => {
       updatedAt: row?.updatedAt || null,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const message = error?.message || String(error) || "Request failed";
+    res.status(500).json({ error: message });
   }
 });
 
@@ -3727,7 +3728,8 @@ app.patch("/api/literature/settings", authenticateToken, async (req, res) => {
       updatedAt: now,
     });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    const message = error?.message || String(error) || "Request failed";
+    res.status(400).json({ error: message });
   }
 	});
 
@@ -3782,7 +3784,8 @@ app.post("/api/literature/search", authenticateToken, async (req, res) => {
 
     res.json(enriched);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    const message = error?.message || String(error) || "Request failed";
+    res.status(400).json({ error: message });
   }
 });
 

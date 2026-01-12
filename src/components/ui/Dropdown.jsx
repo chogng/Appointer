@@ -2,12 +2,13 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import Popup from "./Popup";
 
+const cx = (...parts) => parts.filter(Boolean).join(" ");
+
 const DropdownIcon = ({ className }) => (
   <img
     src="/dropdown.svg"
     alt=""
-    className={className}
-    style={{ width: "0.75rem", height: "0.75rem" }}
+    className={cx("ui-dropdown_icon", className)}
   />
 );
 
@@ -21,6 +22,7 @@ const Dropdown = ({
   placeholder,
   title,
   disabled = false,
+  size = "md", // "sm" | "md"
   className = "",
   formatDisplay,
   align = "left",
@@ -28,6 +30,8 @@ const Dropdown = ({
   id,
   popupClassName = "min-w-full",
   triggerClassName = "",
+  dataUi,
+  testId,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -37,6 +41,13 @@ const Dropdown = ({
   const internalMenuId = useId();
   const triggerId = id || `dropdown-${internalTriggerId}`;
   const menuId = `dropdown-menu-${internalMenuId}`;
+  const uiMarker =
+    typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
+  const devTestId = import.meta.env.DEV && testId ? testId : undefined;
+  const sizeClass =
+    size === "sm" ? "ui-dropdown_trigger--sm" : "ui-dropdown_trigger--md";
+  const textSizeClass =
+    size === "sm" ? "ui-dropdown_text--sm" : "ui-dropdown_text--md";
 
   const selectableOptions = useMemo(
     () => (Array.isArray(options) ? options.filter(isSelectableOption) : []),
@@ -190,8 +201,10 @@ const Dropdown = ({
   return (
     <div
       ref={containerRef}
-      className={`relative ${className}`}
+      className={cx("ui-dropdown_warp", className)}
+      data-style="dropdown"
       data-disabled={disabled || undefined}
+      data-ui={uiMarker}
     >
       <button
         id={triggerId}
@@ -201,17 +214,18 @@ const Dropdown = ({
         aria-controls={menuId}
         disabled={disabled}
         data-state={isOpen ? "open" : "closed"}
+        data-size={size}
+        data-ui={uiMarker ? `${uiMarker}-trigger` : undefined}
+        data-testid={devTestId}
         onClick={handleTriggerClick}
         onKeyDown={handleKeyDown}
-        className={`w-full h-10 flex items-center justify-between gap-2 px-3 rounded-lg border border-border bg-bg-page text-text-primary hover:bg-bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${triggerClassName}`}
+        className={cx("ui-dropdown_trigger", sizeClass, triggerClassName)}
       >
-        <span className="text-left text-[0.875rem] font-medium whitespace-nowrap truncate">
+        <span className={cx("ui-dropdown_text", textSizeClass)}>
           {displayText}
         </span>
         <DropdownIcon
-          className={`opacity-80 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={isOpen ? "rotate-180" : ""}
         />
       </button>
 
@@ -222,18 +236,17 @@ const Dropdown = ({
         zIndex={zIndex}
         triggerId={triggerId}
         menuId={menuId}
+        menuDataUi={uiMarker ? `${uiMarker}-menu` : undefined}
         containerRef={containerRef}
         className={popupClassName}
       >
         {() => (
           <>
             {title ? (
-              <div className="px-3 py-2 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                {title}
-              </div>
+              <div className="ui-dropdown_title">{title}</div>
             ) : null}
 
-            <div className="flex flex-col gap-1 max-h-[15rem] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="ui-dropdown_list">
               {indexedGroups.map(({ group, options }, groupIdx) => (
                 <div key={group || "default"} role={group ? "group" : undefined}>
                   {group ? (
@@ -242,12 +255,10 @@ const Dropdown = ({
                         <div
                           role="separator"
                           aria-orientation="horizontal"
-                          className="h-px bg-border my-1 mx-3"
+                          className="ui-dropdown_separator"
                         />
                       ) : null}
-                      <div className="px-3 py-1 text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
-                        {group}
-                      </div>
+                      <div className="ui-dropdown_group">{group}</div>
                     </>
                   ) : null}
 
@@ -264,17 +275,13 @@ const Dropdown = ({
                         tabIndex={-1}
                         data-highlighted={isHighlighted || undefined}
                         data-selected={isSelected || undefined}
+                        data-value={String(option.value)}
+                        data-ui={uiMarker ? `${uiMarker}-item` : undefined}
                         onClick={() => selectOption(option)}
                         onMouseEnter={() => setHighlightedIndex(currentIndex)}
-                        className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors flex items-center justify-between ${
-                          isSelected
-                            ? "bg-bg-surface-hover text-text-primary font-medium"
-                            : isHighlighted
-                              ? "bg-bg-surface-hover/70 text-text-primary"
-                              : "text-text-secondary hover:bg-bg-surface-hover/60 hover:text-text-primary"
-                        }`}
+                        className="ui-dropdown_item"
                       >
-                        <span className="flex items-center gap-2 min-w-0">
+                        <span className="ui-dropdown_item-left">
                           {Icon ? (
                             <Icon
                               style={{ width: "0.9rem", height: "0.9rem" }}
@@ -297,9 +304,7 @@ const Dropdown = ({
               ))}
 
               {flatOptions.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-text-secondary">
-                  No options
-                </div>
+                <div className="ui-dropdown_empty">No options</div>
               ) : null}
             </div>
           </>

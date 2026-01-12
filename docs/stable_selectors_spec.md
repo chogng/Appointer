@@ -7,7 +7,7 @@
 - **语义与可访问性优先**：能用 `id/htmlFor`、`aria-*` 表达就不要用结构选择器。
 - **稳定标记专用**：用 `data-ui`（或 `data-testid`）做“定位锚点”，不要用样式 class 当定位主入口。
 - **组件输出要稳定**：UI 组件应提供稳定 DOM 结构与 `data-*` 标记（参考 `docs/tabs_ui_component_spec.md`）。
-- 组件补充规范：`Card` 参见 `docs/card_ui_component_spec.md`；`Input` 参见 `docs/input_ui_component_spec.md`。
+- 组件补充规范：`Card` 参见 `docs/card_ui_component_spec.md`；`Input` 参见 `docs/input_ui_component_spec.md`；`Dropdown` 参见 `docs/dropdown_ui_component_spec.md`。
 
 ---
 

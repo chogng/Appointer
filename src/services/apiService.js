@@ -90,12 +90,13 @@ class ApiService {
         this.unauthorizedCallback();
       }
 
-      let message = "Request failed";
+      const fallbackMessage = `Request failed (${response.status} ${response.statusText})`;
+      let message = fallbackMessage;
       const contentType = response.headers.get("content-type") || "";
 
       if (contentType.includes("application/json")) {
         const parsed = await response.json().catch(() => null);
-        message = parsed?.error || parsed?.message || message;
+        message = parsed?.error || parsed?.message || fallbackMessage;
 
         const error = new Error(message);
         if (parsed && typeof parsed === "object") {
@@ -105,6 +106,7 @@ class ApiService {
           });
         }
         error.status = response.status;
+        error.endpoint = endpoint;
         throw error;
       }
 
@@ -112,6 +114,7 @@ class ApiService {
       if (text) message = text;
       const error = new Error(message);
       error.status = response.status;
+      error.endpoint = endpoint;
       throw error;
     }
 
