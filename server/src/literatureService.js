@@ -157,6 +157,10 @@ function normalizeText(input) {
     .trim();
 }
 
+function escapeRegExp(input) {
+  return String(input || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function parseNatureCardDateText(text) {
   const raw = normalizeText(text);
   const match = raw.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
@@ -233,7 +237,7 @@ function parseNatureListingCandidates(html, seedUrl) {
   const results = [];
   const seen = new Set();
   const hrefRe =
-    /href="(https?:\/\/(?:www\.)?nature\.com\/articles\/[^"#\s]+|\/articles\/[^"#\s]+)"/gi;
+    /<a\b[^>]*href="(https?:\/\/(?:www\.)?nature\.com\/articles\/[^"#\s]+|\/articles\/[^"#\s]+)"[^>]*>/gi;
 
   let match;
   while ((match = hrefRe.exec(html))) {
@@ -293,17 +297,117 @@ function parseNatureListingCandidates(html, seedUrl) {
 }
 
 function parseMetaContent(html, name) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`name="${escaped}"\\s+content="([^"]*)"`, "i");
-  const m = html.match(re);
-  return m ? decodeHtmlEntities(m[1]) : null;
+  if (typeof html !== "string" || !html) return null;
+  const escaped = escapeRegExp(name);
+  const tagRe = new RegExp(
+    `<meta\\b[^>]*\\bname=(\"|')${escaped}\\1[^>]*>`,
+    "i",
+  );
+  const m = html.match(tagRe);
+  if (!m) return null;
+  const tag = m[0] || "";
+  const contentMatch = tag.match(/\bcontent=(\"|')([^\"']*)\1/i);
+  return contentMatch ? decodeHtmlEntities(contentMatch[2]) : null;
 }
 
 function parseMetaProperty(html, property) {
-  const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`property="${escaped}"\\s+content="([^"]*)"`, "i");
-  const m = html.match(re);
-  return m ? decodeHtmlEntities(m[1]) : null;
+  if (typeof html !== "string" || !html) return null;
+  const escaped = escapeRegExp(property);
+  const tagRe = new RegExp(
+    `<meta\\b[^>]*\\bproperty=(\"|')${escaped}\\1[^>]*>`,
+    "i",
+  );
+  const m = html.match(tagRe);
+  if (!m) return null;
+  const tag = m[0] || "";
+  const contentMatch = tag.match(/\bcontent=(\"|')([^\"']*)\1/i);
+  return contentMatch ? decodeHtmlEntities(contentMatch[2]) : null;
+}
+
+function parseJsonLdBlocks(html) {
+  if (typeof html !== "string" || !html) return [];
+  const blocks = [];
+  const re =
+    /<script\b[^>]*type=(?:"application\/ld\+json"|'application\/ld\+json')[^>]*>([\s\S]*?)<\/script>/gi;
+
+  let match;
+  while ((match = re.exec(html))) {
+    const raw = String(match[1] || "").trim();
+    if (!raw) continue;
+    try {
+      blocks.push(JSON.parse(raw));
+    } catch {
+      // ignore invalid json-ld blocks
+    }
+  }
+
+  return blocks;
+}
+
+function findJsonLdStringField(node, field, depth = 0) {
+  if (!node) return null;
+  if (depth > 6) return null;
+
+  if (Array.isArray(node)) {
+    for (const entry of node) {
+      const found = findJsonLdStringField(entry, field, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (typeof node !== "object") return null;
+
+  const direct = node[field];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+
+  if (direct && typeof direct === "object") {
+    const found = findJsonLdStringField(direct, field, depth + 1);
+    if (found) return found;
+  }
+
+  const main = node.mainEntity;
+  if (main) {
+    const found = findJsonLdStringField(main, field, depth + 1);
+    if (found) return found;
+  }
+
+  const graph = node["@graph"];
+  if (graph) {
+    const found = findJsonLdStringField(graph, field, depth + 1);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function extractNatureJsonLdDescription(html) {
+  const blocks = parseJsonLdBlocks(html);
+  for (const block of blocks) {
+    const desc = findJsonLdStringField(block?.mainEntity ?? block, "description");
+    if (typeof desc === "string" && desc.trim()) return desc;
+  }
+  return null;
+}
+
+function extractNatureJsonLdHeadline(html) {
+  const blocks = parseJsonLdBlocks(html);
+  for (const block of blocks) {
+    const headline =
+      findJsonLdStringField(block?.mainEntity ?? block, "headline") ||
+      findJsonLdStringField(block?.mainEntity ?? block, "name");
+    if (typeof headline === "string" && headline.trim()) return headline;
+  }
+  return null;
+}
+
+function extractNatureJsonLdDatePublished(html) {
+  const blocks = parseJsonLdBlocks(html);
+  for (const block of blocks) {
+    const date = findJsonLdStringField(block?.mainEntity ?? block, "datePublished");
+    if (typeof date === "string" && date.trim()) return date;
+  }
+  return null;
 }
 
 function extractNatureAbstract(html) {
@@ -320,6 +424,16 @@ function extractNatureAbstract(html) {
     if (text) return text;
   }
 
+  const standfirstMatch =
+    html.match(/data-test="standfirst"[^>]*>([\s\S]*?)<\/(?:p|div)>/i) ||
+    html.match(/class="[^"]*c-article-teaser-text[^"]*"[^>]*>([\s\S]*?)<\/(?:p|div)>/i) ||
+    html.match(/class="[^"]*c-article__standfirst[^"]*"[^>]*>([\s\S]*?)<\/(?:p|div)>/i);
+
+  if (standfirstMatch) {
+    const text = normalizeText(standfirstMatch[1]);
+    if (text) return text;
+  }
+
   const meta =
     parseMetaContent(html, "dc.description") ||
     parseMetaContent(html, "description") ||
@@ -327,7 +441,11 @@ function extractNatureAbstract(html) {
     "";
 
   const normalized = normalizeText(meta);
-  return normalized || null;
+  if (normalized) return normalized;
+
+  const jsonLd = extractNatureJsonLdDescription(html);
+  const normalizedJsonLd = normalizeText(jsonLd || "");
+  return normalizedJsonLd || null;
 }
 
 function parseNatureDataLayerCategory(html) {
@@ -397,13 +515,19 @@ function parseNatureNextPageUrl(html, currentUrl) {
 async function _fetchNatureArticleDetails(articleUrl) {
   const html = await fetchText(articleUrl);
 
+  const jsonHeadline = extractNatureJsonLdHeadline(html);
+  const htmlTitle = extractHtmlTitle(html);
   const title =
     parseMetaContent(html, "dc.title") ||
     parseMetaProperty(html, "og:title") ||
+    jsonHeadline ||
+    htmlTitle ||
     "";
   const publishedDate = normalizeDateInput(
     parseMetaContent(html, "prism.publicationDate") ||
+      parseMetaProperty(html, "article:published_time") ||
       parseMetaContent(html, "article:published_time") ||
+      extractNatureJsonLdDatePublished(html) ||
       "",
   );
 
@@ -585,11 +709,86 @@ export async function searchLiterature({
   const results = [];
   const seenIds = new Set();
 
+  const natureDetailsCache = new Map();
+  const fetchNatureDetailsCached = async (articleUrl) => {
+    const normalized = (() => {
+      try {
+        const u = new URL(articleUrl);
+        u.hash = "";
+        u.search = "";
+        return u.toString();
+      } catch {
+        return articleUrl;
+      }
+    })();
+
+    if (natureDetailsCache.has(normalized)) {
+      return natureDetailsCache.get(normalized);
+    }
+
+    const promise = _fetchNatureArticleDetails(normalized).catch((err) => {
+      natureDetailsCache.delete(normalized);
+      throw err;
+    });
+    natureDetailsCache.set(normalized, promise);
+    return promise;
+  };
+
   for (const seedUrl of normalizedSeeds) {
     if (results.length >= cap) break;
     const url = new URL(seedUrl);
 
     if (url.hostname.endsWith("nature.com")) {
+      if (/^\/articles\/[^/]+$/i.test(url.pathname)) {
+        const normalizedArticleUrl = (() => {
+          try {
+            const u = new URL(seedUrl);
+            u.hash = "";
+            u.search = "";
+            return u.toString();
+          } catch {
+            return seedUrl;
+          }
+        })();
+
+        const details = await fetchNatureDetailsCached(normalizedArticleUrl);
+        const publishedDate = details?.publishedDate || null;
+        if (publishedDate && !isDateInRange(publishedDate, start, end)) {
+          continue;
+        }
+
+        const journalTitle = details?.contentGroup || null;
+        const sectionTitle = details?.contentSubGroup || details?.contentType || null;
+        const sourceContext = buildNatureSourceContext({ journalTitle, sectionTitle });
+
+        const item = {
+          id: normalizedArticleUrl,
+          source: "nature",
+          seedUrl,
+          seedContext: sourceContext || details?.title || normalizedArticleUrl,
+          sourceContext: sourceContext || null,
+          journalTitle,
+          sectionTitle,
+          journalSlug: null,
+          sectionSlug: null,
+          articleType: null,
+          contentType: details?.contentType || null,
+          contentSubGroup: details?.contentSubGroup || null,
+          contentGroup: details?.contentGroup || null,
+          title: details?.title || normalizedArticleUrl,
+          articleUrl: normalizedArticleUrl,
+          publishedDate,
+          abstract: details?.abstract || null,
+          pdfUrl: details?.pdfUrl || `${normalizedArticleUrl}.pdf`,
+          doi: deriveNatureDoiFromArticleUrl(normalizedArticleUrl),
+        };
+
+        if (!item.id || seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        results.push(item);
+        continue;
+      }
+
       const visitedPages = new Set();
       const perSeedSeenArticles = new Set();
       const seedPath = parseNatureSeedPath(seedUrl);
@@ -746,5 +945,48 @@ export async function searchLiterature({
     }
   }
 
-  return results.slice(0, cap);
+  const finalResults = results.slice(0, cap);
+
+  const natureMissingAbstract = finalResults.filter(
+    (item) =>
+      item &&
+      item.source === "nature" &&
+      typeof item.articleUrl === "string" &&
+      item.articleUrl &&
+      !String(item.abstract || "").trim(),
+  );
+
+  if (natureMissingAbstract.length === 0) {
+    return finalResults;
+  }
+
+  const enriched = await mapWithConcurrency(
+    natureMissingAbstract,
+    3,
+    async (item) => {
+      const details = await fetchNatureDetailsCached(item.articleUrl);
+      return {
+        ...item,
+        title: details?.title || item.title,
+        publishedDate: details?.publishedDate || item.publishedDate,
+        abstract: details?.abstract || item.abstract,
+        pdfUrl: details?.pdfUrl || item.pdfUrl,
+        contentType: details?.contentType || item.contentType,
+        contentSubGroup: details?.contentSubGroup || item.contentSubGroup,
+        contentGroup: details?.contentGroup || item.contentGroup,
+      };
+    },
+  );
+
+  const byArticleUrl = new Map(
+    enriched
+      .filter((item) => item && typeof item.articleUrl === "string")
+      .map((item) => [item.articleUrl, item]),
+  );
+
+  return finalResults.map((item) => {
+    if (!item || item.source !== "nature") return item;
+    const next = byArticleUrl.get(item.articleUrl);
+    return next || item;
+  });
 }

@@ -2748,8 +2748,7 @@ app.get("/api/logs", authenticateToken, async (req, res) => {
       query += ` WHERE ${conditions.join(" AND ")}`;
     }
 
-    query += ` ORDER BY l.timestamp DESC LIMIT ?`;
-    params.push(limit);
+    query += ` ORDER BY l.timestamp DESC LIMIT ${limit}`;
 
     const logs = await db.query(query, params);
     res.json(logs);

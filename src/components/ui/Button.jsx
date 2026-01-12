@@ -10,7 +10,7 @@ const Button = ({
     withScale = false,
     ...props
 }) => {
-    const baseClasses = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed outline-none focus:outline-none focus:ring-0 relative group isolate";
+    const baseClasses = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:shadow-none disabled:before:scale-100 disabled:hover:before:scale-100 outline-none focus:outline-none focus:ring-0 relative group isolate";
 
     const variants = {
         primary: "text-white border border-transparent shadow-sm hover:shadow-md before:absolute before:inset-0 before:bg-accent hover:before:bg-accent-hover before:rounded-xl before:transition-all before:duration-200 before:-z-10",
