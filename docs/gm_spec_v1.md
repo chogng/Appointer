@@ -177,8 +177,11 @@ Implementation:
   - `nA` → factor `1e9`
 - Mode A output unit: `A / (X unit)` (usually `A/V` if X is volts).
 - Mode B output unit: `A / (legend unit)`.
-  - The UI label currently renders `${currentUnit}/V`; it is only strictly correct if legend unit is volts.
+- UI y-axis label (gm/derivative):
+  - If the derivative variable is `Vg`/`Vd` → `${currentUnit}/V`
+  - Otherwise fallback to `${currentUnit}/X` (Mode A) or `${currentUnit}/Legend` (Mode B) to avoid incorrect `/V`.
 - Derivative is computed on **signed** current (not `|I|`). A separate metric uses `max |gm|` for convenience.
+- Derivative is computed on **downsampled** points produced by the worker (`maxPoints`, default 600). Sharp peaks can be underestimated.
 
 **CN**
 - 电流 `I` 在内部以 **A** 为基准单位；UI 根据 `yUnit` 做显示缩放：
@@ -187,8 +190,11 @@ Implementation:
   - `nA` → `1e9`
 - Mode A 的单位：`A / (X 单位)`（若 X 是电压，则为 `A/V`）。
 - Mode B 的单位：`A / (legend 单位)`。
-  - 目前 UI 统一显示 `${currentUnit}/V`，仅当 legend 也是电压时单位才严格一致。
+- UI 的 gm/导数纵轴单位显示：
+  - 若求导变量为 `Vg`/`Vd` → `${currentUnit}/V`
+  - 否则回退为 `${currentUnit}/X`（Mode A）或 `${currentUnit}/Legend`（Mode B），避免错误地写成 `/V`。
 - 导数按 **有符号电流** 计算（不是 `|I|`）；表格里另有 `max |gm|` 便于比较。
+- 导数基于 worker 输出的**下采样**点计算（`maxPoints`，默认 600），尖锐峰值可能会被低估。
 
 ---
 
@@ -234,5 +240,5 @@ You can validate correctness with simple synthetic data:
 
 - Add optional smoothing or local linear regression for noisy data.
 - Improve unit labeling for Mode B to reflect legend parameter unit (not always `/V`).
+- Improve unit labeling to reflect the actual parameter unit (beyond the current `V` vs `X/Legend` fallback).
 - Handle non-monotonic sweeps in Mode B by resampling on a shared sorted X grid.
-

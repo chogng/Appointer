@@ -1327,6 +1327,8 @@ const processFile = async (file, fileId, fileName, config, { maxPoints }) => {
       ? {
         mode: yLegendMode,
         labels: yLegendLabels,
+        prefix: effectiveLegendPrefix || null,
+        varToken: legendVarToken || null,
       }
       : null,
     curveType,

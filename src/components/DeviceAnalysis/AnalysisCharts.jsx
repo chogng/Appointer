@@ -87,6 +87,17 @@ const normalizeFloat = (value) => {
   return Number(num.toPrecision(12));
 };
 
+const normalizeVarToken = (token) => {
+  const t = String(token || "").trim().toLowerCase();
+  return t === "vg" || t === "vd" ? t : null;
+};
+
+const varTokenToSymbol = (token) => {
+  if (token === "vg") return "Vg";
+  if (token === "vd") return "Vd";
+  return null;
+};
+
 // Origin-like: choose a "nice" step (1/2/2.5/5/10 × 10^k), then snap endpoints to multiples of step.
 // When preferTightRange is true, prioritize minimizing extra expansion beyond the requested domain.
 const buildNiceTicks = (
@@ -1114,14 +1125,109 @@ How to use (manual fallback):
     }
   }, [axis?.yScale, axis?.yTicks, effectivePlotType]);
 
+  const gmUi = useMemo(() => {
+    const xToken = normalizeVarToken(activeFile?.curveType);
+    const legendToken = normalizeVarToken(activeFile?.legend?.varToken);
+
+    const xSymbol = varTokenToSymbol(xToken);
+    const legendSymbol = varTokenToSymbol(legendToken);
+
+    const xLabelRaw =
+      typeof activeFile?.xLabel === "string" ? activeFile.xLabel.trim() : "";
+    const legendLabelRaw =
+      typeof activeFile?.legend?.prefix === "string"
+        ? activeFile.legend.prefix.trim()
+        : "";
+
+    const xDisplay = xSymbol || xLabelRaw || "X";
+    const legendDisplay = legendSymbol || legendLabelRaw || "Legend";
+
+    const derivToken = gmMode === "legend" ? legendToken : xToken;
+    const fixedToken = gmMode === "legend" ? xToken : legendToken;
+
+    const kind =
+      derivToken === "vg" ? "gm" : derivToken === "vd" ? "gds" : "derivative";
+
+    const kindTitle =
+      kind === "gm"
+        ? "Transconductance"
+        : kind === "gds"
+          ? "Output Conductance"
+          : "Derivative";
+
+    const kindSymbol = kind === "gm" ? "gm" : kind === "gds" ? "gds" : null;
+
+    const derivSymbol = varTokenToSymbol(derivToken);
+    const fixedSymbol = varTokenToSymbol(fixedToken);
+
+    const derivShortLabel = derivSymbol
+      ? `dI/d${derivSymbol}`
+      : gmMode === "legend"
+        ? `dI/d${legendDisplay}`
+        : `dI/d${xDisplay}`;
+
+    const formula = (() => {
+      if (derivSymbol && fixedSymbol) {
+        const base = `∂I/∂${derivSymbol} |${fixedSymbol}`;
+        return kindSymbol ? `${kindSymbol} = ${base}` : base;
+      }
+      if (derivSymbol) {
+        const fixedFallback = gmMode === "legend" ? xDisplay : legendDisplay;
+        const base = `∂I/∂${derivSymbol} |${fixedFallback}`;
+        return kindSymbol ? `${kindSymbol} = ${base}` : base;
+      }
+      return gmMode === "legend"
+        ? `dI/d${legendDisplay} @ fixed ${xDisplay}`
+        : `dI/d${xDisplay} (per curve)`;
+    })();
+
+    const plotLabel = `${kindTitle} (${formula})`;
+    const denomUnit = derivSymbol ? "V" : gmMode === "legend" ? "Legend" : "X";
+
+    const modeOptions = [
+      {
+        value: "x",
+        label: xSymbol
+          ? `dI/d${xSymbol} (per curve)`
+          : `dI/d${xDisplay} (per curve)`,
+      },
+      {
+        value: "legend",
+        label: legendSymbol
+          ? `dI/d${legendSymbol} @ fixed ${xSymbol ?? xDisplay}`
+          : `dI/d${legendDisplay} @ fixed ${xDisplay}`,
+      },
+    ];
+
+    const metricSymbol = kindSymbol ?? derivShortLabel;
+    const summaryLabel = kindSymbol
+      ? `${kindSymbol} (${derivShortLabel})`
+      : `deriv (${derivShortLabel})`;
+
+    return {
+      kind,
+      kindTitle,
+      kindSymbol,
+      derivShortLabel,
+      plotLabel,
+      denomUnit,
+      modeOptions,
+      metricSymbol,
+      summaryLabel,
+      metricHeader: `max|${metricSymbol}|`,
+      metricXHeader: `x@max|${metricSymbol}|`,
+    };
+  }, [activeFile, gmMode]);
+
   const plotYFactor = useMemo(() => currentUnitMeta.factor, [currentUnitMeta.factor]);
 
   const plotYUnitLabel = useMemo(() => {
-    if (effectivePlotType === "gm") return `${currentUnitMeta.label}/V`;
+    if (effectivePlotType === "gm")
+      return `${currentUnitMeta.label}/${gmUi.denomUnit}`;
     if (effectivePlotType === "j") return `${currentUnitMeta.label}/Area`;
     // SS tab main plot is I-V in log(|I|), so keep current unit here.
     return currentUnitMeta.label;
-  }, [currentUnitMeta.label, effectivePlotType]);
+  }, [currentUnitMeta.label, effectivePlotType, gmUi.denomUnit]);
 
   const pointsBySeriesId = useMemo(() => {
     if (!activeFile?.series?.length) return new Map();
@@ -1858,15 +1964,11 @@ How to use (manual fallback):
   );
 
   const plotLabel = useMemo(() => {
-    if (effectivePlotType === "gm") {
-      return gmMode === "legend"
-        ? "Transconductance (gm = dI/dLegend @ fixed X)"
-        : "Derivative (dI/dX per curve)";
-    }
+    if (effectivePlotType === "gm") return gmUi.plotLabel;
     if (effectivePlotType === "ss") return "Subthreshold Swing (fit on log(|I|))";
     if (effectivePlotType === "j") return "Current Density (J = |I| / Area)";
     return "Detail Plot";
-  }, [effectivePlotType, gmMode]);
+  }, [effectivePlotType, gmUi.plotLabel]);
 
   const metricsRows = useMemo(() => {
     if (!activeFile?.series?.length) return [];
@@ -2153,7 +2255,9 @@ How to use (manual fallback):
               size="sm"
               disabled={originBusy || !focusedSeries}
               onClick={handleDownloadOriginPackage}
-              className="h-8"
+              data-ui="device-analysis-origin-download-zip-btn"
+              type="button"
+              className="h-[38px]"
             >
               Download Origin ZIP
             </Button>
@@ -2162,7 +2266,9 @@ How to use (manual fallback):
               size="sm"
               disabled={originBusy || !focusedSeries}
               onClick={handleOpenInOrigin}
-              className="h-8"
+              data-ui="device-analysis-origin-open-btn"
+              type="button"
+              className="h-[38px]"
             >
               Open in Origin
             </Button>
@@ -2188,7 +2294,7 @@ How to use (manual fallback):
               <button
                 type="button"
                 onClick={() => setPlotType("iv")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "iv"
+                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "iv"
                   ? "bg-accent text-white shadow"
                   : "text-text-secondary hover:text-text-primary"
                   }`}
@@ -2198,7 +2304,7 @@ How to use (manual fallback):
               <button
                 type="button"
                 onClick={() => setPlotType("gm")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "gm"
+                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "gm"
                   ? "bg-accent text-white shadow"
                   : "text-text-secondary hover:text-text-primary"
                   }`}
@@ -2209,7 +2315,7 @@ How to use (manual fallback):
                 type="button"
                 onClick={() => ssApplicable && setPlotType("ss")}
                 disabled={!ssApplicable}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "ss"
+                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "ss"
                   ? "bg-accent text-white shadow"
                   : "text-text-secondary hover:text-text-primary"
                   } ${!ssApplicable ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -2225,7 +2331,7 @@ How to use (manual fallback):
                 type="button"
                 onClick={() => setPlotType("j")}
                 disabled={!area}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "j"
+                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "j"
                   ? "bg-accent text-white shadow"
                   : "text-text-secondary hover:text-text-primary"
                   } ${!area ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -2243,13 +2349,13 @@ How to use (manual fallback):
                 value={areaInput}
                 onChange={(e) => setAreaInput(e.target.value)}
                 placeholder="e.g. 1e-4"
-                className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[100px]"
+                className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[100px]"
               />
               <Button
                 variant="text"
                 size="sm"
                 onClick={() => setAreaInput("")}
-                className="px-2 py-0.5 h-7 text-xs border border-border/50 hover:bg-bg-subtle"
+                className="h-[38px] px-2 text-xs border border-border/50 hover:bg-bg-subtle"
                 title="Clear Area"
               >
                 Clear
@@ -2280,8 +2386,8 @@ How to use (manual fallback):
                     { value: "uA", label: "µA" },
                     { value: "nA", label: "nA" },
                   ]}
-                  size="sm"
-                  className="h-8"
+                  size="md"
+                  className="p-0"
                   itemClassName="px-2"
                 />
               </div>
@@ -2313,8 +2419,8 @@ How to use (manual fallback):
                         };
                       });
                     }}
-                    size="sm"
-                    className="h-8"
+                    size="md"
+                    className="p-0"
                     itemClassName="px-2 py-1"
                   />
                 )}
@@ -2326,6 +2432,8 @@ How to use (manual fallback):
                     Curve:
                   </span>
                   <Dropdown
+                    dataUi="device-analysis-curve-select"
+                    size="md"
                     value={focusedSeriesId ?? ""}
                     onChange={(next) => setFocusedSeriesId(next)}
                     options={(activeFile?.series ?? []).map((s) => ({
@@ -2333,7 +2441,6 @@ How to use (manual fallback):
                       label: s.name,
                     }))}
                     className="w-[200px]"
-                    triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
                     placeholder="Select curve"
                   />
                 </div>
@@ -2345,16 +2452,14 @@ How to use (manual fallback):
                     gm:
                   </span>
                   <Dropdown
+                    dataUi="device-analysis-gm-mode-select"
+                    size="md"
                     value={gmMode}
                     onChange={(next) =>
                       setGmMode(next === "legend" ? "legend" : "x")
                     }
-                    options={[
-                      { value: "x", label: "dI/dX (per curve)" },
-                      { value: "legend", label: "dI/dLegend (fixed X)" },
-                    ]}
+                    options={gmUi.modeOptions}
                     className="w-[170px]"
-                    triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
                   />
                 </div>
               ) : null}
@@ -2366,6 +2471,8 @@ How to use (manual fallback):
                       SS:
                     </span>
                     <Dropdown
+                      dataUi="device-analysis-ss-method-select"
+                      size="md"
                       value={ssMethod}
                       onChange={(next) => {
                         const method =
@@ -2389,7 +2496,6 @@ How to use (manual fallback):
                         { value: "legacy", label: "Legacy (min deriv)" },
                       ]}
                       className="w-[150px]"
-                      triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between"
                     />
                   </div>
 
@@ -2402,7 +2508,7 @@ How to use (manual fallback):
                         .updateDeviceAnalysisSettings({ ssMethodDefault: "auto" })
                         .catch(() => { });
                     }}
-                    className="h-8 px-2 text-xs border border-border/50 hover:bg-bg-subtle"
+                    className="h-[38px] px-2 text-xs border border-border/50 hover:bg-bg-subtle"
                     title="Reset SS method to Auto (strict)"
                   >
                     Reset
@@ -2412,7 +2518,7 @@ How to use (manual fallback):
                     variant={ssShowFitLine ? "secondary" : "text"}
                     size="sm"
                     onClick={() => setSsShowFitLine((v) => !v)}
-                    className="h-8 px-2 text-xs"
+                    className="h-[38px] px-2 text-xs"
                     title="Toggle fit line overlay (focused curve only)"
                   >
                     Fit line
@@ -2430,7 +2536,7 @@ How to use (manual fallback):
                         })
                         .catch(() => { });
                     }}
-                    className="h-8 px-2 text-xs"
+                    className="h-[38px] px-2 text-xs"
                     title="Toggle SS(x) diagnostics plot"
                   >
                     Diagnostics
@@ -2465,7 +2571,7 @@ How to use (manual fallback):
                           }
                         }}
                         placeholder="low (A)"
-                        className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
+                        className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
                       />
                       <span>~</span>
                       <input
@@ -2494,7 +2600,7 @@ How to use (manual fallback):
                           }
                         }}
                         placeholder="high (A)"
-                        className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
+                        className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
                       />
                     </div>
                   ) : null}
@@ -2502,6 +2608,8 @@ How to use (manual fallback):
               ) : null}
 
               <Dropdown
+                dataUi="device-analysis-file-select"
+                size="md"
                 value={effectiveActiveFileId ?? ""}
                 onChange={(val) => handleSelectFile(val)}
                 options={processedData.map((f) => ({
@@ -2509,14 +2617,13 @@ How to use (manual fallback):
                   label: f.fileName,
                 }))}
                 className="w-[240px]"
-                triggerClassName="h-8 px-2 text-xs bg-bg-page border-border w-full py-0 justify-between text-text-primary"
                 placeholder="Select File"
               />
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => setShowAxisControls((v) => !v)}
-                className="h-8 px-3 text-xs border-border bg-bg-page hover:bg-bg-surface-hover"
+                className="h-[38px] px-3 text-xs border-border bg-bg-page hover:bg-bg-surface-hover"
                 title="Axis settings"
               >
                 Axis
@@ -2525,13 +2632,13 @@ How to use (manual fallback):
           </div>
 
           {effectivePlotType === "ss" && ssSummary ? (
-            <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="bg-bg-page border border-border rounded-lg px-3 py-2 flex flex-wrap items-center gap-2 text-xs">
               <span
-                className={`px-2 py-1 rounded-md border ${ssSummary.confidence === "high"
-                  ? "border-green-500/40 text-green-500"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${ssSummary.confidence === "high"
+                  ? "bg-green-500/10 text-green-500 border-green-500/20"
                   : ssSummary.confidence === "low"
-                    ? "border-yellow-500/40 text-yellow-500"
-                    : "border-red-500/40 text-red-500"
+                    ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                    : "bg-red-500/10 text-red-500 border-red-500/20"
                   }`}
                 title={`method=${ssSummary.method} reason=${ssSummary.reason}`}
               >
@@ -2580,13 +2687,16 @@ How to use (manual fallback):
               </span>
 
               {ssSummary.confidence === "fail" ? (
-                <span className="text-red-500" title={ssSummary.reason}>
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"
+                  title={ssSummary.reason}
+                >
                   reason: <span className="font-mono">{ssSummary.reason}</span>
                 </span>
               ) : null}
 
               {ssSummary.suggestedRange ? (
-                <span className="text-yellow-500">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
                   suggested:{" "}
                   <span className="font-mono">
                     [{formatNumber(ssSummary.suggestedRange.x1, { digits: 4 })},{" "}
@@ -2831,6 +2941,15 @@ How to use (manual fallback):
               !gmLegendStatus.ok ? (
               <div className="text-[11px] text-red-500 mb-2">
                 {gmLegendStatus.message}
+              </div>
+            ) : null}
+
+            {effectivePlotType === "gm" ? (
+              <div className="text-[11px] text-text-secondary mb-2">
+                Note: {gmUi.summaryLabel} is a numeric derivative on signed I (no
+                smoothing). Computed after downsampling (max 600 points). Legend
+                mode interpolates across curves; non-monotonic X or mismatched X
+                ranges yield gaps.
               </div>
             ) : null}
 
@@ -3160,8 +3279,8 @@ How to use (manual fallback):
               Calculated Parameters
             </h3>
             <div className="text-xs text-text-secondary whitespace-nowrap">
-              gm: max |{gmMode === "legend" ? "dI/dLegend" : "dI/dX"}| · SS: fit
-              (mV/dec) · J uses |I|/Area
+              {gmUi.summaryLabel}: max |{gmUi.metricSymbol}| · SS: fit (mV/dec) ·
+              J uses |I|/Area
             </div>
           </div>
 
@@ -3187,10 +3306,10 @@ How to use (manual fallback):
                   Ion/Ioff
                 </th>
                 <th className="p-2 text-xs font-semibold text-text-secondary">
-                  gm_max(|)
+                  {gmUi.metricHeader}
                 </th>
                 <th className="p-2 text-xs font-semibold text-text-secondary">
-                  x@gm_max
+                  {gmUi.metricXHeader}
                 </th>
                 <th className="p-2 text-xs font-semibold text-text-secondary">
                   SS
@@ -3232,13 +3351,13 @@ How to use (manual fallback):
                   </td>
                   <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
                     <span
-                      className={`${row.ssConfidence === "high"
-                        ? "text-green-500"
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${row.ssConfidence === "high"
+                        ? "bg-green-500/10 text-green-500 border-green-500/20"
                         : row.ssConfidence === "low"
-                          ? "text-yellow-500"
+                          ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
                           : row.ssConfidence === "fail"
-                            ? "text-red-500"
-                            : "text-text-primary"
+                            ? "bg-red-500/10 text-red-500 border-red-500/20"
+                            : "bg-bg-page text-text-primary border-border"
                         }`}
                       title={buildSsTooltip(row)}
                     >
