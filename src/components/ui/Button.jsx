@@ -3,7 +3,7 @@ import React from 'react';
 const Button = ({
     children,
     variant = 'primary', // primary, secondary, text, danger
-    size = 'md', // sm, md, lg
+    size = 'md', // sm, md, lg, control
     fullWidth = false,
     className = '',
     disabled = false,
@@ -25,6 +25,7 @@ const Button = ({
         sm: "px-3 py-1 text-xs",
         md: "px-5 py-2 text-sm",
         lg: "px-6 py-3 text-base",
+        control: "h-[38px] px-3 py-1 text-xs",
     };
 
     const classes = `

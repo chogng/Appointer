@@ -12,6 +12,7 @@ const Input = forwardRef(
   (
     {
       label,
+      labelPlacement = "stack", // "stack" | "inline"
       value,
       onChange,
       placeholder,
@@ -50,6 +51,18 @@ const Input = forwardRef(
           : "ui-input_field--md";
     const uiMarker =
       typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
+    const resolvedLabelPlacement =
+      labelPlacement === "inline" ? "inline" : "stack";
+    const shouldInlineLabel = !!label && resolvedLabelPlacement === "inline";
+    const labelNode = label ? (
+      <label
+        htmlFor={inputId}
+        className={cx("ui-input_label", shouldInlineLabel && "whitespace-nowrap")}
+        data-ui={uiMarker ? `${uiMarker}-label` : undefined}
+      >
+        {label}
+      </label>
+    ) : null;
 
     return (
       <div
@@ -57,49 +70,85 @@ const Input = forwardRef(
         data-style="input"
         data-ui={uiMarker}
       >
-        {label ? (
-          <label
-            htmlFor={inputId}
-            className="ui-input_label"
-            data-ui={uiMarker ? `${uiMarker}-label` : undefined}
-          >
-            {label}
-          </label>
-        ) : null}
+        {shouldInlineLabel ? (
+          <div className="flex items-center gap-2">
+            {labelNode}
+            <div
+              className={cx("ui-input_field", sizeClass)}
+              data-state={state}
+              data-icon={LeftIcon ? "with" : "without"}
+              data-testid={devTestId}
+              data-cta={cta}
+              data-cta-position={ctaPosition}
+              data-cta-copy={ctaCopy}
+            >
+              {LeftIcon ? (
+                <span className="ui-input_icon" aria-hidden="true">
+                  <LeftIcon size={16} />
+                </span>
+              ) : null}
 
-        <div
-          className={cx("ui-input_field", sizeClass)}
-          data-state={state}
-          data-icon={LeftIcon ? "with" : "without"}
-          data-testid={devTestId}
-          data-cta={cta}
-          data-cta-position={ctaPosition}
-          data-cta-copy={ctaCopy}
-        >
-          {LeftIcon ? (
-            <span className="ui-input_icon" aria-hidden="true">
-              <LeftIcon size={16} />
-            </span>
-          ) : null}
+              <input
+                ref={ref}
+                id={inputId}
+                name={name}
+                type={type}
+                value={value ?? ""}
+                onChange={(e) => onChange?.(e.target.value)}
+                placeholder={placeholder}
+                disabled={disabled}
+                autoComplete={autoComplete}
+                aria-invalid={!!error}
+                data-ui={uiMarker ? `${uiMarker}-input` : undefined}
+                className={cx("ui-input_native", inputClassName)}
+                {...props}
+              />
 
-          <input
-            ref={ref}
-            id={inputId}
-            name={name}
-            type={type}
-            value={value ?? ""}
-            onChange={(e) => onChange?.(e.target.value)}
-            placeholder={placeholder}
-            disabled={disabled}
-            autoComplete={autoComplete}
-            aria-invalid={!!error}
-            data-ui={uiMarker ? `${uiMarker}-input` : undefined}
-            className={cx("ui-input_native", inputClassName)}
-            {...props}
-          />
+              {rightSlot ? (
+                <div className="ui-input_right">{rightSlot}</div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <>
+            {labelNode}
+            <div
+              className={cx("ui-input_field", sizeClass)}
+              data-state={state}
+              data-icon={LeftIcon ? "with" : "without"}
+              data-testid={devTestId}
+              data-cta={cta}
+              data-cta-position={ctaPosition}
+              data-cta-copy={ctaCopy}
+            >
+              {LeftIcon ? (
+                <span className="ui-input_icon" aria-hidden="true">
+                  <LeftIcon size={16} />
+                </span>
+              ) : null}
 
-          {rightSlot ? <div className="ui-input_right">{rightSlot}</div> : null}
-        </div>
+              <input
+                ref={ref}
+                id={inputId}
+                name={name}
+                type={type}
+                value={value ?? ""}
+                onChange={(e) => onChange?.(e.target.value)}
+                placeholder={placeholder}
+                disabled={disabled}
+                autoComplete={autoComplete}
+                aria-invalid={!!error}
+                data-ui={uiMarker ? `${uiMarker}-input` : undefined}
+                className={cx("ui-input_native", inputClassName)}
+                {...props}
+              />
+
+              {rightSlot ? (
+                <div className="ui-input_right">{rightSlot}</div>
+              ) : null}
+            </div>
+          </>
+        )}
 
         {error ? <div className="ui-input_error">{error}</div> : null}
         {!error && hint ? <div className="ui-input_hint">{hint}</div> : null}

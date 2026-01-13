@@ -28,6 +28,7 @@ import { apiService } from "../../services/apiService";
 import Dropdown from "../ui/Dropdown";
 import Button from "../ui/Button";
 import ToggleButton from "../ui/ToggleButton";
+import Card from "../ui/Card";
 
 const COLORS = [
   "#8884d8",
@@ -569,7 +570,7 @@ const OverviewGrid = React.memo(function OverviewGrid({
   if (!processedData?.length) return null;
 
   return (
-    <div className="bg-bg-surface border border-border rounded-xl p-4">
+    <Card variant="panel">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-text-primary">
@@ -634,7 +635,7 @@ const OverviewGrid = React.memo(function OverviewGrid({
           />
         ))}
       </div>
-    </div>
+    </Card>
   );
 });
 
@@ -2240,35 +2241,26 @@ How to use (manual fallback):
         yScale={effectiveYScale}
       />
 
-      <div className="bg-bg-surface border border-border rounded-xl p-4">
-        <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-text-primary">{plotLabel}</h2>
-            <span className="text-xs text-text-secondary">
-              (active file only)
-            </span>
-          </div>
-
+      <Card variant="panel">
+        <div className="flex items-center justify-end gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
-              size="sm"
+              size="control"
               disabled={originBusy || !focusedSeries}
               onClick={handleDownloadOriginPackage}
               data-ui="device-analysis-origin-download-zip-btn"
               type="button"
-              className="h-[38px]"
             >
               Download Origin ZIP
             </Button>
             <Button
               variant="dark"
-              size="sm"
+              size="control"
               disabled={originBusy || !focusedSeries}
               onClick={handleOpenInOrigin}
               data-ui="device-analysis-origin-open-btn"
               type="button"
-              className="h-[38px]"
             >
               Open in Origin
             </Button>
@@ -2288,8 +2280,8 @@ How to use (manual fallback):
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-3 mb-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="bg-bg-page border border-border rounded-lg p-1 inline-flex">
               <button
                 type="button"
@@ -2341,26 +2333,7 @@ How to use (manual fallback):
               </button>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-text-secondary">
-              <span className="whitespace-nowrap">
-                Area (for J = |I|/Area):
-              </span>
-              <input
-                value={areaInput}
-                onChange={(e) => setAreaInput(e.target.value)}
-                placeholder="e.g. 1e-4"
-                className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[100px]"
-              />
-              <Button
-                variant="text"
-                size="sm"
-                onClick={() => setAreaInput("")}
-                className="h-[38px] px-2 text-xs border border-border/50 hover:bg-bg-subtle"
-                title="Clear Area"
-              >
-                Clear
-              </Button>
-            </div>
+
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
@@ -2631,306 +2604,327 @@ How to use (manual fallback):
             </div>
           </div>
 
-          {effectivePlotType === "ss" && ssSummary ? (
-            <div className="bg-bg-page border border-border rounded-lg px-3 py-2 flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs text-text-secondary">
+            <span className="whitespace-nowrap">
+              Area (for J = |I|/Area):
+            </span>
+            <input
+              value={areaInput}
+              onChange={(e) => setAreaInput(e.target.value)}
+              placeholder="e.g. 1e-4"
+              className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[100px]"
+            />
+            <Button
+              variant="text"
+              size="sm"
+              onClick={() => setAreaInput("")}
+              className="h-[38px] px-2 text-xs border border-border/50 hover:bg-bg-subtle"
+              title="Clear Area"
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+
+        {effectivePlotType === "ss" && ssSummary ? (
+          <div className="bg-bg-page border border-border rounded-lg px-3 py-2 flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${ssSummary.confidence === "high"
+                ? "bg-green-500/10 text-green-500 border-green-500/20"
+                : ssSummary.confidence === "low"
+                  ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                  : "bg-red-500/10 text-red-500 border-red-500/20"
+                }`}
+              title={`method=${ssSummary.method} reason=${ssSummary.reason}`}
+            >
+              {String(ssSummary.confidence).toUpperCase()}
+            </span>
+
+            <span className="text-text-secondary">
+              method: <span className="text-text-primary font-mono">{ssSummary.method}</span>
+            </span>
+
+            <span className="text-text-secondary">
+              SS:{" "}
+              <span className="text-text-primary font-mono">
+                {ssSummary.ss !== null ? `${formatNumber(ssSummary.ss, { digits: 2 })} mV/dec` : "—"}
+              </span>
+            </span>
+
+            <span className="text-text-secondary">
+              R²:{" "}
+              <span className="text-text-primary font-mono">
+                {ssSummary.r2 !== null ? formatNumber(ssSummary.r2, { digits: 4 }) : "—"}
+              </span>
+            </span>
+
+            <span className="text-text-secondary">
+              span:{" "}
+              <span className="text-text-primary font-mono">
+                {ssSummary.span !== null ? formatNumber(ssSummary.span, { digits: 2 }) : "—"} dec
+              </span>
+            </span>
+
+            <span className="text-text-secondary">
+              N:{" "}
+              <span className="text-text-primary font-mono">
+                {ssSummary.n !== null ? String(ssSummary.n) : "—"}
+              </span>
+            </span>
+
+            <span className="text-text-secondary">
+              range:{" "}
+              <span className="text-text-primary font-mono">
+                {ssSummary.x1 !== null && ssSummary.x2 !== null
+                  ? `[${formatNumber(ssSummary.x1, { digits: 4 })}, ${formatNumber(ssSummary.x2, { digits: 4 })}]`
+                  : "—"}
+              </span>
+            </span>
+
+            {ssSummary.confidence === "fail" ? (
               <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${ssSummary.confidence === "high"
-                  ? "bg-green-500/10 text-green-500 border-green-500/20"
-                  : ssSummary.confidence === "low"
-                    ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                    : "bg-red-500/10 text-red-500 border-red-500/20"
-                  }`}
-                title={`method=${ssSummary.method} reason=${ssSummary.reason}`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"
+                title={ssSummary.reason}
               >
-                {String(ssSummary.confidence).toUpperCase()}
+                reason: <span className="font-mono">{ssSummary.reason}</span>
               </span>
+            ) : null}
 
-              <span className="text-text-secondary">
-                method: <span className="text-text-primary font-mono">{ssSummary.method}</span>
-              </span>
-
-              <span className="text-text-secondary">
-                SS:{" "}
-                <span className="text-text-primary font-mono">
-                  {ssSummary.ss !== null ? `${formatNumber(ssSummary.ss, { digits: 2 })} mV/dec` : "—"}
+            {ssSummary.suggestedRange ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                suggested:{" "}
+                <span className="font-mono">
+                  [{formatNumber(ssSummary.suggestedRange.x1, { digits: 4 })},{" "}
+                  {formatNumber(ssSummary.suggestedRange.x2, { digits: 4 })}]
                 </span>
               </span>
+            ) : null}
+          </div>
+        ) : null}
 
-              <span className="text-text-secondary">
-                R²:{" "}
-                <span className="text-text-primary font-mono">
-                  {ssSummary.r2 !== null ? formatNumber(ssSummary.r2, { digits: 4 }) : "—"}
-                </span>
-              </span>
-
-              <span className="text-text-secondary">
-                span:{" "}
-                <span className="text-text-primary font-mono">
-                  {ssSummary.span !== null ? formatNumber(ssSummary.span, { digits: 2 }) : "—"} dec
-                </span>
-              </span>
-
-              <span className="text-text-secondary">
-                N:{" "}
-                <span className="text-text-primary font-mono">
-                  {ssSummary.n !== null ? String(ssSummary.n) : "—"}
-                </span>
-              </span>
-
-              <span className="text-text-secondary">
-                range:{" "}
-                <span className="text-text-primary font-mono">
-                  {ssSummary.x1 !== null && ssSummary.x2 !== null
-                    ? `[${formatNumber(ssSummary.x1, { digits: 4 })}, ${formatNumber(ssSummary.x2, { digits: 4 })}]`
-                    : "—"}
-                </span>
-              </span>
-
-              {ssSummary.confidence === "fail" ? (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20"
-                  title={ssSummary.reason}
-                >
-                  reason: <span className="font-mono">{ssSummary.reason}</span>
-                </span>
-              ) : null}
-
-              {ssSummary.suggestedRange ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                  suggested:{" "}
-                  <span className="font-mono">
-                    [{formatNumber(ssSummary.suggestedRange.x1, { digits: 4 })},{" "}
-                    {formatNumber(ssSummary.suggestedRange.x2, { digits: 4 })}]
-                  </span>
-                </span>
-              ) : null}
+        {showAxisControls && (
+          <div className="bg-bg-page border border-border rounded-lg p-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-xs font-semibold text-text-primary">
+                Axis Settings
+              </div>
+              <Button
+                variant="text"
+                size="sm"
+                onClick={() =>
+                  setAxis((prev) => ({
+                    ...prev,
+                    xMin: "",
+                    xMax: "",
+                    xTicks: "auto",
+                    xTickCount: 6,
+                    xStep: "",
+                    yMin: "",
+                    yMax: "",
+                    yScale: "linear",
+                    yTicks: "nice",
+                    yTickCount: 6,
+                    yStep: "",
+                    yDecadeStep: 1,
+                  }))
+                }
+                className="h-6 px-2 text-xs text-text-secondary hover:text-text-primary"
+              >
+                Reset
+              </Button>
             </div>
-          ) : null}
 
-          {showAxisControls && (
-            <div className="bg-bg-page border border-border rounded-lg p-3">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-xs font-semibold text-text-primary">
-                  Axis Settings
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <div className="text-[11px] font-semibold text-text-secondary">
+                  X Axis
                 </div>
-                <Button
-                  variant="text"
-                  size="sm"
-                  onClick={() =>
-                    setAxis((prev) => ({
-                      ...prev,
-                      xMin: "",
-                      xMax: "",
-                      xTicks: "auto",
-                      xTickCount: 6,
-                      xStep: "",
-                      yMin: "",
-                      yMax: "",
-                      yScale: "linear",
-                      yTicks: "nice",
-                      yTickCount: 6,
-                      yStep: "",
-                      yDecadeStep: 1,
-                    }))
-                  }
-                  className="h-6 px-2 text-xs text-text-secondary hover:text-text-primary"
-                >
-                  Reset
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={axis.xMin}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, xMin: e.target.value }))
+                    }
+                    placeholder="min (auto)"
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                  <input
+                    value={axis.xMax}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, xMax: e.target.value }))
+                    }
+                    placeholder="max (auto)"
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <select
+                    value={axis.xTicks}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, xTicks: e.target.value }))
+                    }
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                    title="Tick mode"
+                  >
+                    <option value="auto">ticks: auto</option>
+                    <option value="nice">ticks: nice</option>
+                    <option value="step">ticks: step</option>
+                  </select>
+                  <input
+                    value={axis.xTickCount}
+                    onChange={(e) =>
+                      setAxis((prev) => ({
+                        ...prev,
+                        xTickCount: e.target.value,
+                      }))
+                    }
+                    disabled={axis.xTicks !== "nice"}
+                    placeholder="count"
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                    title="Nice tick count"
+                  />
+                  <input
+                    value={axis.xStep}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, xStep: e.target.value }))
+                    }
+                    disabled={axis.xTicks !== "step"}
+                    placeholder="step"
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                    title="Step tick increment"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-text-secondary">
-                    X Axis
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={axis.xMin}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, xMin: e.target.value }))
-                      }
-                      placeholder="min (auto)"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                    />
-                    <input
-                      value={axis.xMax}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, xMax: e.target.value }))
-                      }
-                      placeholder="max (auto)"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 items-center">
-                    <select
-                      value={axis.xTicks}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, xTicks: e.target.value }))
-                      }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                      title="Tick mode"
-                    >
-                      <option value="auto">ticks: auto</option>
-                      <option value="nice">ticks: nice</option>
-                      <option value="step">ticks: step</option>
-                    </select>
-                    <input
-                      value={axis.xTickCount}
-                      onChange={(e) =>
-                        setAxis((prev) => ({
-                          ...prev,
-                          xTickCount: e.target.value,
-                        }))
-                      }
-                      disabled={axis.xTicks !== "nice"}
-                      placeholder="count"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
-                      title="Nice tick count"
-                    />
-                    <input
-                      value={axis.xStep}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, xStep: e.target.value }))
-                      }
-                      disabled={axis.xTicks !== "step"}
-                      placeholder="step"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
-                      title="Step tick increment"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <div className="text-[11px] font-semibold text-text-secondary">
+                  Y Axis
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={axis.yMin}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, yMin: e.target.value }))
+                    }
+                    placeholder={`min (auto) (${plotYUnitLabel})`}
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                  <input
+                    value={axis.yMax}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, yMax: e.target.value }))
+                    }
+                    placeholder={`max (auto) (${plotYUnitLabel})`}
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-text-secondary">
-                    Y Axis
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={axis.yMin}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, yMin: e.target.value }))
-                      }
-                      placeholder={`min (auto) (${plotYUnitLabel})`}
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                    />
-                    <input
-                      value={axis.yMax}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, yMax: e.target.value }))
-                      }
-                      placeholder={`max (auto) (${plotYUnitLabel})`}
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 items-center">
-                    <select
-                      value={axis.yScale}
-                      onChange={(e) =>
-                        setAxis((prev) => {
-                          const nextScale = e.target.value;
-                          const nextTicks =
-                            nextScale === "linear" ? "nice" : "decades";
-                          return {
-                            ...prev,
-                            yScale: nextScale,
-                            yTicks: nextTicks,
-                          };
-                        })
-                      }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                      title="Scale"
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <select
+                    value={axis.yScale}
+                    onChange={(e) =>
+                      setAxis((prev) => {
+                        const nextScale = e.target.value;
+                        const nextTicks =
+                          nextScale === "linear" ? "nice" : "decades";
+                        return {
+                          ...prev,
+                          yScale: nextScale,
+                          yTicks: nextTicks,
+                        };
+                      })
+                    }
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                    title="Scale"
+                  >
+                    <option value="linear">scale: linear</option>
+                    <option value="log">scale: log</option>
+                    <option value="logAbs">scale: log(|y|)</option>
+                  </select>
+                  <select
+                    value={axis.yTicks}
+                    onChange={(e) =>
+                      setAxis((prev) => ({ ...prev, yTicks: e.target.value }))
+                    }
+                    className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                    title="Tick mode"
+                  >
+                    <option value="auto">ticks: auto</option>
+                    <option
+                      value="nice"
+                      disabled={effectiveYScale !== "linear"}
                     >
-                      <option value="linear">scale: linear</option>
-                      <option value="log">scale: log</option>
-                      <option value="logAbs">scale: log(|y|)</option>
-                    </select>
-                    <select
-                      value={axis.yTicks}
-                      onChange={(e) =>
-                        setAxis((prev) => ({ ...prev, yTicks: e.target.value }))
-                      }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                      title="Tick mode"
+                      ticks: nice
+                    </option>
+                    <option
+                      value="step"
+                      disabled={effectiveYScale !== "linear"}
                     >
-                      <option value="auto">ticks: auto</option>
-                      <option
-                        value="nice"
-                        disabled={effectiveYScale !== "linear"}
-                      >
-                        ticks: nice
-                      </option>
-                      <option
-                        value="step"
-                        disabled={effectiveYScale !== "linear"}
-                      >
-                        ticks: step
-                      </option>
-                      <option
-                        value="decades"
-                        disabled={effectiveYScale === "linear"}
-                      >
-                        ticks: decades
-                      </option>
-                    </select>
-                    {effectiveYScale === "linear" ? (
-                      axis.yTicks === "step" ? (
-                        <input
-                          value={axis.yStep}
-                          onChange={(e) =>
-                            setAxis((prev) => ({
-                              ...prev,
-                              yStep: e.target.value,
-                            }))
-                          }
-                          placeholder={`step (${plotYUnitLabel})`}
-                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
-                          title="Major tick increment"
-                        />
-                      ) : (
-                        <input
-                          value={axis.yTickCount}
-                          onChange={(e) =>
-                            setAxis((prev) => ({
-                              ...prev,
-                              yTickCount: e.target.value,
-                            }))
-                          }
-                          disabled={axis.yTicks !== "nice"}
-                          placeholder="count"
-                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
-                          title="Nice tick count"
-                        />
-                      )
-                    ) : (
+                      ticks: step
+                    </option>
+                    <option
+                      value="decades"
+                      disabled={effectiveYScale === "linear"}
+                    >
+                      ticks: decades
+                    </option>
+                  </select>
+                  {effectiveYScale === "linear" ? (
+                    axis.yTicks === "step" ? (
                       <input
-                        value={axis.yDecadeStep}
+                        value={axis.yStep}
                         onChange={(e) =>
                           setAxis((prev) => ({
                             ...prev,
-                            yDecadeStep: e.target.value,
+                            yStep: e.target.value,
                           }))
                         }
-                        disabled={axis.yTicks !== "decades"}
-                        placeholder="decade step"
-                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
-                        title="Major tick increment (decades)"
+                        placeholder={`step (${plotYUnitLabel})`}
+                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                        title="Major tick increment"
                       />
-                    )}
-                  </div>
-
-                  {yScaleWarning ? (
-                    <div className="text-[11px] text-yellow-500">
-                      {yScaleWarning}
-                    </div>
-                  ) : null}
+                    ) : (
+                      <input
+                        value={axis.yTickCount}
+                        onChange={(e) =>
+                          setAxis((prev) => ({
+                            ...prev,
+                            yTickCount: e.target.value,
+                          }))
+                        }
+                        disabled={axis.yTicks !== "nice"}
+                        placeholder="count"
+                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                        title="Nice tick count"
+                      />
+                    )
+                  ) : (
+                    <input
+                      value={axis.yDecadeStep}
+                      onChange={(e) =>
+                        setAxis((prev) => ({
+                          ...prev,
+                          yDecadeStep: e.target.value,
+                        }))
+                      }
+                      disabled={axis.yTicks !== "decades"}
+                      placeholder="decade step"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                      title="Major tick increment (decades)"
+                    />
+                  )}
                 </div>
+
+                {yScaleWarning ? (
+                  <div className="text-[11px] text-yellow-500">
+                    {yScaleWarning}
+                  </div>
+                ) : null}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {activeFile?.series?.length ? (
           <div className="flex flex-col">
@@ -3270,117 +3264,119 @@ How to use (manual fallback):
             No series data for this file.
           </div>
         )}
-      </div>
+      </Card>
 
-      {activeFile?.series?.length ? (
-        <div className="bg-bg-surface border border-border rounded-xl p-4 overflow-x-auto">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">
-              Calculated Parameters
-            </h3>
-            <div className="text-xs text-text-secondary whitespace-nowrap">
-              {gmUi.summaryLabel}: max |{gmUi.metricSymbol}| · SS: fit (mV/dec) ·
-              J uses |I|/Area
+      {
+        activeFile?.series?.length ? (
+          <Card variant="panel" className="overflow-x-auto">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="text-sm font-semibold text-text-primary">
+                Calculated Parameters
+              </h3>
+              <div className="text-xs text-text-secondary whitespace-nowrap">
+                {gmUi.summaryLabel}: max |{gmUi.metricSymbol}| · SS: fit (mV/dec) ·
+                J uses |I|/Area
+              </div>
             </div>
-          </div>
 
-          <table className="min-w-[980px] w-full text-sm text-left border-collapse">
-            <thead className="sticky top-0 bg-bg-surface z-10">
-              <tr className="border-b border-border">
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  Series
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  |I|on
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  x@Ion
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  |I|off
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  x@Ioff
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  Ion/Ioff
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  {gmUi.metricHeader}
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  {gmUi.metricXHeader}
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  SS
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  x@SS
-                </th>
-                <th className="p-2 text-xs font-semibold text-text-secondary">
-                  Jon (if Area)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {metricsRows.map((row) => (
-                <tr key={row.id} className="hover:bg-bg-page/30">
-                  <td className="p-2 text-text-primary font-medium whitespace-nowrap">
-                    {row.name}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    {formatNumber(row.ion)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                    {formatNumber(row.xAtIon)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    {formatNumber(row.ioff)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                    {formatNumber(row.xAtIoff)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    {formatNumber(row.ionIoff, { digits: 3 })}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    {formatNumber(row.gmMaxAbs)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                    {formatNumber(row.xAtGmMaxAbs)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${row.ssConfidence === "high"
-                        ? "bg-green-500/10 text-green-500 border-green-500/20"
-                        : row.ssConfidence === "low"
-                          ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                          : row.ssConfidence === "fail"
-                            ? "bg-red-500/10 text-red-500 border-red-500/20"
-                            : "bg-bg-page text-text-primary border-border"
-                        }`}
-                      title={buildSsTooltip(row)}
-                    >
-                      {row.ss !== null
-                        ? formatNumber(row.ss, { digits: 2 })
-                        : row.ssConfidence === "fail"
-                          ? "Fail"
-                          : "—"}
-                    </span>
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                    {formatNumber(row.xAtSs)}
-                  </td>
-                  <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                    {formatNumber(row.jon)}
-                  </td>
+            <table className="min-w-[980px] w-full text-sm text-left border-collapse">
+              <thead className="sticky top-0 bg-bg-surface z-10">
+                <tr className="border-b border-border">
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    Series
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    |I|on
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    x@Ion
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    |I|off
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    x@Ioff
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    Ion/Ioff
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    {gmUi.metricHeader}
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    {gmUi.metricXHeader}
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    SS
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    x@SS
+                  </th>
+                  <th className="p-2 text-xs font-semibold text-text-secondary">
+                    Jon (if Area)
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-    </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {metricsRows.map((row) => (
+                  <tr key={row.id} className="hover:bg-bg-page/30">
+                    <td className="p-2 text-text-primary font-medium whitespace-nowrap">
+                      {row.name}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+                      {formatNumber(row.ion)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+                      {formatNumber(row.xAtIon)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+                      {formatNumber(row.ioff)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+                      {formatNumber(row.xAtIoff)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+                      {formatNumber(row.ionIoff, { digits: 3 })}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+                      {formatNumber(row.gmMaxAbs)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+                      {formatNumber(row.xAtGmMaxAbs)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${row.ssConfidence === "high"
+                          ? "bg-green-500/10 text-green-500 border-green-500/20"
+                          : row.ssConfidence === "low"
+                            ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                            : row.ssConfidence === "fail"
+                              ? "bg-red-500/10 text-red-500 border-red-500/20"
+                              : "bg-bg-page text-text-primary border-border"
+                          }`}
+                        title={buildSsTooltip(row)}
+                      >
+                        {row.ss !== null
+                          ? formatNumber(row.ss, { digits: 2 })
+                          : row.ssConfidence === "fail"
+                            ? "Fail"
+                            : "—"}
+                      </span>
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+                      {formatNumber(row.xAtSs)}
+                    </td>
+                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+                      {formatNumber(row.jon)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        ) : null
+      }
+    </div >
   );
 };
 

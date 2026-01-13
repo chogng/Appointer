@@ -25,6 +25,7 @@ import ToggleButton from "../components/ui/ToggleButton";
 import Toast from "../components/ui/Toast";
 import DatePicker from "../components/ui/DatePicker";
 import Input from "../components/ui/Input";
+import Textarea from "../components/ui/Textarea";
 import Card from "../components/ui/Card";
 
 const NATURE_EXAMPLES = [
@@ -1845,38 +1846,32 @@ const LiteratureResearch = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <label
-                className="ui-input_label"
-                htmlFor="literature-max-results"
-                data-ui="literature-max-results-label"
-              >
-                {t("literature_max_results") || "最大返回条数"}
-              </label>
-              <Input
-                dataUi="literature-max-results"
-                type="text"
-                id="literature-max-results"
-                name="maxResults"
-                value={String(maxResults ?? "")}
-                onChange={handleMaxResultsInputChange}
-                onFocus={handleSettingsInputFocus}
-                onBlur={handleSettingsInputBlur}
-                inputClassName="w-24"
-                cta="Literature research"
-                ctaPosition="date filter warp"
-                ctaCopy="max results"
-                aria-label="max results input"
-                inputMode="numeric"
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-                autoComplete="new-password"
-                aria-autocomplete="none"
-                data-form-type="other"
-                data-lpignore="true"
-              />
-            </div>
+            <Input
+              dataUi="literature-max-results"
+              label={t("literature_max_results") || "最大返回条数"}
+              labelPlacement="inline"
+              className="shrink-0"
+              type="text"
+              id="literature-max-results"
+              name="maxResults"
+              value={String(maxResults ?? "")}
+              onChange={handleMaxResultsInputChange}
+              onFocus={handleSettingsInputFocus}
+              onBlur={handleSettingsInputBlur}
+              inputClassName="w-24"
+              cta="Literature research"
+              ctaPosition="date filter warp"
+              ctaCopy="max results"
+              aria-label="max results input"
+              inputMode="numeric"
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+              autoComplete="new-password"
+              aria-autocomplete="none"
+              data-form-type="other"
+              data-lpignore="true"
+            />
           </div>
 
           <div className="ui-button_warp">
@@ -2057,21 +2052,20 @@ const LiteratureResearch = () => {
           </div>
 
           <div className="mt-3" data-ui="literature-keywords-warp">
-            <textarea
-              data-ui="literature-keywords-input"
+            <Textarea
+              dataUi="literature-keywords"
               value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
+              onChange={setKeywordInput}
               placeholder={
                 t("literature_keywords_placeholder") ||
                 "关键词匹配：two-dimensional, wafer, AI 等（用空格/换行/逗号分隔）"
               }
               rows={2}
-              className="w-full px-3 py-2.5 rounded-lg bg-bg-page border border-border-200 focus:outline-none focus:ring-1 focus:ring-black text-sm text-text-primary placeholder:text-text-tertiary resize-y"
+              hint={
+                (t("literature_keywords_count") || "当前关键词") +
+                `：${keywords.length}`
+              }
             />
-            <div className="mt-2 text-xs text-text-tertiary">
-              {(t("literature_keywords_count") || "当前关键词") +
-                `：${keywords.length}`}
-            </div>
           </div>
         </Card>
 

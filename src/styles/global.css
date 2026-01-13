@@ -388,6 +388,11 @@ body {
     @apply rounded-lg;
   }
 
+  /* Literature: keywords uses a slightly tighter radius */
+  [data-ui="literature-keywords"] .ui-input_field {
+    @apply rounded-lg;
+  }
+
   /* Literature inputs: hover does not change border (keep it calm like DateButton) */
 
   /* System focus outline only for keyboard navigation (Tab) */
@@ -409,6 +414,10 @@ body {
 
   .ui-input_native {
     @apply flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary;
+  }
+
+  .ui-textarea_native {
+    @apply w-full min-w-0 flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary text-sm resize-y;
   }
 
   .ui-input_right {

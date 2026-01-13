@@ -13,6 +13,7 @@ import {
   Table as TableIcon,
   Trash2,
   Upload,
+  RefreshCw,
 } from "lucide-react";
 import Papa from "papaparse";
 import JSZip from "jszip";
@@ -1217,10 +1218,10 @@ Note:
               type="button"
               onClick={handleClearSession}
               disabled={!hasSessionData}
-              className="ml-auto flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 font-medium text-sm rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+              title="Reset session"
+              className="ml-auto p-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
             >
-              <Trash2 size={18} />
-              <span>Clear Session</span>
+              <RefreshCw size={18} className="transition-transform duration-500 hover:rotate-180" />
             </button>
           </div>
           <CsvImporter
