@@ -4,6 +4,5 @@
 
 Appointer 当前 UI Tabs 组件请使用：
 
-- 规范：`docs/tabs_ui_component_spec.md`
-- 实现：`src/components/ui/Tabs.jsx`
-
+- 规范：[`tabs_ui_component_spec.md`](./tabs_ui_component_spec.md)
+- 实现：[`src/components/ui/Tabs.jsx`](../src/components/ui/Tabs.jsx)

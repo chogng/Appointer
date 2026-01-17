@@ -50,6 +50,14 @@ body {
     @apply border-transparent;
   }
 
+  .csv-file_item {
+    @apply flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer relative;
+  }
+
+  .csv-file_item--selected {
+    @apply border-black bg-black/5;
+  }
+
   /* Section */
   .ui-section_head {
     @apply flex items-center justify-between mb-4;
@@ -181,11 +189,23 @@ body {
 
   /* App buttons */
   .click_btn {
-    @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm transition-all;
+    @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm font-medium transition-all;
+  }
+
+  .click_btn--sm {
+    @apply h-8 px-3 text-xs;
   }
 
   .click_btn--md {
     @apply h-[38px];
+  }
+
+  .click_btn--lg {
+    @apply h-[42px] px-5 text-sm;
+  }
+
+  .click_btn--control {
+    @apply h-[38px] px-3 text-xs;
   }
 
   .click_btn--icon-md {
@@ -231,23 +251,23 @@ body {
       background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   }
 
-	  .click_btn--fx:not(:disabled):not(.click_btn--disabled):hover {
-	    box-shadow: 0 0 0 1px var(--click-fx-bg),
-	      0 0 0 2px var(--click-fx-border-hover);
-	  }
+  .click_btn--fx:not(:disabled):not(.click_btn--disabled):hover {
+    box-shadow: 0 0 0 1px var(--click-fx-bg),
+      0 0 0 2px var(--click-fx-border-hover);
+  }
 
-	  .click_btn--fx:disabled,
-	  .click_btn--fx.click_btn--disabled {
-	    box-shadow: none;
-	  }
+  .click_btn--fx:disabled,
+  .click_btn--fx.click_btn--disabled {
+    box-shadow: none;
+  }
 
-	  .ui-seed-url-check {
-	    @apply transition-all duration-300 opacity-0 scale-0;
-	  }
+  .ui-seed-url-check {
+    @apply transition-all duration-300 opacity-0 scale-0;
+  }
 
-	  [data-ui="literature-seed-url-select"][aria-pressed="true"] .ui-seed-url-check {
-	    @apply opacity-100 scale-100;
-	  }
+  [data-ui="literature-seed-url-select"][aria-pressed="true"] .ui-seed-url-check {
+    @apply opacity-100 scale-100;
+  }
 
   /* Common muted ring for FX buttons outside toolbars */
   .click_btn--fx-muted {
@@ -260,6 +280,14 @@ body {
 	  .click_btn--primary {
 	    @apply text-white bg-accent border border-transparent;
 	  }
+
+    .click_btn--secondary {
+      @apply text-text-primary bg-white border border-border-subtle hover:bg-bg-subtle;
+    }
+
+    .click_btn--text {
+      @apply text-text-secondary hover:text-text-primary bg-transparent border border-transparent hover:bg-black/5;
+    }
 
   /* Align toolbar buttons with the demo rings.
      - Primary + FX: fixed dark ring (Claude-like)
@@ -288,6 +316,12 @@ body {
 
   /* If ghost is combined with FX, let FX's ring (box-shadow) be the only visible border */
   .click_btn--ghost.click_btn--fx {
+    border-color: transparent;
+    border-width: 0;
+  }
+
+  /* Secondary also renders a real border; prefer FX ring-only */
+  .click_btn--secondary.click_btn--fx {
     border-color: transparent;
     border-width: 0;
   }

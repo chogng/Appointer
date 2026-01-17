@@ -1,8 +1,8 @@
 # LiteratureResearch 页面稳定锚点规范（Page Spec）
 
-目标：确保 `src/pages/LiteratureResearch.jsx` 的关键交互区域具备**短、稳定、可维护**的定位锚点，避免任何 `#root > ...` 或 Tailwind 组合类名选择器。
+目标：确保 [`src/pages/LiteratureResearch.jsx`](../src/pages/LiteratureResearch.jsx) 的关键交互区域具备**短、稳定、可维护**的定位锚点，避免任何 `#root > ...` 或 Tailwind 组合类名选择器。
 
-> 本文是“页面级规范”，用于约束本页 DOM 的稳定锚点与结构意图；通用规则请参考：`docs/stable_selectors_spec.md`。
+> 本文是“页面级规范”，用于约束本页 DOM 的稳定锚点与结构意图；通用规则请参考：[`stable_selectors_spec.md`](./stable_selectors_spec.md)。
 
 ## 1. 总体原则
 
@@ -115,7 +115,7 @@
 ### 8.2 Focus outline 仅对 Tab（键盘导航）显示
 
 - 点击（mouse/pointer）不显示 focus outline；Tab 导航才显示（与 `.date_btn` 行为一致）。
-- 机制：`src/main.jsx` 维护 `html[data-nav="keyboard|pointer"]`；`src/styles/global.css` 在 `data-nav="keyboard"` 时为 Input/Seed URL 输入框补回 focus outline。
+- 机制：[`src/main.jsx`](../src/main.jsx) 维护 `html[data-nav="keyboard|pointer"]`；[`src/styles/global.css`](../src/styles/global.css) 在 `data-nav="keyboard"` 时为 Input/Seed URL 输入框补回 focus outline。
 
 ### 8.3 Hover 边框规则
 

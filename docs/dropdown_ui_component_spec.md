@@ -1,9 +1,9 @@
 # Dropdown（UI）组件规范 v1
 
-本文定义 `src/components/ui/Dropdown.jsx` 的 **DOM 输出、状态模型、尺寸变体、稳定选择器锚点与 A11y 约束**，用于避免页面里反复堆叠超长 Tailwind class（例如 `w-full h-[38px] flex items-center ...`）以及不稳定的测试/脚本定位。
+本文定义 [`src/components/ui/Dropdown.jsx`](../src/components/ui/Dropdown.jsx) 的 **DOM 输出、状态模型、尺寸变体、稳定选择器锚点与 A11y 约束**，用于避免页面里反复堆叠超长 Tailwind class（例如 `w-full h-[38px] flex items-center ...`）以及不稳定的测试/脚本定位。
 
 相关规范：
-- 稳定选择器与 UI 标记：`docs/stable_selectors_spec.md`
+- 稳定选择器与 UI 标记：[`stable_selectors_spec.md`](./stable_selectors_spec.md)
 
 ---
 
@@ -49,7 +49,7 @@
 
 ### 2.3 Menu（弹层菜单）
 
-由 `src/components/ui/Popup.jsx` 渲染。
+由 [`src/components/ui/Popup.jsx`](../src/components/ui/Popup.jsx) 渲染（规范见 [`popup_ui_component_spec.md`](./popup_ui_component_spec.md)）。
 
 - 元素：`div`（菜单根容器）
 - 必须：
@@ -172,7 +172,7 @@ type DropdownProps = {
 - `md`（默认）：用于页面主表单/筛选区
 - `sm`：用于紧凑工具条/图表 header
 
-当前项目推荐值（在 `src/styles/global.css` 的 `@layer components` 中定义）：
+当前项目推荐值（在 [`src/styles/global.css`](../src/styles/global.css) 的 `@layer components` 中定义）：
 - `md`：`h-[38px] px-3` + `text-sm`
 - `sm`：`h-8 px-2` + `text-xs`
 

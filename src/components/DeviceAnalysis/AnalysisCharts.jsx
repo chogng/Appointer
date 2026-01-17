@@ -29,6 +29,7 @@ import Dropdown from "../ui/Dropdown";
 import Button from "../ui/Button";
 import ToggleButton from "../ui/ToggleButton";
 import Card from "../ui/Card";
+import Toast from "../ui/Toast";
 
 const COLORS = [
   "#8884d8",
@@ -684,7 +685,21 @@ const AnalysisCharts = ({
   });
 
   const [originBusy, setOriginBusy] = useState(false);
-  const [originStatus, setOriginStatus] = useState({ type: "idle", message: "" }); // idle | ok | error
+
+  const [toast, setToast] = useState({
+    isVisible: false,
+    message: "",
+    type: "success",
+  });
+  const toastContainerRef = useRef(null);
+
+  const showToast = React.useCallback((message, type = "info") => {
+    setToast({ isVisible: true, message, type });
+  }, []);
+
+  const closeToast = React.useCallback(() => {
+    setToast((prev) => ({ ...prev, isVisible: false }));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -825,8 +840,6 @@ const AnalysisCharts = ({
     return num;
   }, [areaInput]);
 
-  const originBridgeScheme = "appointer-origin";
-
   const sanitizeFilename = (name, { max = 180 } = {}) => {
     const raw = String(name || "export")
       .replace(/[/\\?%*:|"<>]/g, "_")
@@ -888,54 +901,6 @@ impCSV fname:=csv$;
 plotxy iy:=${pairsExpr} plot:=202;
 type -b "Plotted %(csv$)";
 `;
-  };
-
-  const resolveOriginBridgeApiBaseUrl = () => {
-    const override = String(import.meta.env?.VITE_ORIGINBRIDGE_API_BASE_URL || "").trim();
-    if (override) return override.replace(/\/$/, "");
-
-    const apiBaseRaw = String(import.meta.env?.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
-    try {
-      // absolute (e.g. https://host/api)
-      const absolute = new URL(apiBaseRaw).toString();
-      return absolute.replace(/\/$/, "");
-    } catch {
-      // relative (e.g. /api)
-      try {
-        return new URL(apiBaseRaw, window.location.origin).toString().replace(/\/$/, "");
-      } catch {
-        return "/api";
-      }
-    }
-  };
-
-  const createOriginJob = async (zipBlob, { filename }) => {
-    const apiBase = String(import.meta.env?.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
-    const response = await fetch(`${apiBase}/device-analysis/origin/jobs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/zip",
-        "x-origin-filename": filename,
-      },
-      credentials: "include",
-      body: zipBlob,
-    });
-
-    if (!response.ok) {
-      let message = "Request failed";
-      try {
-        const parsed = await response.json();
-        message = parsed?.error || parsed?.message || message;
-      } catch {
-        const text = await response.text().catch(() => "");
-        if (text) message = text;
-      }
-      const error = new Error(message);
-      error.status = response.status;
-      throw error;
-    }
-
-    return response.json();
   };
 
   const buildOriginPackageForFocusedSeries = async () => {
@@ -1020,46 +985,15 @@ How to use (manual fallback):
 
   const handleDownloadOriginPackage = async () => {
     if (originBusy) return;
-    setOriginStatus({ type: "idle", message: "" });
 
     try {
       setOriginBusy(true);
       const pkg = await buildOriginPackageForFocusedSeries();
       triggerDownloadBlob(pkg.zipName, pkg.zipBlob);
-      setOriginStatus({ type: "ok", message: "Origin package downloaded." });
+      showToast("Origin ZIP downloaded. Open it in OriginBridge (Local ZIP mode).", "success");
     } catch (err) {
       const msg = err?.message ? String(err.message) : "Failed to build Origin package";
-      setOriginStatus({ type: "error", message: msg });
-    } finally {
-      setOriginBusy(false);
-    }
-  };
-
-  const handleOpenInOrigin = async () => {
-    if (originBusy) return;
-    setOriginStatus({ type: "idle", message: "" });
-
-    try {
-      setOriginBusy(true);
-
-      const pkg = await buildOriginPackageForFocusedSeries();
-      const job = await createOriginJob(pkg.zipBlob, { filename: pkg.zipName });
-
-      const apiBase = resolveOriginBridgeApiBaseUrl();
-      const jobId = String(job?.jobId || "");
-      const token = String(job?.token || "");
-      if (!jobId || !token) throw new Error("Invalid job response");
-
-      const url = `${originBridgeScheme}://open?apiBase=${encodeURIComponent(apiBase)}&jobId=${encodeURIComponent(jobId)}&token=${encodeURIComponent(token)}`;
-      window.location.href = url;
-
-      setOriginStatus({
-        type: "ok",
-        message: "Requested OriginBridge to open Origin. If nothing happens, install OriginBridge or download the package.",
-      });
-    } catch (err) {
-      const msg = err?.message ? String(err.message) : "Failed to open in Origin";
-      setOriginStatus({ type: "error", message: msg });
+      showToast(msg, "error");
     } finally {
       setOriginBusy(false);
     }
@@ -1964,13 +1898,6 @@ How to use (manual fallback):
     [effectiveYScale, yTicks],
   );
 
-  const plotLabel = useMemo(() => {
-    if (effectivePlotType === "gm") return gmUi.plotLabel;
-    if (effectivePlotType === "ss") return "Subthreshold Swing (fit on log(|I|))";
-    if (effectivePlotType === "j") return "Current Density (J = |I| / Area)";
-    return "Detail Plot";
-  }, [effectivePlotType, gmUi.plotLabel]);
-
   const metricsRows = useMemo(() => {
     if (!activeFile?.series?.length) return [];
     return activeFile.series.map((series) => {
@@ -2231,7 +2158,7 @@ How to use (manual fallback):
   if (!processedData || processedData.length === 0) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={toastContainerRef}>
       <OverviewGrid
         processedData={processedData}
         processingStatus={processingStatus}
@@ -2245,8 +2172,10 @@ How to use (manual fallback):
         <div className="flex items-center justify-end gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="ghost"
               size="control"
+              fx
+              fxMuted
               disabled={originBusy || !focusedSeries}
               onClick={handleDownloadOriginPackage}
               data-ui="device-analysis-origin-download-zip-btn"
@@ -2254,31 +2183,8 @@ How to use (manual fallback):
             >
               Download Origin ZIP
             </Button>
-            <Button
-              variant="dark"
-              size="control"
-              disabled={originBusy || !focusedSeries}
-              onClick={handleOpenInOrigin}
-              data-ui="device-analysis-origin-open-btn"
-              type="button"
-            >
-              Open in Origin
-            </Button>
           </div>
         </div>
-
-        {originStatus?.message ? (
-          <div
-            className={`text-xs mb-3 ${originStatus.type === "error"
-              ? "text-red-500"
-              : originStatus.type === "ok"
-                ? "text-green-500"
-                : "text-text-secondary"
-              }`}
-          >
-            {originStatus.message}
-          </div>
-        ) : null}
 
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
@@ -3376,7 +3282,15 @@ How to use (manual fallback):
           </Card>
         ) : null
       }
-    </div >
+      <Toast
+        message={toast.message}
+        isVisible={toast.isVisible}
+        onClose={closeToast}
+        type={toast.type}
+        containerRef={toastContainerRef}
+        position="absolute"
+      />
+    </div>
   );
 };
 

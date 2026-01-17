@@ -1,9 +1,10 @@
 # Input（UI）组件规范 v1
 
-本文定义 `src/components/ui/Input.jsx` 的 **DOM 结构、状态模型、尺寸变体、稳定锚点输出与 A11y 约束**，用于避免页面里出现超长 Tailwind 串与不稳定选择器。
+本文定义 [`src/components/ui/Input.jsx`](../src/components/ui/Input.jsx) 的 **DOM 结构、状态模型、尺寸变体、稳定锚点输出与 A11y 约束**，用于避免页面里出现超长 Tailwind 串与不稳定选择器。
 
 相关规范：
-- 稳定选择器与 UI 标记：`docs/stable_selectors_spec.md`
+- 稳定选择器与 UI 标记：[`stable_selectors_spec.md`](./stable_selectors_spec.md)
+- 多行输入：[`textarea_ui_component_spec.md`](./textarea_ui_component_spec.md)
 
 ---
 
@@ -64,7 +65,7 @@ Input 的输出结构固定为：
 
 ## 4. Size 变体（全局样式）
 
-在 `src/styles/global.css` 的 `@layer components` 定义：
+在 [`src/styles/global.css`](../src/styles/global.css) 的 `@layer components` 定义：
 
 - `ui-input_field--sm`：`h-6 text-xs`
 - `ui-input_field--md`：`h-[38px] text-sm`
@@ -94,4 +95,3 @@ Input 的输出结构固定为：
 
 - 有 label：使用 `label + htmlFor` 关联输入。
 - 无 label：调用方必须提供 `aria-label`（人类可读短语，允许空格）。
-

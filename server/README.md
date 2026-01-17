@@ -1,8 +1,25 @@
 # 设备预约系统后端
 
-基于 Node.js + Express 的后端 API 服务，数据库默认使用 **MySQL**（也可通过 `DB_TYPE=sqlite` 切回 SQLite）。
+基于 Node.js + Express 的后端 API 服务，数据库默认使用 **MySQL**（也可通过 `DB_TYPE=sqlite` 切回 SQLite；本地开发推荐 SQLite，零依赖）。
+
+建议先阅读：
+- [`../README.md`](../README.md)：整体架构/运行模式/前后端启动与部署提示
+- [`../docs/README.md`](../docs/README.md)：Specs/Runbooks 索引（含 OriginBridge 联调手册）
 
 ## 快速开始
+
+### 0. 配置环境变量（必做）
+
+复制 [`.env.example`](./.env.example) 为 `.env`，并根据你的数据库选择修改：
+
+- SQLite（推荐本地开发，零依赖）：
+  - `DB_TYPE=sqlite`
+  - `DB_PATH=drms.db`（默认即可；文件路径为 `server/drms.db`）
+  - 重置：删除 `drms.db`
+- MySQL（推荐生产）：
+  - `DB_TYPE=mysql`
+  - 配置 `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`
+  - Docker 快速 MySQL：见 [`DOCKER_MYSQL.md`](./DOCKER_MYSQL.md)
 
 ### 1. 安装依赖
 
@@ -11,26 +28,26 @@ cd server
 npm install
 ```
 
-### 2. 初始化数据库
-
-```bash
-npm run init-db
-```
-
-这会根据 `server/.env` 中的数据库配置初始化数据表（MySQL 会自动建表；SQLite 会创建/加载 `drms.db`）。
-
-### 3. 启动服务器
+### 2. 启动服务器
 
 ```bash
 npm run dev
 ```
 
-服务器将运行在 `http://localhost:3001`
+服务器将运行在 `http://localhost:3001`。
 
-> 可选：复制 `server/.env.example` 为 `server/.env`，配置 `PORT` / `CORS_ORIGIN` / `DB_PATH`（会自动加载）。
-> 如需使用 MySQL，请在 `server/.env` 中配置 `DB_TYPE=mysql` 与 `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME` 等参数。
+### 3. （可选）初始化/验证数据库连接
+
+```bash
+npm run init-db
+```
+
+该命令会执行一次 `db.init()`（建表/迁移；SQLite 首次创建时会按 `DB_SEED_DATA` 播种示例数据）。  
+注意：它**不会清空已有数据**；如需重置请按上面 SQLite/MySQL 的方式处理。
 
 ## API 接口
+
+说明：以下为常用接口（非完整列表）；完整路由以 [`server.js`](./server.js) 中的 `/api/*` 定义为准。
 
 ### 用户相关
 
@@ -58,9 +75,16 @@ npm run dev
 ## 数据库结构
 
 - `users` - 用户表
-- `devices` - 设备表
+- `devices` - 设备表（开放规则/时间段）
 - `reservations` - 预约表
-- `logs` - 操作日志表
+- `inventory` - 库存条目
+- `requests` - 申请/审批流（入库变更等）
+- `logs` - 操作日志
+- `blocklist` - 黑名单（用户×设备）
+- `system_settings` - 系统配置（含保留策略）
+- `device_analysis_templates` - Device Analysis 模板
+- `device_analysis_settings` - Device Analysis 用户设置（含 SS Fit 参数）
+- `literature_research_settings` - Literature Research 用户设置
 
 ## 测试账号
 
@@ -74,8 +98,8 @@ npm run dev
 
 1. 设置环境变量 `CORS_ORIGIN`（或 `CLIENT_ORIGIN`，支持逗号分隔多个 origin）
 2. 设置环境变量 `PORT`（默认 3001）与数据库连接配置（MySQL：`DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`；或 SQLite：`DB_TYPE=sqlite` + `DB_PATH`）
-3. 添加身份验证中间件（JWT）
-4. 使用 PM2 或 Docker 部署
+3. 生产环境务必设置强随机 `JWT_SECRET`，并建议启用 HTTPS（`NODE_ENV=production` 时 Cookie 会启用 `secure: true`）
+4. 选择部署方式：PM2 / Docker / systemd 等
 
 ## SQLite → MySQL 迁移
 

@@ -11,6 +11,7 @@ const Toast = ({
   containerRef,
   position = "absolute",
   duration = 5000,
+  dataUi,
 }) => {
   const [positionStyle, setPositionStyle] = useState({});
   const [shouldRender, setShouldRender] = useState(isVisible);
@@ -151,16 +152,30 @@ const Toast = ({
 
   if (!shouldRender) return null;
 
+  const uiMarker =
+    typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
+
+  const isUrgent = type === "error" || type === "warning";
+  const a11yRole = isUrgent ? "alert" : "status";
+  const ariaLive = isUrgent ? "assertive" : "polite";
+  const state = isVisible ? "open" : isClosing ? "closing" : "closed";
+
   const getIcon = () => {
     switch (type) {
       case "success":
-        return <CheckCircle2 size={20} className="text-green-500" />;
+        return (
+          <CheckCircle2 size={20} className="text-green-500" aria-hidden="true" />
+        );
       case "error":
-        return <AlertCircle size={20} className="text-red-500" />;
+        return (
+          <AlertCircle size={20} className="text-red-500" aria-hidden="true" />
+        );
       case "warning":
-        return <AlertCircle size={20} className="text-amber-500" />;
+        return (
+          <AlertCircle size={20} className="text-amber-500" aria-hidden="true" />
+        );
       default:
-        return <Info size={20} className="text-blue-500" />;
+        return <Info size={20} className="text-blue-500" aria-hidden="true" />;
     }
   };
 
@@ -173,6 +188,13 @@ const Toast = ({
         if (event.currentTarget.contains(event.relatedTarget)) return;
         resumeAutoClose();
       }}
+      role={a11yRole}
+      aria-live={ariaLive}
+      aria-atomic="true"
+      data-style="toast"
+      data-type={type}
+      data-state={state}
+      data-ui={uiMarker}
       className={`
                 transform -translate-x-1/2 z-[60]
                 flex items-center gap-3
@@ -193,17 +215,22 @@ const Toast = ({
       <div className="flex items-center gap-3 pl-3 border-l border-black/5">
         {actionText && onAction && (
           <button
+            type="button"
             onClick={onAction}
+            data-ui={uiMarker ? `${uiMarker}-action` : undefined}
             className="text-accent text-sm font-semibold hover:text-accent-hover transition-colors whitespace-nowrap"
           >
             {actionText}
           </button>
         )}
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close toast"
+          data-ui={uiMarker ? `${uiMarker}-close` : undefined}
           className="text-text-tertiary hover:text-text-primary hover:bg-black/5 rounded-full p-1 transition-all"
         >
-          <X size={16} />
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
     </div>

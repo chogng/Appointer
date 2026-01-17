@@ -300,13 +300,13 @@ function parseMetaContent(html, name) {
   if (typeof html !== "string" || !html) return null;
   const escaped = escapeRegExp(name);
   const tagRe = new RegExp(
-    `<meta\\b[^>]*\\bname=(\"|')${escaped}\\1[^>]*>`,
+    `<meta\\b[^>]*\\bname=("|')${escaped}\\1[^>]*>`,
     "i",
   );
   const m = html.match(tagRe);
   if (!m) return null;
   const tag = m[0] || "";
-  const contentMatch = tag.match(/\bcontent=(\"|')([^\"']*)\1/i);
+  const contentMatch = tag.match(/\bcontent=("|')([^"']*)\1/i);
   return contentMatch ? decodeHtmlEntities(contentMatch[2]) : null;
 }
 
@@ -314,13 +314,13 @@ function parseMetaProperty(html, property) {
   if (typeof html !== "string" || !html) return null;
   const escaped = escapeRegExp(property);
   const tagRe = new RegExp(
-    `<meta\\b[^>]*\\bproperty=(\"|')${escaped}\\1[^>]*>`,
+    `<meta\\b[^>]*\\bproperty=("|')${escaped}\\1[^>]*>`,
     "i",
   );
   const m = html.match(tagRe);
   if (!m) return null;
   const tag = m[0] || "";
-  const contentMatch = tag.match(/\bcontent=(\"|')([^\"']*)\1/i);
+  const contentMatch = tag.match(/\bcontent=("|')([^"']*)\1/i);
   return contentMatch ? decodeHtmlEntities(contentMatch[2]) : null;
 }
 

@@ -992,10 +992,6 @@ const LiteratureResearch = () => {
         const isTranslated = translation?.state === "done";
         const isTranslating = translation?.state === "loading";
         const showOriginal = Boolean(translation?.showOriginal);
-        const translatedTargetLang =
-          typeof translation?.targetLang === "string" && translation.targetLang
-            ? translation.targetLang
-            : null;
         const hasAbstract =
           typeof item?.abstract === "string" && item.abstract.trim();
         const canTranslate =
@@ -1214,10 +1210,6 @@ const LiteratureResearch = () => {
       }
       return [...next];
     });
-  };
-
-  const handleClearSelection = () => {
-    setSelectedIds([]);
   };
 
   const setSeedUrlAt = (index, value) => {

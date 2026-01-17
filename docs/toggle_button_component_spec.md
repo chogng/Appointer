@@ -1,6 +1,10 @@
 # ToggleButton 组件规范 v1
 
-本文定义 `src/components/ui/ToggleButton.jsx` 的 **DOM 结构、状态模型、键盘交互、ID 规则、样式约定、A11y 语义变体（radio/tabs）**。
+本文定义 [`src/components/ui/ToggleButton.jsx`](../src/components/ui/ToggleButton.jsx) 的 **DOM 结构、状态模型、键盘交互、ID 规则、样式约定、A11y 语义变体（radio/tabs）**。
+
+相关规范：
+- [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记（`data-ui`/`data-*`）
+- [`tabs_ui_component_spec.md`](./tabs_ui_component_spec.md)：Tabs 语义与 `aria-controls`（当 `a11yVariant="tabs"` 时）
 
 ---
 
@@ -69,7 +73,7 @@ type ToggleButtonProps = {
   - 或 `role="tablist"`（`a11yVariant="tabs"`）
   - `aria-label={groupLabel}`（建议必填，作为组名；应为“人类可读的短语”，允许包含空格）
   - `data-toggle="menu"`（稳定定位标记，便于测试/脚本）
-- 样式类（全局 `@layer components`，见 `src/styles/global.css`）：
+- 样式类（全局 `@layer components`，见 [`src/styles/global.css`](../src/styles/global.css)）：
   - `.toggle_menu`（推荐）
   - `.ui-toggle__menu`（兼容别名）
 
@@ -94,7 +98,7 @@ type ToggleButtonProps = {
 - 内部结构（稳定）：
   - 可选 icon：`<span class="toggle_btn_icon">...</span>`
   - 文案：`<span class="toggle_btn_text">...</span>`
-- 样式类（见 `src/styles/global.css`）：
+- 样式类（见 [`src/styles/global.css`](../src/styles/global.css)）：
   - `.toggle_btn`（基础 + 默认 padding）
   - `.toggle_btn--sm | .toggle_btn--md`
   - `.toggle_btn--active | .toggle_btn--inactive`
@@ -175,7 +179,7 @@ type ToggleButtonProps = {
 注意：
 
 - ToggleButton 的 tabs 变体不生成 `aria-controls`，也不管理 `tabpanel`。
-- 若需要严格的 ARIA Tabs（含 `aria-controls` 规则），使用 `src/components/ui/Tabs.jsx`。
+- 若需要严格的 ARIA Tabs（含 `aria-controls` 规则），使用 [`src/components/ui/Tabs.jsx`](../src/components/ui/Tabs.jsx)。
 
 ---
 

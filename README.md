@@ -1,6 +1,6 @@
 # Appointer（设备预约系统 / DRMS）
 
-> Version 0.3.1 | 设备预约与协作管理系统
+> Version 0.5.0 | 设备预约与协作管理系统
 
 Appointer 是一个面向团队/实验室的设备预约与协作管理系统：支持设备开放规则配置、周视图日历预约、用户与权限管理、库存入库单（支持"申请-审批"）、操作日志与数据保留策略，并通过 Socket.IO 实现多端实时同步。
 
@@ -28,6 +28,11 @@ Appointer 是一个面向团队/实验室的设备预约与协作管理系统：
 - 后端：Node.js（ES Modules）、Express、Socket.IO
 - 数据库：MySQL（默认，推荐生产）/SQLite（可选：sql.js 内存加载 + 导出持久化到 `server/drms.db`）
 - 认证：JWT（HttpOnly Cookie `token`；前端 `fetch` 默认 `credentials: include`；后端也支持 `Authorization: Bearer <token>` 便于脚本/调试）
+
+## 文档
+
+- [`docs/README.md`](docs/README.md)：Specs/Runbooks 索引与阅读顺序
+- [`docs/origin_open_in_origin_runbook.md`](docs/origin_open_in_origin_runbook.md)：Origin “Open in Origin” 联调/排障手册
 
 ## 项目架构（Architecture）
 
@@ -324,6 +329,7 @@ erDiagram
 前端（Vite）：
 - `VITE_API_BASE_URL`：API Base（默认 `/api`）
 - `VITE_WS_URL`：WebSocket URL（默认同源）
+- `VITE_ORIGINBRIDGE_API_BASE_URL`：提供给 OriginBridge 的绝对 API Base（开发环境常用 `http://127.0.0.1:3001/api`；生产同源可留空）
 - `VITE_MOCK_API`：是否启用 Mock（`true/false`）
 
 后端（Express）：
@@ -332,9 +338,9 @@ erDiagram
 - `JWT_SECRET`：JWT 密钥（生产必须修改）
 - `DB_TYPE`：`mysql`（默认）或 `sqlite`
 - `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`：MySQL 连接参数
-- `DB_PATH`：SQLite 文件路径（默认 `server/drms.db`）
+- `DB_PATH`：SQLite 文件路径（默认 `drms.db`，相对 `server/`，即 `server/drms.db`）
 - `DB_SEED_DATA`：是否播种示例数据（生产建议 `0`）
-- `SERVE_CLIENT`：是否托管 `dist/`（生产默认开启）
+- `SERVE_CLIENT`：是否托管 `dist/`（默认 `0`；同源部署设为 `1`）
 
 ### 11）功能模块索引（快速定位代码）
 
@@ -365,10 +371,19 @@ npm install
 cd ..
 ```
 
-### 2）初始化/重置数据库（可选）
+### 2）配置后端数据库（首次必做）
 
-- 一键初始化：`npm run server:init`
-- 或删除 `server/drms.db` 后直接启动后端（后端会自动建表并插入初始数据）
+后端默认 `DB_TYPE=mysql`；首次运行前请先配置数据库类型与连接信息（否则后端可能会因 MySQL 未启动而启动失败）。
+
+1) 复制 [`server/.env.example`](server/.env.example) 为 `server/.env`
+
+2) 选择其一：
+- SQLite（推荐本地开发，零依赖）：把 `DB_TYPE` 改成 `sqlite`（可保留 `DB_PATH=drms.db`）
+  - 重置：删除 `server/drms.db`（下次启动会自动建表；`DB_SEED_DATA=1` 时会插入默认账号/示例数据）
+- MySQL（推荐生产）：保持 `DB_TYPE=mysql` 并配置 `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`
+  - Docker 快速 MySQL：见 [`server/DOCKER_MYSQL.md`](server/DOCKER_MYSQL.md)
+
+可选：一键初始化（等价于“安装后端依赖 + 执行一次 db.init”）：`npm run server:init`
 
 ### 3）启动后端
 
@@ -401,7 +416,7 @@ npm run lint
 
 ```bash
 npm run server         # 等价于：cd server && npm run dev（watch 模式）
-npm run server:init    # 安装后端依赖 + 初始化/重置数据库
+npm run server:init    # 安装后端依赖 + 初始化数据库（不清空已有数据；SQLite 重置需删 db 文件）
 cd server && npm run start
 cd server && npm run init-db
 ```
@@ -424,15 +439,17 @@ cd server && npm run init-db
 
 复制 `.env.example` 为 `.env`：
 
-- `VITE_API_BASE_URL`（默认 `http://localhost:3001/api`）
-- `VITE_WS_URL`（默认 `http://localhost:3001`）
+- `VITE_API_BASE_URL`（默认 `/api`；开发/预览模式由 Vite 代理到后端 `3001`）
+- `VITE_WS_URL`（默认空，表示同源 `/socket.io`；开发/预览模式同样由 Vite 代理到 `3001`）
+- `VITE_ORIGINBRIDGE_API_BASE_URL`（OriginBridge 需要的绝对 API Base；开发环境如 `http://127.0.0.1:3001/api`；生产同源可留空）
+- `VITE_MOCK_API`（默认 `false`；设为 `true` 启用前端 Mock）
 
 ### 后端（`server/.env`）
 
 复制 `server/.env.example` 为 `server/.env`：
 
 - `PORT`（默认 `3001`）
-- `CORS_ORIGIN`（默认 `http://localhost:5173`；支持逗号分隔多个 origin）
+- `CORS_ORIGIN`（默认包含 `localhost/127.0.0.1` 的 dev/preview 端口；支持逗号分隔多个 origin）
 - `DB_TYPE`（`mysql` 默认 / `sqlite`）
 - MySQL：`DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_CONNECTION_LIMIT` / `DB_CREATE_DATABASE`
 - SQLite：`DB_PATH`（默认 `drms.db`，相对 `server/`）
@@ -491,9 +508,11 @@ cd server && npm run init-db
 Template 会以**第一个导入的 CSV**作为预览基准，但会对**所有已导入 CSV**应用同一套提取规则。
 
 相关计算/实现说明：
-- gm（`dI/dX` / `dI/dLegend @ fixed X`）：`docs/gm_spec_v1.md`
-- On/Off（`|I|on` / `|I|off` / `Ion/Ioff`）：`docs/onoff_spec_v1.md`
-- Origin 一键出图集成方案：`docs/origin_integration_spec_v1.md`
+- gm（`dI/dX` / `dI/dLegend @ fixed X`）：[`docs/gm_spec_v1.md`](docs/gm_spec_v1.md)
+- On/Off（`|I|on` / `|I|off` / `Ion/Ioff`）：[`docs/onoff_spec_v1.md`](docs/onoff_spec_v1.md)
+- SS Fit（Subthreshold Swing）：[`docs/ssfit_spec_v1.md`](docs/ssfit_spec_v1.md)
+- Origin 一键出图集成方案：[`docs/origin_integration_spec_v1.md`](docs/origin_integration_spec_v1.md)
+- Origin “Open in Origin” 调试手册：[`docs/origin_open_in_origin_runbook.md`](docs/origin_open_in_origin_runbook.md)
 
 ### 1）设置真实 X（必填）
 

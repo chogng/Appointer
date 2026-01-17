@@ -4,6 +4,9 @@ Version: `origin_integration_v1`
 Date: `2026-01-10`  
 Scope: From the web app, use exported (processed) Device Analysis data to open **local Origin** and auto-plot with a **fixed template**.
 
+See also:
+- [`origin_open_in_origin_runbook.md`](./origin_open_in_origin_runbook.md) (current implemented runtime flow + debugging / 当前已落地链路与排障)
+
 ---
 
 ## 0) Summary / 摘要
@@ -35,7 +38,7 @@ We already have “Export for Origin” on Device Analysis page:
   - `README_ORIGIN.txt`：人工操作说明
 
 **Code pointers / 代码定位**
-- Export packaging: `src/pages/DeviceAnalysis.jsx` (`handleExportOrigin`, `buildOgsScript`)
+- Export packaging: [`src/pages/DeviceAnalysis.jsx`](../src/pages/DeviceAnalysis.jsx) (`handleExportOrigin`, `buildOgsScript`)
 
 ---
 

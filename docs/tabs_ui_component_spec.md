@@ -1,10 +1,10 @@
 # Tabs（UI）组件规范 v1
 
-本文定义 `src/components/ui/Tabs.jsx` 的 **DOM 结构、状态模型、键盘交互、ID/aria-controls 规则、样式约定**。
+本文定义 [`src/components/ui/Tabs.jsx`](../src/components/ui/Tabs.jsx) 的 **DOM 结构、状态模型、键盘交互、ID/aria-controls 规则、样式约定**。
 
 相关规范：
 
-- 稳定选择器与标记：`docs/stable_selectors_spec.md`（建议样式/测试优先使用 `data-ui` 与 `id/htmlFor`，避免超长 selector）
+- 稳定选择器与标记：[`stable_selectors_spec.md`](./stable_selectors_spec.md)（建议样式/测试优先使用 `data-ui` 与 `id/htmlFor`，避免超长 selector）
 
 关键决策：
 
@@ -81,7 +81,7 @@ type TabsProps = {
   - `role="tablist"`
   - `aria-label={groupLabel}`（建议必填；应为“人类可读的短语”，允许包含空格）
   - `data-tabs="menu"`（稳定定位标记）
-- 样式类（全局 `@layer components`，见 `src/styles/global.css`）：
+- 样式类（全局 `@layer components`，见 [`src/styles/global.css`](../src/styles/global.css)）：
   - `.ui-tabs__menu`
 
 ### 3.3 Tab 按钮（tab）
@@ -104,7 +104,7 @@ type TabsProps = {
 - 内部结构（稳定）：
   - 可选 icon：`<span class="ui-tabs__btn-icon">...</span>`
   - 文案：`<span class="ui-tabs__btn-text">...</span>`
-- 样式类（见 `src/styles/global.css`）：
+- 样式类（见 [`src/styles/global.css`](../src/styles/global.css)）：
   - `.ui-tabs__btn`（基础 + 默认 padding）
   - `.ui-tabs__btn--sm | .ui-tabs__btn--md`
   - `.ui-tabs__btn--active | .ui-tabs__btn--inactive`

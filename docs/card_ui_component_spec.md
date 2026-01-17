@@ -1,6 +1,6 @@
 # Card UI 组件规范（最小版）
 
-> 本文描述 `Card` 组件的职责边界与最小 API；稳定选择器通用规则请参考：`docs/stable_selectors_spec.md`。
+> 本文描述 [`src/components/ui/Card.jsx`](../src/components/ui/Card.jsx) 组件的职责边界与最小 API；稳定选择器通用规则请参考：[`stable_selectors_spec.md`](./stable_selectors_spec.md)。
 
 ## 1. 职责边界（强制）
 
@@ -25,7 +25,7 @@
 - `default`：`class="ui-card ui-card--default ..."`
 - `panel`：`class="ui-card ui-card--panel ..."`
 - `flat`：`class="ui-card ui-card--flat ..."`
-- `glass`：`class="glass ..."`（特殊材质效果，见 `src/styles/global.css` 的 `.glass`）
+- `glass`：`class="glass ..."`（特殊材质效果，见 [`src/styles/global.css`](../src/styles/global.css) 的 `.glass`）
 
 ## 3. 示例（可复制）
 

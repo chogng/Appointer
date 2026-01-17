@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { createPortal } from "react-dom";
+import { cx } from "../../utils/cx";
 
 /*
  * Separate component for the expanded card animation.
@@ -381,12 +382,12 @@ const CsvImporter = forwardRef(
                     key={fileEntry.fileId}
                     aria-label="csv-file-item"
                     onClick={() => handleSelectFile(fileEntry)}
-                    className={`
-                                         flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg
-                                        group shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer relative
-                                        ${selectedFileId === fileEntry.fileId ? "border-black bg-black/5" : ""}
-                                        ${activeFile?.fileId === fileEntry.fileId ? "invisible" : ""}
-                                     `}
+                    className={cx(
+                      "csv-file_item group",
+                      selectedFileId === fileEntry.fileId &&
+                        "csv-file_item--selected",
+                      activeFile?.fileId === fileEntry.fileId && "invisible",
+                    )}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center text-green-500 shrink-0">

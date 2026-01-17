@@ -30,6 +30,17 @@ import {
   updateRetentionSettings,
 } from "./src/retention.js";
 import { searchLiterature } from "./src/literatureService.js";
+import { asyncHandler } from "./src/middleware/asyncHandler.js";
+import { errorMiddleware } from "./src/middleware/errorMiddleware.js";
+import {
+  assertAllowedKeys,
+  optionalInteger,
+  optionalString,
+  requireInteger,
+  requireOneOf,
+  requirePlainObject,
+  requireString,
+} from "./src/utils/validation.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -472,46 +483,6 @@ const literatureDownloadTokens = new Map();
 
 const LITERATURE_TRANSLATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const literatureTranslationCache = new Map();
-
-// ============ Device Analysis -> Origin export jobs (ephemeral, in-memory index) ============
-
-const ORIGIN_JOB_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const originJobs = new Map(); // jobId -> { userId, token, expiresAt, filePath, fileName }
-const ORIGIN_JOB_DIR = path.join(os.tmpdir(), "appointer-origin-jobs");
-
-async function ensureOriginJobDir() {
-  await fs.promises.mkdir(ORIGIN_JOB_DIR, { recursive: true });
-}
-
-function sanitizeOriginJobFilename(value) {
-  const raw = typeof value === "string" ? value : value == null ? "" : String(value);
-  const trimmed = raw.trim();
-  const safeBase = (trimmed || "device_analysis_origin.zip")
-    .replace(/[/\\?%*:|"<>]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim();
-  const withExt = safeBase.toLowerCase().endsWith(".zip") ? safeBase : `${safeBase}.zip`;
-  return withExt.length > 200 ? withExt.slice(0, 200) : withExt;
-}
-
-async function cleanupOriginJobs() {
-  const now = Date.now();
-  for (const [jobId, job] of originJobs.entries()) {
-    if (!job || !Number.isFinite(job.expiresAt) || job.expiresAt > now) continue;
-    originJobs.delete(jobId);
-    if (job.filePath) {
-      try {
-        await fs.promises.unlink(job.filePath);
-      } catch {
-        // ignore best-effort cleanup
-      }
-    }
-  }
-}
-
-setInterval(() => {
-  cleanupOriginJobs().catch(() => { });
-}, 60 * 1000).unref();
 
 const SYSTEM_SETTINGS_KEYS = {
   literatureDefaultTranslationApiKey: "literature.translationApiKeyDefault",
@@ -1506,70 +1477,84 @@ app.get(
   "/api/admin/leaderboard",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const users = await db.query(
-        "SELECT id, username, name, role FROM users",
-      );
-      const reservations = await db.query(
-        "SELECT userId, timeSlot FROM reservations",
-      );
+  asyncHandler(async (req, res) => {
+    const users = await db.query("SELECT id, username, name, role FROM users");
+    const reservations = await db.query(
+      "SELECT userId, timeSlot FROM reservations",
+    );
 
-      const stats = {};
+    const stats = {};
 
-      // Initialize user stats
-      users.forEach((user) => {
-        stats[user.id] = {
-          id: user.id,
-          username: user.username,
-          name: user.name || user.username, // Fallback to username if name is empty
-          role: user.role,
-          totalMinutes: 0,
-        };
-      });
+    // Initialize user stats
+    users.forEach((user) => {
+      stats[user.id] = {
+        id: user.id,
+        username: user.username,
+        name: user.name || user.username, // Fallback to username if name is empty
+        role: user.role,
+        totalMinutes: 0,
+      };
+    });
 
-      // Aggregate reservation duration
-      reservations.forEach((res) => {
-        if (stats[res.userId]) {
-          stats[res.userId].totalMinutes += calculateDuration(res.timeSlot);
-        }
-      });
+    // Aggregate reservation duration
+    reservations.forEach((res) => {
+      if (stats[res.userId]) {
+        stats[res.userId].totalMinutes += calculateDuration(res.timeSlot);
+      }
+    });
 
-      // Convert to array and sort by totalMinutes descending
-      const leaderboard = Object.values(stats)
-        .sort((a, b) => b.totalMinutes - a.totalMinutes)
-        // Optional: Filter out users with 0 minutes if desired, or keep them
-        // .filter(u => u.totalMinutes > 0)
-        .map((u) => ({
-          ...u,
-          totalHours: parseFloat((u.totalMinutes / 60).toFixed(1)),
-        }));
+    // Convert to array and sort by totalMinutes descending
+    const leaderboard = Object.values(stats)
+      .sort((a, b) => b.totalMinutes - a.totalMinutes)
+      // Optional: Filter out users with 0 minutes if desired, or keep them
+      // .filter(u => u.totalMinutes > 0)
+      .map((u) => ({
+        ...u,
+        totalHours: parseFloat((u.totalMinutes / 60).toFixed(1)),
+      }));
 
-      res.json(leaderboard);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+    res.json(leaderboard);
+  }),
 );
 
 // ============ 用户相关 API ============
 
 app.use("/api/auth", authRoutes);
 
-app.get("/api/users", authenticateToken, requireAdmin, async (req, res) => {
-  try {
+app.get(
+  "/api/users",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
     const users = await db.query(
       "SELECT id, username, role, status, name, email, expiryDate FROM users",
     );
     res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.post("/api/users", async (req, res) => {
-  try {
-    const { username, password, name, email, expiryDate } = req.body;
+app.post(
+  "/api/users",
+  asyncHandler(async (req, res) => {
+    const body = requirePlainObject(req.body, "body");
+
+    const username = requireString(body.username, "username", { maxLength: 64 });
+    const password = requireString(body.password, "password", {
+      trim: false,
+      maxLength: 512,
+    });
+    const name = requireString(body.name, "name", { maxLength: 255 });
+    const email = requireString(body.email, "email", { maxLength: 255 });
+
+    const expiryDateInput = optionalString(body.expiryDate, "expiryDate", {
+      maxLength: 10,
+    });
+    const expiryDate = expiryDateInput ? expiryDateInput.trim() : "";
+    if (expiryDate && !isValidDateString(expiryDate)) {
+      return res
+        .status(400)
+        .json({ error: "Invalid expiryDate (expected YYYY-MM-DD)" });
+    }
 
     const existing = await db.queryOne(
       "SELECT id FROM users WHERE username = ?",
@@ -1592,76 +1577,7 @@ app.post("/api/users", async (req, res) => {
       expiryDate: expiryDate || null,
     };
 
-    await db.execute(
-      "INSERT INTO users (id, username, password, role, status, name, email, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [
-        newUser.id,
-        newUser.username,
-        newUser.password,
-        newUser.role,
-        newUser.status,
-        newUser.name,
-        newUser.email,
-        newUser.expiryDate,
-      ],
-    );
-
-    const { password: _, ...userWithoutPassword } = newUser;
-
-    // 广播新用户创建
-    broadcast("user:created", userWithoutPassword);
-
-    res.status(201).json(userWithoutPassword);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post(
-  "/api/admin/users",
-  authenticateToken,
-  requireAdmin,
-  async (req, res) => {
     try {
-      const { username, password, name, email, role, expiryDate } = req.body;
-
-      // Validate role assignment permissions
-      // ADMIN can only create USER
-      if (req.user.role === "ADMIN" && role !== "USER") {
-        return res
-          .status(403)
-          .json({ error: "Admins can only create ordinary users" });
-      }
-
-      // SUPER_ADMIN can create ADMIN or USER
-      if (
-        req.user.role === "SUPER_ADMIN" &&
-        !["ADMIN", "USER"].includes(role)
-      ) {
-        return res.status(400).json({ error: "Invalid role" });
-      }
-
-      const existing = await db.queryOne(
-        "SELECT id FROM users WHERE username = ?",
-        [username],
-      );
-      if (existing) {
-        return res.status(400).json({ error: "Username already exists" });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const newUser = {
-        id: makeId("user"),
-        username,
-        password: hashedPassword,
-        role: role,
-        status: "ACTIVE", // Admin-created users are active by default
-        name,
-        email,
-        expiryDate: expiryDate || null,
-      };
-
       await db.execute(
         "INSERT INTO users (id, username, password, role, status, name, email, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
@@ -1675,40 +1591,126 @@ app.post(
           newUser.expiryDate,
         ],
       );
-
-      const { password: _, ...userWithoutPassword } = newUser;
-
-      // Broadcast
-      broadcast("user:created", userWithoutPassword);
-
-      // Audit log
-      await db.execute(
-        "INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)",
-        [
-          makeId("log"),
-          req.user.id,
-          "USER_CREATED",
-          `Created user ${username} (${role})`,
-          new Date().toISOString(),
-        ],
-      );
-
-      res.status(201).json(userWithoutPassword);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      if (isUniqueConstraintError(error)) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+      throw error;
     }
-  },
+
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    // 广播新用户创建
+    broadcast("user:created", userWithoutPassword);
+
+    res.status(201).json(userWithoutPassword);
+  }),
 );
 
-app.patch("/api/users/:id", authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!isPlainObject(req.body)) {
-      return res.status(400).json({ error: "Invalid update payload" });
+app.post(
+  "/api/admin/users",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = requirePlainObject(req.body, "body");
+
+    const username = requireString(body.username, "username", { maxLength: 64 });
+    const password = requireString(body.password, "password", {
+      trim: false,
+      maxLength: 512,
+    });
+    const name = requireString(body.name, "name", { maxLength: 255 });
+    const email = requireString(body.email, "email", { maxLength: 255 });
+    const role = requireOneOf(body.role, "role", ["ADMIN", "USER"]);
+
+    const expiryDateInput = optionalString(body.expiryDate, "expiryDate", {
+      maxLength: 10,
+    });
+    const expiryDate = expiryDateInput ? expiryDateInput.trim() : "";
+    if (expiryDate && !isValidDateString(expiryDate)) {
+      return res
+        .status(400)
+        .json({ error: "Invalid expiryDate (expected YYYY-MM-DD)" });
     }
 
-    const rawUpdates = req.body;
-    const allowedKeys = new Set([
+    // Validate role assignment permissions
+    // ADMIN can only create USER
+    if (req.user.role === "ADMIN" && role !== "USER") {
+      return res
+        .status(403)
+        .json({ error: "Admins can only create ordinary users" });
+    }
+
+    const existing = await db.queryOne(
+      "SELECT id FROM users WHERE username = ?",
+      [username],
+    );
+    if (existing) {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = {
+      id: makeId("user"),
+      username,
+      password: hashedPassword,
+      role,
+      status: "ACTIVE", // Admin-created users are active by default
+      name,
+      email,
+      expiryDate: expiryDate || null,
+    };
+
+    try {
+      await db.execute(
+        "INSERT INTO users (id, username, password, role, status, name, email, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          newUser.id,
+          newUser.username,
+          newUser.password,
+          newUser.role,
+          newUser.status,
+          newUser.name,
+          newUser.email,
+          newUser.expiryDate,
+        ],
+      );
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+      throw error;
+    }
+
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    // Broadcast
+    broadcast("user:created", userWithoutPassword);
+
+    // Audit log
+    await db.execute(
+      "INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)",
+      [
+        makeId("log"),
+        req.user.id,
+        "USER_CREATED",
+        `Created user ${username} (${role})`,
+        new Date().toISOString(),
+      ],
+    );
+
+    res.status(201).json(userWithoutPassword);
+  }),
+);
+
+app.patch(
+  "/api/users/:id",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const rawUpdates = requirePlainObject(req.body, "update payload");
+    assertAllowedKeys(rawUpdates, [
       "role",
       "status",
       "name",
@@ -1716,14 +1718,6 @@ app.patch("/api/users/:id", authenticateToken, async (req, res) => {
       "expiryDate",
       "username",
     ]);
-    const unknownKeys = Object.keys(rawUpdates).filter(
-      (key) => !allowedKeys.has(key),
-    );
-    if (unknownKeys.length > 0) {
-      return res
-        .status(400)
-        .json({ error: `Unknown fields: ${unknownKeys.join(", ")}` });
-    }
 
     const user = await db.queryOne("SELECT * FROM users WHERE id = ?", [id]);
     if (!user) {
@@ -1851,48 +1845,44 @@ app.patch("/api/users/:id", authenticateToken, async (req, res) => {
     broadcast("user:updated", updated);
 
     res.json(updated);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 app.delete(
   "/api/users/:id",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const user = await db.queryOne("SELECT * FROM users WHERE id = ?", [id]);
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const user = await db.queryOne("SELECT * FROM users WHERE id = ?", [id]);
 
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Prevent deleting self (optional safety)
-      if (user.id === req.user.id) {
-        return res.status(400).json({ error: "Cannot delete yourself" });
-      }
-
-      if (req.user.role === "ADMIN" && user.role !== "USER") {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      await db.execute("DELETE FROM users WHERE id = ?", [id]);
-
-      // Broadcast user deletion
-      broadcast("user:deleted", { id });
-
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
-  },
+
+    // Prevent deleting self (optional safety)
+    if (user.id === req.user.id) {
+      return res.status(400).json({ error: "Cannot delete yourself" });
+    }
+
+    if (req.user.role === "ADMIN" && user.role !== "USER") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    await db.execute("DELETE FROM users WHERE id = ?", [id]);
+
+    // Broadcast user deletion
+    broadcast("user:deleted", { id });
+
+    res.json({ success: true });
+  }),
 );
 
 // Blocklist Management
-app.get("/api/users/:id/blocklist", authenticateToken, async (req, res) => {
-  try {
+app.get(
+  "/api/users/:id/blocklist",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
     // Allow admins or the user themselves to view blocklist
     if (!isAdminRole(req.user.role) && req.user.id !== id) {
@@ -1904,70 +1894,62 @@ app.get("/api/users/:id/blocklist", authenticateToken, async (req, res) => {
       [id],
     );
     res.json(blockedDevices);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 app.post(
   "/api/users/:id/blocklist",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const body = requirePlainObject(req.body, "body");
+    const deviceId = requireString(body.deviceId, "deviceId", { maxLength: 64 });
+    const reason = optionalString(body.reason, "reason", {
+      maxLength: 1024,
+    });
+
+    const blockId = makeId("blk");
+    const createdAt = new Date().toISOString();
+
     try {
-      const { id } = req.params;
-      const { deviceId, reason } = req.body;
-
-      if (!deviceId)
-        return res.status(400).json({ error: "deviceId is required" });
-
-      const blockId = makeId("blk");
-      const createdAt = new Date().toISOString();
-
-      try {
-        await db.execute(
-          "INSERT INTO blocklist (id, userId, deviceId, reason, createdAt) VALUES (?, ?, ?, ?, ?)",
-          [blockId, id, deviceId, reason || "", createdAt],
-        );
-      } catch (error) {
-        if (isUniqueConstraintError(error)) {
-          return res
-            .status(409)
-            .json({ error: "User is already blocked from this device" });
-        }
-        throw error;
-      }
-
-      res.status(201).json({ success: true });
+      await db.execute(
+        "INSERT INTO blocklist (id, userId, deviceId, reason, createdAt) VALUES (?, ?, ?, ?, ?)",
+        [blockId, id, deviceId, reason || "", createdAt],
+      );
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      if (isUniqueConstraintError(error)) {
+        return res
+          .status(409)
+          .json({ error: "User is already blocked from this device" });
+      }
+      throw error;
     }
-  },
+
+    res.status(201).json({ success: true });
+  }),
 );
 
 app.delete(
   "/api/users/:id/blocklist/:deviceId",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id, deviceId } = req.params;
-      await db.execute(
-        "DELETE FROM blocklist WHERE userId = ? AND deviceId = ?",
-        [id, deviceId],
-      );
+  asyncHandler(async (req, res) => {
+    const { id, deviceId } = req.params;
+    await db.execute("DELETE FROM blocklist WHERE userId = ? AND deviceId = ?", [
+      id,
+      deviceId,
+    ]);
 
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+    res.json({ success: true });
+  }),
 );
 
 // ============ 设备相关 API ============
 
-app.get("/api/devices", async (req, res) => {
-  try {
+app.get(
+  "/api/devices",
+  asyncHandler(async (req, res) => {
     const devices = await db.query("SELECT * FROM devices");
     const parsed = devices.map((d) => ({
       ...d,
@@ -1980,13 +1962,12 @@ app.get("/api/devices", async (req, res) => {
         : { start: "09:00", end: "18:00" },
     }));
     res.json(parsed);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.get("/api/devices/:id", async (req, res) => {
-  try {
+app.get(
+  "/api/devices/:id",
+  asyncHandler(async (req, res) => {
     const device = await db.queryOne("SELECT * FROM devices WHERE id = ?", [
       req.params.id,
     ]);
@@ -2003,13 +1984,15 @@ app.get("/api/devices/:id", async (req, res) => {
         ? safeJsonParse(device.openTime, { start: "09:00", end: "18:00" })
         : { start: "09:00", end: "18:00" },
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.post("/api/devices", authenticateToken, requireAdmin, async (req, res) => {
-  try {
+app.post(
+  "/api/devices",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = requirePlainObject(req.body, "body");
     const {
       name,
       description,
@@ -2017,7 +2000,7 @@ app.post("/api/devices", authenticateToken, requireAdmin, async (req, res) => {
       timeSlots,
       granularity = 60,
       openTime,
-    } = req.body;
+    } = body;
     if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "Device name is required" });
     }
@@ -2101,166 +2084,140 @@ app.post("/api/devices", authenticateToken, requireAdmin, async (req, res) => {
     );
 
     res.status(201).json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 app.patch(
   "/api/devices/:id",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      if (!isPlainObject(req.body)) {
-        return res.status(400).json({ error: "Invalid update payload" });
-      }
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const rawUpdates = requirePlainObject(req.body, "update payload");
+    assertAllowedKeys(rawUpdates, [
+      "name",
+      "description",
+      "isEnabled",
+      "openDays",
+      "timeSlots",
+      "granularity",
+      "openTime",
+    ]);
 
-      const rawUpdates = { ...req.body };
-      const allowedKeys = new Set([
-        "name",
-        "description",
-        "isEnabled",
-        "openDays",
-        "timeSlots",
-        "granularity",
-        "openTime",
-      ]);
-      const unknownKeys = Object.keys(rawUpdates).filter(
-        (key) => !allowedKeys.has(key),
-      );
-      if (unknownKeys.length > 0) {
+    const device = await db.queryOne("SELECT * FROM devices WHERE id = ?", [id]);
+    if (!device) {
+      return res.status(404).json({ error: "Device not found" });
+    }
+
+    const updates = {};
+    if ("name" in rawUpdates) {
+      if (typeof rawUpdates.name !== "string" || !rawUpdates.name.trim()) {
+        return res.status(400).json({ error: "Invalid device name" });
+      }
+      updates.name = rawUpdates.name.trim();
+    }
+    if ("description" in rawUpdates) {
+      if (typeof rawUpdates.description !== "string") {
+        return res.status(400).json({ error: "Invalid device description" });
+      }
+      updates.description = rawUpdates.description;
+    }
+    if ("isEnabled" in rawUpdates) {
+      updates.isEnabled = rawUpdates.isEnabled ? 1 : 0;
+    }
+    if ("openDays" in rawUpdates) {
+      if (!Array.isArray(rawUpdates.openDays)) {
         return res
           .status(400)
-          .json({ error: `Unknown fields: ${unknownKeys.join(", ")}` });
+          .json({ error: "Invalid openDays (expected array)" });
       }
-
-      const device = await db.queryOne("SELECT * FROM devices WHERE id = ?", [
-        id,
-      ]);
-      if (!device) {
-        return res.status(404).json({ error: "Device not found" });
-      }
-
-      const updates = {};
-      if ("name" in rawUpdates) {
-        if (typeof rawUpdates.name !== "string" || !rawUpdates.name.trim()) {
-          return res.status(400).json({ error: "Invalid device name" });
-        }
-        updates.name = rawUpdates.name.trim();
-      }
-      if ("description" in rawUpdates) {
-        if (typeof rawUpdates.description !== "string") {
-          return res.status(400).json({ error: "Invalid device description" });
-        }
-        updates.description = rawUpdates.description;
-      }
-      if ("isEnabled" in rawUpdates) {
-        updates.isEnabled = rawUpdates.isEnabled ? 1 : 0;
-      }
-      if ("openDays" in rawUpdates) {
-        if (!Array.isArray(rawUpdates.openDays)) {
-          return res
-            .status(400)
-            .json({ error: "Invalid openDays (expected array)" });
-        }
-        updates.openDays = JSON.stringify(rawUpdates.openDays);
-      }
-      if ("timeSlots" in rawUpdates) {
-        if (!Array.isArray(rawUpdates.timeSlots)) {
-          return res
-            .status(400)
-            .json({ error: "Invalid timeSlots (expected array)" });
-        }
-        updates.timeSlots = JSON.stringify(rawUpdates.timeSlots);
-      }
-      if ("granularity" in rawUpdates) {
-        const parsedGranularity = Number(rawUpdates.granularity);
-        if (!Number.isInteger(parsedGranularity) || parsedGranularity <= 0) {
-          return res.status(400).json({ error: "Invalid granularity" });
-        }
-        updates.granularity = parsedGranularity;
-      }
-      if ("openTime" in rawUpdates) {
-        if (
-          !isPlainObject(rawUpdates.openTime) ||
-          typeof rawUpdates.openTime.start !== "string" ||
-          typeof rawUpdates.openTime.end !== "string"
-        ) {
-          return res
-            .status(400)
-            .json({ error: "Invalid openTime (expected {start,end})" });
-        }
-        updates.openTime = JSON.stringify(rawUpdates.openTime);
-      }
-
-      if (Object.keys(updates).length === 0) {
-        return res.status(400).json({ error: "No valid fields to update" });
-      }
-
-      const fields = Object.keys(updates)
-        .map((key) => `${key} = ?`)
-        .join(", ");
-      const values = [...Object.values(updates), id];
-
-      await db.execute(`UPDATE devices SET ${fields} WHERE id = ?`, values);
-
-      const updated = await db.queryOne("SELECT * FROM devices WHERE id = ?", [
-        id,
-      ]);
-      const result = {
-        ...updated,
-        isEnabled: Boolean(updated.isEnabled),
-        openDays: safeJsonParse(updated.openDays, [1, 2, 3, 4, 5]),
-        timeSlots: safeJsonParse(updated.timeSlots, []),
-        granularity: updated.granularity || 60,
-        openTime: updated.openTime
-          ? safeJsonParse(updated.openTime, { start: "09:00", end: "18:00" })
-          : { start: "09:00", end: "18:00" },
-      };
-
-      // 广播设备更新（重要：启用/停用状态）
-      broadcast("device:updated", result);
-
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+      updates.openDays = JSON.stringify(rawUpdates.openDays);
     }
-  },
+    if ("timeSlots" in rawUpdates) {
+      if (!Array.isArray(rawUpdates.timeSlots)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid timeSlots (expected array)" });
+      }
+      updates.timeSlots = JSON.stringify(rawUpdates.timeSlots);
+    }
+    if ("granularity" in rawUpdates) {
+      const parsedGranularity = Number(rawUpdates.granularity);
+      if (!Number.isInteger(parsedGranularity) || parsedGranularity <= 0) {
+        return res.status(400).json({ error: "Invalid granularity" });
+      }
+      updates.granularity = parsedGranularity;
+    }
+    if ("openTime" in rawUpdates) {
+      if (
+        !isPlainObject(rawUpdates.openTime) ||
+        typeof rawUpdates.openTime.start !== "string" ||
+        typeof rawUpdates.openTime.end !== "string"
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Invalid openTime (expected {start,end})" });
+      }
+      updates.openTime = JSON.stringify(rawUpdates.openTime);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+
+    const fields = Object.keys(updates)
+      .map((key) => `${key} = ?`)
+      .join(", ");
+    const values = [...Object.values(updates), id];
+
+    await db.execute(`UPDATE devices SET ${fields} WHERE id = ?`, values);
+
+    const updated = await db.queryOne("SELECT * FROM devices WHERE id = ?", [id]);
+    const result = {
+      ...updated,
+      isEnabled: Boolean(updated.isEnabled),
+      openDays: safeJsonParse(updated.openDays, [1, 2, 3, 4, 5]),
+      timeSlots: safeJsonParse(updated.timeSlots, []),
+      granularity: updated.granularity || 60,
+      openTime: updated.openTime
+        ? safeJsonParse(updated.openTime, { start: "09:00", end: "18:00" })
+        : { start: "09:00", end: "18:00" },
+    };
+
+    // 广播设备更新（重要：启用/停用状态）
+    broadcast("device:updated", result);
+
+    res.json(result);
+  }),
 );
 
 app.delete(
   "/api/devices/:id",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
 
-      const device = await db.queryOne("SELECT * FROM devices WHERE id = ?", [
-        id,
-      ]);
-      if (!device) {
-        return res.status(404).json({ error: "Device not found" });
-      }
-
-      await db.execute("DELETE FROM devices WHERE id = ?", [id]);
-
-      // 广播设备删除
-      broadcast("device:deleted", { id });
-
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    const device = await db.queryOne("SELECT * FROM devices WHERE id = ?", [id]);
+    if (!device) {
+      return res.status(404).json({ error: "Device not found" });
     }
-  },
+
+    await db.execute("DELETE FROM devices WHERE id = ?", [id]);
+
+    // 广播设备删除
+    broadcast("device:deleted", { id });
+
+    res.json({ success: true });
+  }),
 );
 
 // ============ 库存相关 API ============
 
-app.get("/api/inventory", authenticateToken, async (req, res) => {
-  try {
+app.get(
+  "/api/inventory",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const search =
       typeof req.query.search === "string" ? req.query.search.trim() : "";
     const where = search ? "WHERE i.name LIKE ?" : "";
@@ -2279,130 +2236,126 @@ app.get("/api/inventory", authenticateToken, async (req, res) => {
 
     const items = await db.query(query, params);
     res.json(items);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 app.post(
   "/api/inventory",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { name, category, quantity } = req.body;
-      if (!name || !category || quantity === undefined) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+  asyncHandler(async (req, res) => {
+    const body = requirePlainObject(req.body, "body");
+    const name = requireString(body.name, "name", { maxLength: 255 });
+    const category = requireString(body.category, "category", { maxLength: 255 });
+    const quantity = requireInteger(body.quantity, "quantity", { min: 0 });
 
-      // Get the authenticated user's information
-      const requesterId = req.user.id;
-      const user = await db.queryOne("SELECT name FROM users WHERE id = ?", [
-        requesterId,
-      ]);
-      const requesterName = user?.name || req.user.username || "Unknown";
+    // Get the authenticated user's information
+    const requesterId = req.user.id;
+    const user = await db.queryOne("SELECT name FROM users WHERE id = ?", [
+      requesterId,
+    ]);
+    const requesterName = user?.name || req.user.username || "Unknown";
 
-      const itemId = makeId("item");
-      const date = new Date().toISOString().split("T")[0];
+    const itemId = makeId("item");
+    const date = new Date().toISOString().split("T")[0];
 
-      await db.execute(
-        "INSERT INTO inventory (id, name, category, quantity, date, requesterName, requesterId) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [
-          itemId,
-          name,
-          category,
-          Number(quantity),
-          date,
-          requesterName,
-          requesterId,
-        ],
-      );
+    await db.execute(
+      "INSERT INTO inventory (id, name, category, quantity, date, requesterName, requesterId) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [itemId, name, category, quantity, date, requesterName, requesterId],
+    );
 
-      // Query the item back with the join to include requesterDisplayName
-      const newItem = await db.queryOne(
-        `
-            SELECT
-                i.*,
-                COALESCE(uById.name, uByUsername.name, i.requesterName, 'System') AS requesterDisplayName
-            FROM inventory i
-            LEFT JOIN users uById ON i.requesterId = uById.id
-            LEFT JOIN users uByUsername ON i.requesterId IS NULL AND i.requesterName = uByUsername.username
-            WHERE i.id = ?
-        `,
-        [itemId],
-      );
+    // Query the item back with the join to include requesterDisplayName
+    const newItem = await db.queryOne(
+      `
+          SELECT
+              i.*,
+              COALESCE(uById.name, uByUsername.name, i.requesterName, 'System') AS requesterDisplayName
+          FROM inventory i
+          LEFT JOIN users uById ON i.requesterId = uById.id
+          LEFT JOIN users uByUsername ON i.requesterId IS NULL AND i.requesterName = uByUsername.username
+          WHERE i.id = ?
+      `,
+      [itemId],
+    );
 
-      res.status(201).json(newItem);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+    res.status(201).json(newItem);
+  }),
 );
 
 app.patch(
   "/api/inventory/:id",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { name, category, quantity } = req.body;
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const body = requirePlainObject(req.body, "body");
+    assertAllowedKeys(body, ["name", "category", "quantity"]);
 
-      const updates = [];
-      const values = [];
+    const updates = [];
+    const values = [];
 
-      if (name) {
-        updates.push("name = ?");
-        values.push(name);
-      }
-      if (category) {
-        updates.push("category = ?");
-        values.push(category);
-      }
-      if (quantity !== undefined) {
-        updates.push("quantity = ?");
-        values.push(Number(quantity));
-      }
-
-      if (updates.length === 0)
-        return res.status(400).json({ error: "No fields to update" });
-
-      values.push(id);
-      await db.execute(
-        `UPDATE inventory SET ${updates.join(", ")} WHERE id = ?`,
-        values,
-      );
-
-      const updatedItem = await db.queryOne(
-        "SELECT * FROM inventory WHERE id = ?",
-        [id],
-      );
-      res.json(updatedItem);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    if ("name" in body) {
+      const name = requireString(body.name, "name", { maxLength: 255 });
+      updates.push("name = ?");
+      values.push(name);
     }
-  },
+    if ("category" in body) {
+      const category = requireString(body.category, "category", {
+        maxLength: 255,
+      });
+      updates.push("category = ?");
+      values.push(category);
+    }
+    if ("quantity" in body) {
+      const quantity = requireInteger(body.quantity, "quantity", { min: 0 });
+      updates.push("quantity = ?");
+      values.push(quantity);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    values.push(id);
+    await db.execute(`UPDATE inventory SET ${updates.join(", ")} WHERE id = ?`, [
+      ...values,
+    ]);
+
+    const updatedItem = await db.queryOne(
+      "SELECT * FROM inventory WHERE id = ?",
+      [id],
+    );
+    if (!updatedItem) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+    res.json(updatedItem);
+  }),
 );
 
 app.delete(
   "/api/inventory/:id",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      await db.execute("DELETE FROM inventory WHERE id = ?", [id]);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const existing = await db.queryOne("SELECT id FROM inventory WHERE id = ?", [
+      id,
+    ]);
+    if (!existing) {
+      return res.status(404).json({ error: "Inventory item not found" });
     }
-  },
+
+    await db.execute("DELETE FROM inventory WHERE id = ?", [id]);
+    res.json({ success: true });
+  }),
 );
 
 // ============ 预约相关 API ============
 
-app.get("/api/reservations", authenticateToken, async (req, res) => {
-  try {
+app.get(
+  "/api/reservations",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const deviceId =
       typeof req.query.deviceId === "string" ? req.query.deviceId.trim() : "";
     const from =
@@ -2449,14 +2402,15 @@ app.get("/api/reservations", authenticateToken, async (req, res) => {
       params,
     );
     res.json(reservations);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.post("/api/reservations", authenticateToken, async (req, res) => {
-  try {
-    const { deviceId, date, timeSlot, title, description, color } = req.body;
+app.post(
+  "/api/reservations",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
+    const body = requirePlainObject(req.body, "body");
+    const { deviceId, date, timeSlot, title, description, color } = body;
     const userId = req.user.id;
     if (typeof deviceId !== "string" || !deviceId.trim()) {
       return res.status(400).json({ error: "deviceId is required" });
@@ -2556,19 +2510,16 @@ app.post("/api/reservations", authenticateToken, async (req, res) => {
     );
 
     res.status(201).json(newReservation);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.patch("/api/reservations/:id", authenticateToken, async (req, res) => {
-  try {
+app.patch(
+  "/api/reservations/:id",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
-    if (!isPlainObject(req.body)) {
-      return res.status(400).json({ error: "Invalid update payload" });
-    }
-    const rawUpdates = req.body;
-    const allowedKeys = new Set([
+    const rawUpdates = requirePlainObject(req.body, "update payload");
+    assertAllowedKeys(rawUpdates, [
       "status",
       "date",
       "timeSlot",
@@ -2576,14 +2527,6 @@ app.patch("/api/reservations/:id", authenticateToken, async (req, res) => {
       "description",
       "color",
     ]);
-    const unknownKeys = Object.keys(rawUpdates).filter(
-      (key) => !allowedKeys.has(key),
-    );
-    if (unknownKeys.length > 0) {
-      return res
-        .status(400)
-        .json({ error: `Unknown fields: ${unknownKeys.join(", ")}` });
-    }
 
     const reservation = await db.queryOne(
       "SELECT * FROM reservations WHERE id = ?",
@@ -2676,13 +2619,13 @@ app.patch("/api/reservations/:id", authenticateToken, async (req, res) => {
     broadcast("reservation:updated", updated);
 
     res.json(updated);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.delete("/api/reservations/:id", authenticateToken, async (req, res) => {
-  try {
+app.delete(
+  "/api/reservations/:id",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const reservation = await db.queryOne(
@@ -2709,15 +2652,15 @@ app.delete("/api/reservations/:id", authenticateToken, async (req, res) => {
     });
 
     res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 // ============ 日志相关 API ============
 
-app.get("/api/logs", authenticateToken, async (req, res) => {
-  try {
+app.get(
+  "/api/logs",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const { search } = req.query;
     const limitRaw = req.query.limit;
     const limitParsed = limitRaw === undefined ? 50 : Number(limitRaw);
@@ -2752,19 +2695,18 @@ app.get("/api/logs", authenticateToken, async (req, res) => {
 
     const logs = await db.query(query, params);
     res.json(logs);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.delete("/api/logs", authenticateToken, requireAdmin, async (req, res) => {
-  try {
+app.delete(
+  "/api/logs",
+  authenticateToken,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
     await db.execute("DELETE FROM logs");
     res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 // ============ Data Retention (SUPER_ADMIN) ============
 
@@ -2772,41 +2714,34 @@ app.get(
   "/api/admin/retention",
   authenticateToken,
   requireSuperAdmin,
-  async (req, res) => {
-    try {
-      res.json(await getRetentionSettings(db));
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    res.json(await getRetentionSettings(db));
+  }),
 );
 
 app.patch(
   "/api/admin/retention",
   authenticateToken,
   requireSuperAdmin,
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
+    const updates = req.body === undefined ? {} : requirePlainObject(req.body);
     try {
-      const updated = await updateRetentionSettings(db, req.body);
+      const updated = await updateRetentionSettings(db, updates);
       res.json(updated);
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
-  },
+  }),
 );
 
 app.post(
   "/api/admin/retention/run",
   authenticateToken,
   requireSuperAdmin,
-  async (req, res) => {
-    try {
-      const result = await runRetentionCleanup(db);
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const result = await runRetentionCleanup(db);
+    res.json(result);
+  }),
 );
 
 // ============ Device Analysis Templates ============
@@ -2814,484 +2749,370 @@ app.post(
 app.get(
   "/api/device-analysis/templates",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const rows = await db.query(
-        `
+  asyncHandler(async (req, res) => {
+    const rows = await db.query(
+      `
         SELECT id, name, configJson, createdAt, updatedAt
         FROM device_analysis_templates
         WHERE userId = ?
         ORDER BY updatedAt DESC
       `,
-        [req.user.id],
-      );
+      [req.user.id],
+    );
 
-      // Deduplicate by name (keep most recently updated first).
-      const seenNames = new Set();
-      const templates = [];
-      for (const row of rows) {
-        const name = typeof row?.name === "string" ? row.name.trim() : "";
-        if (!name) continue;
-        if (seenNames.has(name)) continue;
-        seenNames.add(name);
+    // Deduplicate by name (keep most recently updated first).
+    const seenNames = new Set();
+    const templates = [];
+    for (const row of rows) {
+      const name = typeof row?.name === "string" ? row.name.trim() : "";
+      if (!name) continue;
+      if (seenNames.has(name)) continue;
+      seenNames.add(name);
 
-        const config = safeJsonParse(row.configJson, {});
-        templates.push({
-          ...(isPlainObject(config) ? config : {}),
-          id: row.id,
-          name,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        });
-      }
-
-      res.json(templates);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+      const config = safeJsonParse(row.configJson, {});
+      templates.push({
+        ...(isPlainObject(config) ? config : {}),
+        id: row.id,
+        name,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      });
     }
-  },
+
+    res.json(templates);
+  }),
 );
 
 app.post(
   "/api/device-analysis/templates",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const config = sanitizeDeviceAnalysisTemplateConfig(req.body);
-      if (!config.name) {
-        return res.status(400).json({ error: "Template name is required" });
-      }
+  asyncHandler(async (req, res) => {
+    const config = sanitizeDeviceAnalysisTemplateConfig(req.body);
+    if (!config.name) {
+      return res.status(400).json({ error: "Template name is required" });
+    }
 
-      const now = new Date().toISOString();
-      const existing = await db.queryOne(
-        `
+    const now = new Date().toISOString();
+    const existing = await db.queryOne(
+      `
         SELECT id, createdAt
         FROM device_analysis_templates
         WHERE userId = ? AND name = ?
         ORDER BY updatedAt DESC
         LIMIT 1
       `,
-        [req.user.id, config.name],
-      );
+      [req.user.id, config.name],
+    );
 
-      if (existing?.id) {
-        await db.execute(
-          `
+    if (existing?.id) {
+      await db.execute(
+        `
           UPDATE device_analysis_templates
           SET configJson = ?, updatedAt = ?
           WHERE id = ? AND userId = ?
         `,
-          [JSON.stringify(config), now, existing.id, req.user.id],
-        );
+        [JSON.stringify(config), now, existing.id, req.user.id],
+      );
 
-        // Best-effort cleanup: remove any accidental duplicates with the same name.
-        await db.execute(
-          `
+      // Best-effort cleanup: remove any accidental duplicates with the same name.
+      await db.execute(
+        `
           DELETE FROM device_analysis_templates
           WHERE userId = ? AND name = ? AND id != ?
         `,
-          [req.user.id, config.name, existing.id],
-        );
+        [req.user.id, config.name, existing.id],
+      );
 
-        res.status(200).json({
-          ...config,
-          id: existing.id,
-          createdAt: existing.createdAt,
-          updatedAt: now,
-        });
-        return;
-      }
+      res.status(200).json({
+        ...config,
+        id: existing.id,
+        createdAt: existing.createdAt,
+        updatedAt: now,
+      });
+      return;
+    }
 
-      const id = makeId("da_template");
-      await db.execute(
-        `
+    const id = makeId("da_template");
+    await db.execute(
+      `
         INSERT INTO device_analysis_templates (id, userId, name, configJson, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-        [id, req.user.id, config.name, JSON.stringify(config), now, now],
-      );
+      [id, req.user.id, config.name, JSON.stringify(config), now, now],
+    );
 
-      res.status(201).json({ ...config, id, createdAt: now, updatedAt: now });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+    res.status(201).json({ ...config, id, createdAt: now, updatedAt: now });
+  }),
 );
 
 app.post(
   "/api/device-analysis/templates/bulk",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const input = Array.isArray(req.body)
-        ? req.body
-        : Array.isArray(req.body?.templates)
-          ? req.body.templates
-          : [];
+  asyncHandler(async (req, res) => {
+    const input = Array.isArray(req.body)
+      ? req.body
+      : Array.isArray(req.body?.templates)
+        ? req.body.templates
+        : [];
 
-      if (!input.length) return res.json([]);
+    if (!input.length) return res.json([]);
 
-      const now = new Date().toISOString();
-      const upserted = [];
+    const now = new Date().toISOString();
+    const upserted = [];
 
-      for (const raw of input) {
-        const config = sanitizeDeviceAnalysisTemplateConfig(raw);
-        if (!config.name) continue;
+    for (const raw of input) {
+      const config = sanitizeDeviceAnalysisTemplateConfig(raw);
+      if (!config.name) continue;
 
-        const existing = await db.queryOne(
-          `
+      const existing = await db.queryOne(
+        `
             SELECT id, createdAt
             FROM device_analysis_templates
             WHERE userId = ? AND name = ?
             ORDER BY updatedAt DESC
             LIMIT 1
           `,
-          [req.user.id, config.name],
-        );
+        [req.user.id, config.name],
+      );
 
-        if (existing?.id) {
-          await db.execute(
-            `
+      if (existing?.id) {
+        await db.execute(
+          `
               UPDATE device_analysis_templates
               SET configJson = ?, updatedAt = ?
               WHERE id = ? AND userId = ?
             `,
-            [JSON.stringify(config), now, existing.id, req.user.id],
-          );
+          [JSON.stringify(config), now, existing.id, req.user.id],
+        );
 
-          await db.execute(
-            `
+        await db.execute(
+          `
               DELETE FROM device_analysis_templates
               WHERE userId = ? AND name = ? AND id != ?
             `,
-            [req.user.id, config.name, existing.id],
-          );
+          [req.user.id, config.name, existing.id],
+        );
 
-          upserted.push({
-            ...config,
-            id: existing.id,
-            createdAt: existing.createdAt,
-            updatedAt: now,
-          });
-          continue;
-        }
+        upserted.push({
+          ...config,
+          id: existing.id,
+          createdAt: existing.createdAt,
+          updatedAt: now,
+        });
+        continue;
+      }
 
-        const id = makeId("da_template");
-        await db.execute(
-          `
+      const id = makeId("da_template");
+      await db.execute(
+        `
             INSERT INTO device_analysis_templates (id, userId, name, configJson, createdAt, updatedAt)
             VALUES (?, ?, ?, ?, ?, ?)
           `,
-          [id, req.user.id, config.name, JSON.stringify(config), now, now],
-        );
-        upserted.push({ ...config, id, createdAt: now, updatedAt: now });
-      }
-
-      res.status(201).json(upserted);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+        [id, req.user.id, config.name, JSON.stringify(config), now, now],
+      );
+      upserted.push({ ...config, id, createdAt: now, updatedAt: now });
     }
-  },
+
+    res.status(201).json(upserted);
+  }),
 );
 
 app.patch(
   "/api/device-analysis/templates/:id",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const templateId = String(req.params.id || "");
-      const existing = await db.queryOne(
-        "SELECT id FROM device_analysis_templates WHERE id = ? AND userId = ?",
-        [templateId, req.user.id],
-      );
-      if (!existing) return res.sendStatus(404);
+  asyncHandler(async (req, res) => {
+    const templateId = String(req.params.id || "");
+    const existing = await db.queryOne(
+      "SELECT id FROM device_analysis_templates WHERE id = ? AND userId = ?",
+      [templateId, req.user.id],
+    );
+    if (!existing) return res.sendStatus(404);
 
-      const config = sanitizeDeviceAnalysisTemplateConfig(req.body);
-      if (!config.name) {
-        return res.status(400).json({ error: "Template name is required" });
-      }
+    const config = sanitizeDeviceAnalysisTemplateConfig(req.body);
+    if (!config.name) {
+      return res.status(400).json({ error: "Template name is required" });
+    }
 
-      const now = new Date().toISOString();
-      const nameConflict = await db.queryOne(
-        `
+    const now = new Date().toISOString();
+    const nameConflict = await db.queryOne(
+      `
           SELECT id
           FROM device_analysis_templates
           WHERE userId = ? AND name = ? AND id != ?
           ORDER BY updatedAt DESC
           LIMIT 1
         `,
-        [req.user.id, config.name, templateId],
-      );
+      [req.user.id, config.name, templateId],
+    );
 
-      await db.execute(
-        `
+    await db.execute(
+      `
           UPDATE device_analysis_templates
           SET name = ?, configJson = ?, updatedAt = ?
           WHERE id = ? AND userId = ?
         `,
-        [config.name, JSON.stringify(config), now, templateId, req.user.id],
-      );
+      [config.name, JSON.stringify(config), now, templateId, req.user.id],
+    );
 
-      if (nameConflict?.id) {
-        // Best-effort cleanup: keep the edited template as the canonical one for this name.
-        await db.execute(
-          `
+    if (nameConflict?.id) {
+      // Best-effort cleanup: keep the edited template as the canonical one for this name.
+      await db.execute(
+        `
             DELETE FROM device_analysis_templates
             WHERE userId = ? AND name = ? AND id != ?
           `,
-          [req.user.id, config.name, templateId],
-        );
-      }
-
-      res.json({ ...config, id: templateId, updatedAt: now });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+        [req.user.id, config.name, templateId],
+      );
     }
-  },
+
+    res.json({ ...config, id: templateId, updatedAt: now });
+  }),
 );
 
 app.delete(
   "/api/device-analysis/templates/:id",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const templateId = String(req.params.id || "");
-      const existing = await db.queryOne(
-        "SELECT id FROM device_analysis_templates WHERE id = ? AND userId = ?",
-        [templateId, req.user.id],
-      );
-      if (!existing) return res.sendStatus(404);
-
-      await db.execute(
-        "DELETE FROM device_analysis_templates WHERE id = ? AND userId = ?",
-        [templateId, req.user.id],
-      );
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
-);
-
-// ============ Device Analysis -> Origin jobs ============
-
-app.post(
-  "/api/device-analysis/origin/jobs",
-  authenticateToken,
-  express.raw({ type: ["application/zip", "application/octet-stream"], limit: "25mb" }),
-  async (req, res) => {
-    try {
-      await cleanupOriginJobs();
-      await ensureOriginJobDir();
-
-      const zipBuffer = req.body;
-      if (!Buffer.isBuffer(zipBuffer) || zipBuffer.length === 0) {
-        return res.status(400).json({ error: "Missing ZIP payload" });
-      }
-
-      const jobId = makeId("da_origin_job");
-      const token = randomUUID();
-      const expiresAt = Date.now() + ORIGIN_JOB_TTL_MS;
-      const fileName = sanitizeOriginJobFilename(req.get("x-origin-filename"));
-      const filePath = path.join(ORIGIN_JOB_DIR, `${jobId}.zip`);
-
-      await fs.promises.writeFile(filePath, zipBuffer);
-
-      originJobs.set(jobId, {
-        userId: req.user.id,
-        token,
-        expiresAt,
-        filePath,
-        fileName,
-      });
-
-      res.status(201).json({
-        jobId,
-        token,
-        expiresAt: new Date(expiresAt).toISOString(),
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
-);
-
-app.get("/api/device-analysis/origin/jobs/:id/package", async (req, res) => {
-  try {
-    await cleanupOriginJobs();
-
-    const jobId = String(req.params.id || "");
-    const token = String(req.query.token || "");
-
-    const job = originJobs.get(jobId);
-    if (!job) return res.status(404).json({ error: "Job not found" });
-
-    if (!token || token !== job.token) {
-      return res.status(403).json({ error: "Invalid token" });
-    }
-
-    if (!Number.isFinite(job.expiresAt) || Date.now() > job.expiresAt) {
-      originJobs.delete(jobId);
-      if (job.filePath) {
-        try {
-          await fs.promises.unlink(job.filePath);
-        } catch {
-          // ignore best-effort cleanup
-        }
-      }
-      return res.status(410).json({ error: "Job expired" });
-    }
-
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${job.fileName || "device_analysis_origin.zip"}"`,
+  asyncHandler(async (req, res) => {
+    const templateId = String(req.params.id || "");
+    const existing = await db.queryOne(
+      "SELECT id FROM device_analysis_templates WHERE id = ? AND userId = ?",
+      [templateId, req.user.id],
     );
+    if (!existing) return res.sendStatus(404);
 
-    res.sendFile(job.filePath, (err) => {
-      if (err) {
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Failed to send package" });
-        }
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    await db.execute(
+      "DELETE FROM device_analysis_templates WHERE id = ? AND userId = ?",
+      [templateId, req.user.id],
+    );
+    res.json({ success: true });
+  }),
+);
 
 // ============ Device Analysis Settings ============
 
 app.get(
   "/api/device-analysis/settings",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const row = await db.queryOne(
-        "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt FROM device_analysis_settings WHERE userId = ?",
-        [req.user.id],
-      );
+  asyncHandler(async (req, res) => {
+    const row = await db.queryOne(
+      "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt FROM device_analysis_settings WHERE userId = ?",
+      [req.user.id],
+    );
 
-      res.json({
-        yUnit:
-          row?.yUnit === "A" || row?.yUnit === "uA" || row?.yUnit === "nA"
-            ? row.yUnit
-            : "A",
-        ssMethodDefault:
-          row?.ssMethodDefault === "auto" ||
-          row?.ssMethodDefault === "manual" ||
-          row?.ssMethodDefault === "idWindow" ||
-          row?.ssMethodDefault === "legacy"
-            ? row.ssMethodDefault
-            : "auto",
-        ssDiagnosticsEnabled:
-          typeof row?.ssDiagnosticsEnabled === "number"
-            ? Boolean(row.ssDiagnosticsEnabled)
-            : row?.ssDiagnosticsEnabled == null
-              ? true
-              : Boolean(row.ssDiagnosticsEnabled),
-        ssIdLow: Number.isFinite(Number(row?.ssIdLow)) ? Number(row.ssIdLow) : 1e-11,
-        ssIdHigh:
-          Number.isFinite(Number(row?.ssIdHigh)) ? Number(row.ssIdHigh) : 1e-9,
-        updatedAt: row?.updatedAt || null,
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+    res.json({
+      yUnit:
+        row?.yUnit === "A" || row?.yUnit === "uA" || row?.yUnit === "nA"
+          ? row.yUnit
+          : "A",
+      ssMethodDefault:
+        row?.ssMethodDefault === "auto" ||
+        row?.ssMethodDefault === "manual" ||
+        row?.ssMethodDefault === "idWindow" ||
+        row?.ssMethodDefault === "legacy"
+          ? row.ssMethodDefault
+          : "auto",
+      ssDiagnosticsEnabled:
+        typeof row?.ssDiagnosticsEnabled === "number"
+          ? Boolean(row.ssDiagnosticsEnabled)
+          : row?.ssDiagnosticsEnabled == null
+            ? true
+            : Boolean(row.ssDiagnosticsEnabled),
+      ssIdLow: Number.isFinite(Number(row?.ssIdLow)) ? Number(row.ssIdLow) : 1e-11,
+      ssIdHigh: Number.isFinite(Number(row?.ssIdHigh)) ? Number(row.ssIdHigh) : 1e-9,
+      updatedAt: row?.updatedAt || null,
+    });
+  }),
 );
 
 app.patch(
   "/api/device-analysis/settings",
   authenticateToken,
-  async (req, res) => {
-    try {
-      const { patch, errors } = sanitizeDeviceAnalysisSettings(req.body);
-      if (errors.length) {
-        return res.status(400).json({ error: `Invalid ${errors.join(", ")}` });
-      }
-      if (!Object.keys(patch).length) {
-        return res.status(400).json({ error: "No valid settings provided" });
-      }
-
-      const now = new Date().toISOString();
-      const existing = await db.queryOne(
-        "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh FROM device_analysis_settings WHERE userId = ?",
-        [req.user.id],
-      );
-
-      const yUnitExisting =
-        existing?.yUnit === "A" || existing?.yUnit === "uA" || existing?.yUnit === "nA"
-          ? existing.yUnit
-          : "A";
-      const ssMethodExisting =
-        existing?.ssMethodDefault === "auto" ||
-        existing?.ssMethodDefault === "manual" ||
-        existing?.ssMethodDefault === "idWindow" ||
-        existing?.ssMethodDefault === "legacy"
-          ? existing.ssMethodDefault
-          : "auto";
-      const ssDiagExisting =
-        typeof existing?.ssDiagnosticsEnabled === "number"
-          ? Boolean(existing.ssDiagnosticsEnabled)
-          : existing?.ssDiagnosticsEnabled == null
-            ? true
-            : Boolean(existing.ssDiagnosticsEnabled);
-      const ssIdLowExisting = Number.isFinite(Number(existing?.ssIdLow))
-        ? Number(existing.ssIdLow)
-        : 1e-11;
-      const ssIdHighExisting = Number.isFinite(Number(existing?.ssIdHigh))
-        ? Number(existing.ssIdHigh)
-        : 1e-9;
-
-      const next = {
-        yUnit: patch.yUnit ?? yUnitExisting,
-        ssMethodDefault: patch.ssMethodDefault ?? ssMethodExisting,
-        ssDiagnosticsEnabled:
-          patch.ssDiagnosticsEnabled == null ? ssDiagExisting : Boolean(patch.ssDiagnosticsEnabled),
-        ssIdLow: patch.ssIdLow ?? ssIdLowExisting,
-        ssIdHigh: patch.ssIdHigh ?? ssIdHighExisting,
-      };
-
-      if (next.ssIdLow > next.ssIdHigh) {
-        const tmp = next.ssIdLow;
-        next.ssIdLow = next.ssIdHigh;
-        next.ssIdHigh = tmp;
-      }
-
-      if (existing) {
-        await db.execute(
-          "UPDATE device_analysis_settings SET yUnit = ?, ssMethodDefault = ?, ssDiagnosticsEnabled = ?, ssIdLow = ?, ssIdHigh = ?, updatedAt = ? WHERE userId = ?",
-          [
-            next.yUnit,
-            next.ssMethodDefault,
-            next.ssDiagnosticsEnabled ? 1 : 0,
-            next.ssIdLow,
-            next.ssIdHigh,
-            now,
-            req.user.id,
-          ],
-        );
-      } else {
-        await db.execute(
-          "INSERT INTO device_analysis_settings (userId, yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [
-            req.user.id,
-            next.yUnit,
-            next.ssMethodDefault,
-            next.ssDiagnosticsEnabled ? 1 : 0,
-            next.ssIdLow,
-            next.ssIdHigh,
-            now,
-          ],
-        );
-      }
-
-      res.json({ ...next, updatedAt: now });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+  asyncHandler(async (req, res) => {
+    const { patch, errors } = sanitizeDeviceAnalysisSettings(req.body);
+    if (errors.length) {
+      return res.status(400).json({ error: `Invalid ${errors.join(", ")}` });
     }
-  },
+    if (!Object.keys(patch).length) {
+      return res.status(400).json({ error: "No valid settings provided" });
+    }
+
+    const now = new Date().toISOString();
+    const existing = await db.queryOne(
+      "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh FROM device_analysis_settings WHERE userId = ?",
+      [req.user.id],
+    );
+
+    const yUnitExisting =
+      existing?.yUnit === "A" || existing?.yUnit === "uA" || existing?.yUnit === "nA"
+        ? existing.yUnit
+        : "A";
+    const ssMethodExisting =
+      existing?.ssMethodDefault === "auto" ||
+      existing?.ssMethodDefault === "manual" ||
+      existing?.ssMethodDefault === "idWindow" ||
+      existing?.ssMethodDefault === "legacy"
+        ? existing.ssMethodDefault
+        : "auto";
+    const ssDiagExisting =
+      typeof existing?.ssDiagnosticsEnabled === "number"
+        ? Boolean(existing.ssDiagnosticsEnabled)
+        : existing?.ssDiagnosticsEnabled == null
+          ? true
+          : Boolean(existing.ssDiagnosticsEnabled);
+    const ssIdLowExisting = Number.isFinite(Number(existing?.ssIdLow))
+      ? Number(existing.ssIdLow)
+      : 1e-11;
+    const ssIdHighExisting = Number.isFinite(Number(existing?.ssIdHigh))
+      ? Number(existing.ssIdHigh)
+      : 1e-9;
+
+    const next = {
+      yUnit: patch.yUnit ?? yUnitExisting,
+      ssMethodDefault: patch.ssMethodDefault ?? ssMethodExisting,
+      ssDiagnosticsEnabled:
+        patch.ssDiagnosticsEnabled == null
+          ? ssDiagExisting
+          : Boolean(patch.ssDiagnosticsEnabled),
+      ssIdLow: patch.ssIdLow ?? ssIdLowExisting,
+      ssIdHigh: patch.ssIdHigh ?? ssIdHighExisting,
+    };
+
+    if (next.ssIdLow > next.ssIdHigh) {
+      const tmp = next.ssIdLow;
+      next.ssIdLow = next.ssIdHigh;
+      next.ssIdHigh = tmp;
+    }
+
+    if (existing) {
+      await db.execute(
+        "UPDATE device_analysis_settings SET yUnit = ?, ssMethodDefault = ?, ssDiagnosticsEnabled = ?, ssIdLow = ?, ssIdHigh = ?, updatedAt = ? WHERE userId = ?",
+        [
+          next.yUnit,
+          next.ssMethodDefault,
+          next.ssDiagnosticsEnabled ? 1 : 0,
+          next.ssIdLow,
+          next.ssIdHigh,
+          now,
+          req.user.id,
+        ],
+      );
+    } else {
+      await db.execute(
+        "INSERT INTO device_analysis_settings (userId, yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          req.user.id,
+          next.yUnit,
+          next.ssMethodDefault,
+          next.ssDiagnosticsEnabled ? 1 : 0,
+          next.ssIdLow,
+          next.ssIdHigh,
+          now,
+        ],
+      );
+    }
+
+    res.json({ ...next, updatedAt: now });
+  }),
 );
 
 // ============ Literature Research ============
@@ -4111,8 +3932,10 @@ app.get(
 
 // ============ 申请相关 API ============
 
-app.get("/api/requests", authenticateToken, async (req, res) => {
-  try {
+app.get(
+  "/api/requests",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const statusParam =
       typeof req.query.status === "string" ? req.query.status : "";
     const statuses = statusParam
@@ -4120,17 +3943,14 @@ app.get("/api/requests", authenticateToken, async (req, res) => {
       .map((s) => s.trim().toUpperCase())
       .filter((s) => ["PENDING", "APPROVED", "REJECTED"].includes(s));
 
-    const limitRaw = req.query.limit;
-    const limitParsed = limitRaw === undefined ? null : Number(limitRaw);
-    const limit = Number.isFinite(limitParsed)
-      ? Math.max(1, Math.min(1000, Math.trunc(limitParsed)))
-      : null;
-
-    const offsetRaw = req.query.offset;
-    const offsetParsed = offsetRaw === undefined ? null : Number(offsetRaw);
-    const offset = Number.isFinite(offsetParsed)
-      ? Math.max(0, Math.trunc(offsetParsed))
-      : null;
+    const limit = optionalInteger(req.query.limit, "limit", {
+      min: 1,
+      max: 1000,
+    });
+    const offset = optionalInteger(req.query.offset, "offset", {
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+    });
 
     let query = `
             SELECT
@@ -4159,42 +3979,49 @@ app.get("/api/requests", authenticateToken, async (req, res) => {
 
     query += ` ORDER BY r.createdAt DESC`;
 
-    if (limit !== null) {
+    if (limit !== undefined) {
       query += ` LIMIT ?`;
       params.push(limit);
     }
 
-    if (offset !== null) {
+    if (offset !== undefined) {
       query += ` OFFSET ?`;
       params.push(offset);
     }
 
     const requests = await db.query(query, params);
     res.json(requests);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
-app.post("/api/requests", authenticateToken, async (req, res) => {
-  try {
-    const { type, targetId, originalData, newData, requesterName } = req.body;
-
-    if (typeof type !== "string" || !type.trim()) {
-      return res.status(400).json({ error: "type is required" });
-    }
+app.post(
+  "/api/requests",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
+    const body = requirePlainObject(req.body, "body");
+    const type = requireOneOf(body.type, "type", [
+      "INVENTORY_UPDATE",
+      "INVENTORY_ADD",
+    ]);
 
     const resolvedRequesterId = req.user.id;
     const user = await db.queryOne("SELECT name FROM users WHERE id = ?", [
       resolvedRequesterId,
     ]);
+    const requesterNameInput = optionalString(body.requesterName, "requesterName", {
+      maxLength: 255,
+    });
     const resolvedRequesterName =
-      user?.name ||
-      (typeof requesterName === "string" && requesterName.trim()
-        ? requesterName.trim()
-        : null) ||
-      req.user.username ||
-      "Unknown";
+      user?.name || requesterNameInput || req.user.username || "Unknown";
+
+    const targetId =
+      type === "INVENTORY_UPDATE"
+        ? requireString(body.targetId, "targetId", { maxLength: 64 })
+        : null;
+
+    const originalDataJson = JSON.stringify(body.originalData ?? null);
+    const newData = requirePlainObject(body.newData, "newData");
+    const newDataJson = JSON.stringify(newData);
 
     const newRequest = {
       id: makeId("req"),
@@ -4202,8 +4029,8 @@ app.post("/api/requests", authenticateToken, async (req, res) => {
       requesterName: resolvedRequesterName,
       type,
       targetId,
-      originalData: JSON.stringify(originalData),
-      newData: JSON.stringify(newData),
+      originalData: originalDataJson,
+      newData: newDataJson,
       status: "PENDING",
       createdAt: new Date().toISOString(),
     };
@@ -4225,94 +4052,97 @@ app.post("/api/requests", authenticateToken, async (req, res) => {
 
     broadcast("request:created", newRequest);
     res.status(201).json(newRequest);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  }),
+);
 
 app.post(
   "/api/requests/:id/approve",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const request = await db.queryOne("SELECT * FROM requests WHERE id = ?", [
-        id,
-      ]);
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const request = await db.queryOne("SELECT * FROM requests WHERE id = ?", [
+      id,
+    ]);
 
-      if (!request) return res.status(404).json({ error: "Request not found" });
-
-      // Apply changes
-      if (request.type === "INVENTORY_UPDATE") {
-        const updates = JSON.parse(request.newData);
-        const { name, category, quantity } = updates;
-        const targetId = request.targetId;
-
-        await db.execute(
-          "UPDATE inventory SET name = ?, category = ?, quantity = ?, requesterName = ?, requesterId = ? WHERE id = ?",
-          [
-            name,
-            category,
-            quantity,
-            request.requesterName,
-            request.requesterId,
-            targetId,
-          ],
-        );
-      } else if (request.type === "INVENTORY_ADD") {
-        const newItem = JSON.parse(request.newData);
-        const itemId = makeId("item");
-        const { name, category, quantity } = newItem;
-        const date = new Date().toISOString().split("T")[0];
-
-        await db.execute(
-          "INSERT INTO inventory (id, name, category, quantity, date, requesterName, requesterId) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [
-            itemId,
-            name,
-            category,
-            quantity,
-            date,
-            request.requesterName,
-            request.requesterId,
-          ],
-        );
-      }
-
-      // Update request status instead of deleting
-      await db.execute("UPDATE requests SET status = 'APPROVED' WHERE id = ?", [
-        id,
-      ]);
-
-      broadcast("request:approved", { id });
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    if (!request) return res.status(404).json({ error: "Request not found" });
+    if (request.status !== "PENDING") {
+      return res.status(400).json({ error: "Only pending requests can be approved" });
     }
-  },
+
+    // Apply changes
+    if (request.type === "INVENTORY_UPDATE") {
+      const updates = JSON.parse(request.newData);
+      const { name, category, quantity } = updates;
+      const targetId = request.targetId;
+
+      await db.execute(
+        "UPDATE inventory SET name = ?, category = ?, quantity = ?, requesterName = ?, requesterId = ? WHERE id = ?",
+        [
+          name,
+          category,
+          quantity,
+          request.requesterName,
+          request.requesterId,
+          targetId,
+        ],
+      );
+    } else if (request.type === "INVENTORY_ADD") {
+      const newItem = JSON.parse(request.newData);
+      const itemId = makeId("item");
+      const { name, category, quantity } = newItem;
+      const date = new Date().toISOString().split("T")[0];
+
+      await db.execute(
+        "INSERT INTO inventory (id, name, category, quantity, date, requesterName, requesterId) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          itemId,
+          name,
+          category,
+          quantity,
+          date,
+          request.requesterName,
+          request.requesterId,
+        ],
+      );
+    }
+
+    // Update request status instead of deleting
+    await db.execute("UPDATE requests SET status = 'APPROVED' WHERE id = ?", [
+      id,
+    ]);
+
+    broadcast("request:approved", { id });
+    res.json({ success: true });
+  }),
 );
 
 app.post(
   "/api/requests/:id/reject",
   authenticateToken,
   requireAdmin,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      await db.execute("UPDATE requests SET status = 'REJECTED' WHERE id = ?", [
-        id,
-      ]);
-      broadcast("request:rejected", { id });
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const request = await db.queryOne("SELECT id, status FROM requests WHERE id = ?", [
+      id,
+    ]);
+    if (!request) return res.status(404).json({ error: "Request not found" });
+    if (request.status !== "PENDING") {
+      return res.status(400).json({ error: "Only pending requests can be rejected" });
     }
-  },
+
+    await db.execute("UPDATE requests SET status = 'REJECTED' WHERE id = ?", [
+      id,
+    ]);
+    broadcast("request:rejected", { id });
+    res.json({ success: true });
+  }),
 );
 
-app.delete("/api/requests/:id", authenticateToken, async (req, res) => {
-  try {
+app.delete(
+  "/api/requests/:id",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const request = await db.queryOne(
@@ -4335,10 +4165,16 @@ app.delete("/api/requests/:id", authenticateToken, async (req, res) => {
     await db.execute("DELETE FROM requests WHERE id = ?", [id]);
     broadcast("request:deleted", { id });
     res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  }),
+);
+
+// API fallback (keep JSON responses for unknown endpoints)
+app.use("/api", (req, res) => {
+  res.status(404).json({ error: "Not Found" });
 });
+
+// Central error handler
+app.use(errorMiddleware);
 
 const shouldServeClient = (() => {
   const raw = process.env.SERVE_CLIENT;

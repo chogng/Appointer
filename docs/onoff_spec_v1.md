@@ -84,10 +84,10 @@ Tie behavior:
 
 ## 6) Implementation Pointers / 代码定位
 
-- Metric computation: `src/components/DeviceAnalysis/AnalysisCharts.jsx`
+- Metric computation: [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)
   - `Ion/Ioff` scan over points (see “Scalar metrics” block)
   - `ionIoff` ratio computed in `metrics`
-- Table rendering: `src/components/DeviceAnalysis/AnalysisCharts.jsx` (Calculated Parameters table)
+- Table rendering: [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx) (Calculated Parameters table)
 
 ---
 
@@ -96,4 +96,3 @@ Tie behavior:
 - Add user-defined `X_on` / `X_off` (e.g., `Vg_on`, `Vg_off`) and compute `Ion/Ioff` at those X values (with interpolation).
 - Provide a “robust Ioff” option (e.g., quantile-based floor) to reduce sensitivity to outliers/noise.
 - Allow per-curve direction selection for bidirectional sweeps (forward-only / reverse-only).
-

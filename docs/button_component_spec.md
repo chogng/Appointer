@@ -4,11 +4,17 @@
 
 适用范围：页面上的动作按钮，例如 “新增/搜索/导出/确认/取消” 等。
 
+相关链接：
+- [`stable_selectors_spec.md`](./stable_selectors_spec.md)：`data-*` 稳定选择器约定（测试/脚本）
+- [`src/components/ui/Button.jsx`](../src/components/ui/Button.jsx)：组件实现（推荐统一入口）
+- [`src/styles/global.css`](../src/styles/global.css)：`click_btn*` 样式定义（`@layer components`）
+
 ---
 
 ## 1. 目标与约束
 
 - 结构稳定：统一 DOM/属性/类名，避免页面里到处出现超长 Tailwind 串。
+- 推荐优先使用 [`src/components/ui/Button.jsx`](../src/components/ui/Button.jsx)（已封装 `click_btn*` 的结构与默认行为）。
 - A11y 合理：按钮必须可聚焦、可读、禁用态正确。
 - 受控禁用：由业务状态决定 `disabled` 与样式。
 
@@ -49,21 +55,28 @@
 
 ## 4. 样式类约定（全局）
 
-按钮样式类定义在 `src/styles/global.css` 的 `@layer components`：
+按钮样式类定义在 [`src/styles/global.css`](../src/styles/global.css) 的 `@layer components`：
 
 - 基础：
   - `.click_btn`
+  - `.click_btn--sm`
   - `.click_btn--md`
+  - `.click_btn--lg`
+  - `.click_btn--control`（紧凑 38px：适合 tool/control 场景）
   - `.click_btn--icon-md`（icon-only 方形按钮：38×38；需搭配 `.click_btn--md`）
+  - `.click_btn--icon-md-tight`（搭配 `.click_btn--fx` 的更紧凑 36×36 icon-only）
   - `.click_btn--icon`（icon-only 方形按钮：42×42）
   - `.click_btn_content`
   - `.click_btn--fx`（提供 ring/hover 的 box-shadow 扩张动效）
   - `.click_btn--fx-muted`（非 toolbar 场景的通用浅色 ring 变量）
 - 变体：
   - `.click_btn--primary`（主按钮：accent 背景）
+  - `.click_btn--secondary`（次按钮：浅底 + 边框）
   - `.click_btn--ghost`（幽灵按钮：边框/透明背景）
+  - `.click_btn--text`（文字按钮：无边框/透明背景）
   - `.click_btn--danger`（危险操作：默认弱提示，hover 变红）
   - `.click_btn--disabled`（禁用态）
+  - `.click_btn--claude-shadow`（固定深色 Claude-like）
 
 约束：
 

@@ -295,7 +295,7 @@ const CreateDevice = () => {
           <div className="flex gap-3 pt-4 border-t border-border-subtle">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => navigate("/devices")}
               className="flex-1"
             >

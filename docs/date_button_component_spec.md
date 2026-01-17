@@ -1,8 +1,11 @@
 # DateButton（DatePicker 点击区域）规范 v1
 
-本文定义 `src/components/ui/DatePicker.jsx` 内部的“日期按钮”（点击打开日历的那一块）的 **DOM 结构、状态模型、A11y 语义、样式类约定、扩展点**。
+本文定义 [`src/components/ui/DatePicker.jsx`](../src/components/ui/DatePicker.jsx) 内部的“日期按钮”（点击打开日历的那一块）的 **DOM 结构、状态模型、A11y 语义、样式类约定、扩展点**。
 
 > 说明：这里的 DateButton 不是一个单独组件文件，而是 DatePicker 内部的可点击区域（视觉上是一个按钮/输入样式块）。
+
+相关规范：
+- [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记（如需为按钮/弹层增加稳定锚点）
 
 ---
 
@@ -26,6 +29,7 @@
 DatePicker 外层容器：
 
 - `div.relative`（由 `className` 透传控制额外布局）
+  - 可选稳定锚点：当传入 `dataUi="xxx"` 时，外层输出 `data-ui="xxx"`
 
 DateButton（可点击区域）：
 
@@ -41,6 +45,8 @@ DateButton（可点击区域）：
     - `.date_btn--open` 或 `.date_btn--closed`（二选一）
 - 推荐属性：
   - `aria-label="..."`（由使用方传入，用“人类可读短语”，允许包含空格）
+- 可选稳定锚点：
+  - 当传入 `dataUi="xxx"` 时，DateButton 输出 `data-ui="xxx-btn"`
 
 内容结构（稳定）：
 
@@ -64,7 +70,7 @@ DateButton（可点击区域）：
 
 ## 5. 样式类约定（全局）
 
-样式定义在 `src/styles/global.css` 的 `@layer components`：
+样式定义在 [`src/styles/global.css`](../src/styles/global.css) 的 `@layer components`：
 
 - `.date_btn`：基础样式（尺寸、padding、圆角、背景、边框、交互等）
 - `.date_btn--open`：打开态（强调边框/ring）
