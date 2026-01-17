@@ -322,6 +322,8 @@ erDiagram
 
 - 设置 `VITE_MOCK_API=true`
   - 前端 Auth 与 ApiService 会走本地 Mock（localStorage），并禁用 WebSocket 同步
+  - 默认会自动以 mock 用户登录（跳过登录页）；可通过 `VITE_MOCK_AUTO_LOGIN=false` 关闭
+  - 可选：`VITE_MOCK_USER=admin|user` 指定默认 mock 用户（默认 `admin`）
   - 适合 UI 走查与无后端环境的演示
 
 #### 常用环境变量
@@ -331,6 +333,8 @@ erDiagram
 - `VITE_WS_URL`：WebSocket URL（默认同源）
 - `VITE_ORIGINBRIDGE_API_BASE_URL`：提供给 OriginBridge 的绝对 API Base（开发环境常用 `http://127.0.0.1:3001/api`；生产同源可留空）
 - `VITE_MOCK_API`：是否启用 Mock（`true/false`）
+- `VITE_MOCK_AUTO_LOGIN`：Mock 模式下是否自动登录（默认 `true`）
+- `VITE_MOCK_USER`：Mock 模式下默认用户（`admin/user`，默认 `admin`）
 
 后端（Express）：
 - `PORT`：端口（默认 `3001`）

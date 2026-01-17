@@ -50,14 +50,6 @@ body {
     @apply border-transparent;
   }
 
-  .csv-file_item {
-    @apply flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer relative;
-  }
-
-  .csv-file_item--selected {
-    @apply border-black bg-black/5;
-  }
-
   /* Section */
   .ui-section_head {
     @apply flex items-center justify-between mb-4;

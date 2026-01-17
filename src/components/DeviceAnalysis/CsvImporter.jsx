@@ -9,6 +9,7 @@ import React, {
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { createPortal } from "react-dom";
 import { cx } from "../../utils/cx";
+import styles from "./CsvImporter.module.css";
 
 /*
  * Separate component for the expanded card animation.
@@ -336,11 +337,11 @@ const CsvImporter = forwardRef(
         <div
           ref={containerRef}
           aria-label="csv-container"
-          className={`
-                    border-2 border-dashed rounded-xl pl-6 pr-[18px] text-center transition-all duration-300 relative
-                    h-[300px] overflow-y-auto custom-scrollbar
-                    ${isDragging ? "border-accent bg-accent/5" : "border-text-secondary/40 hover:border-text-secondary"}
-                `}
+          className={cx(
+            styles.dropzone,
+            "custom-scrollbar",
+            isDragging ? styles.dropzoneDragging : styles.dropzoneIdle,
+          )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -359,23 +360,21 @@ const CsvImporter = forwardRef(
           />
 
           {files.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 py-6 cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+            <div className={styles.empty}>
+              <div className={styles.emptyIcon}>
                 <Upload size={24} />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-text-primary">
-                  Upload CSV files
-                </h3>
-                <p className="text-sm text-text-secondary mt-1">
+                <h3 className={styles.emptyTitle}>Upload CSV files</h3>
+                <p className={styles.emptySubtitle}>
                   Drag files here or{" "}
-                  <span className="text-accent hover:underline">browse</span>
+                  <span className={styles.emptyBrowse}>browse</span>
                 </p>
               </div>
             </div>
           ) : (
             <div className="w-full min-h-full flex flex-col py-6">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 text-left">
+              <div className={styles.fileGrid}>
                 {/* Reverse to show newest first? Or just append. Currently appending. */}
                 {files.map((fileEntry) => (
                   <div
@@ -383,17 +382,18 @@ const CsvImporter = forwardRef(
                     aria-label="csv-file-item"
                     onClick={() => handleSelectFile(fileEntry)}
                     className={cx(
-                      "csv-file_item group",
+                      styles.fileItem,
+                      "group",
                       selectedFileId === fileEntry.fileId &&
-                        "csv-file_item--selected",
+                        styles.fileItemSelected,
                       activeFile?.fileId === fileEntry.fileId && "invisible",
                     )}
                   >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center text-green-500 shrink-0">
+                    <div className={styles.fileContent}>
+                      <div className={styles.fileIcon}>
                         <FileText size={16} />
                       </div>
-                      <span className="text-sm text-text-primary truncate">
+                      <span className={styles.fileName}>
                         {fileEntry.file.name}
                       </span>
                     </div>
@@ -402,7 +402,7 @@ const CsvImporter = forwardRef(
                         e.stopPropagation();
                         removeFile(fileEntry.fileId);
                       }}
-                      className="text-text-secondary hover:text-red-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-bg-page p-1 rounded"
+                      className={styles.fileRemove}
                     >
                       <X size={16} />
                     </button>

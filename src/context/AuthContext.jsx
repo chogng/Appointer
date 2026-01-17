@@ -3,11 +3,25 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiService } from "../services/apiService";
 import { socketService } from "../services/socketService";
 import { AuthContext } from "./auth-context";
-import { clearMockUser, getMockUser, setMockUser } from "../utils/mockAuthStore";
+import {
+  clearMockUser,
+  getMockUser,
+  isMockLoggedOut,
+  setMockUser,
+} from "../utils/mockAuthStore";
 
 // 开发模式：启用虚拟登录（设为 true 可跳过后端验证）
 const DEV_MOCK_LOGIN =
   String(import.meta.env?.VITE_MOCK_API || "").toLowerCase() === "true";
+
+// Mock 模式下：默认自动登录（跳过登录页）
+const DEV_MOCK_AUTO_LOGIN =
+  String(import.meta.env?.VITE_MOCK_AUTO_LOGIN ?? "true").toLowerCase() ===
+  "true";
+
+const DEV_MOCK_USER_KEY = String(import.meta.env?.VITE_MOCK_USER || "admin")
+  .trim()
+  .toLowerCase();
 
 // 虚拟用户数据
 const MOCK_USERS = {
@@ -44,7 +58,22 @@ export const AuthProvider = ({ children }) => {
     const checkSession = async () => {
       // 开发模式：从 localStorage 恢复
       if (DEV_MOCK_LOGIN) {
-        setUser(getMockUser());
+        const saved = getMockUser();
+        if (saved) {
+          setUser(saved);
+          setLoading(false);
+          return;
+        }
+
+        if (DEV_MOCK_AUTO_LOGIN && !isMockLoggedOut()) {
+          const defaultUser = MOCK_USERS[DEV_MOCK_USER_KEY] || MOCK_USERS.admin;
+          setMockUser(defaultUser);
+          setUser(defaultUser);
+          setLoading(false);
+          return;
+        }
+
+        setUser(null);
         setLoading(false);
         return;
       }
