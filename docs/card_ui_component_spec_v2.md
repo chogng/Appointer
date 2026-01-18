@@ -15,9 +15,9 @@ Related:
 - `as`: root element/component (default: `div`)
 - `variant`: `"default" | "panel" | "glass" | "flat"` (default: `"default"`)
 - `className`: extra classes appended
-- `dataUi`: when non-empty, emits `data-ui="..."`
-- `dta`: optional hierarchical marker `{ page?: string; slot?: string; comp?: string }`
-  - emits: `data-dta`, `data-dta-page`, `data-dta-slot`, `data-dta-comp`
+- `dataUi` (legacy): when non-empty, emits `data-ui="..."` (prefer `id` + `aria-label` for stable selectors)
+- `cta` / `ctaPosition` / `ctaCopy`: optional markers (analytics)
+  - emits: `data-cta`, `data-cta-position`, `data-cta-copy`
 - `...props`: forwarded to the root element (including `aria-*`, events, `id`, etc.)
 
 ## Output Markers
@@ -25,8 +25,8 @@ Related:
 On the root element:
 
 - `data-card="card"`
-- `data-ui="<dataUi>"` (optional)
-- `data-dta="<page>.<slot>.<comp>"` and `data-dta-*` (optional)
+- `data-ui="<dataUi>"` (optional; legacy)
+- `data-cta="<cta>"` / `data-cta-position="<position>"` / `data-cta-copy="<copy>"` (optional)
 
 ## Variants
 
@@ -38,7 +38,7 @@ On the root element:
 ## Examples
 
 ```jsx
-<Card as="section" dta={{ page: "lr", slot: "keyword", comp: "card" }}>
+<Card as="section" cta="lr" ctaPosition="keyword" ctaCopy="card">
   ...
 </Card>
 ```
@@ -46,5 +46,5 @@ On the root element:
 Recommended selector:
 
 ```css
-[data-dta-page="lr"][data-dta-slot="keyword"][data-dta-comp="card"]
+[data-cta="lr"][data-cta-position="keyword"][data-cta-copy="card"]
 ```

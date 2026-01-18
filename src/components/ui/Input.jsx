@@ -2,6 +2,26 @@ import { forwardRef, useId } from "react";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
+const slugify = (input) =>
+  String(input ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const mergeSpaceSeparatedIds = (...parts) => {
+  const ids = [];
+  for (const part of parts) {
+    if (typeof part !== "string") continue;
+    for (const token of part.split(/\s+/g)) {
+      const id = token.trim();
+      if (!id) continue;
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids.length ? ids.join(" ") : undefined;
+};
+
 /**
  * Input (UI)
  * - Controlled: value + onChange(nextValue)
@@ -24,6 +44,7 @@ const Input = forwardRef(
       autoComplete,
       size = "md", // "sm" | "md" | "lg"
       className = "",
+      fieldClassName = "",
       inputClassName = "",
       error,
       hint,
@@ -38,9 +59,19 @@ const Input = forwardRef(
     },
     ref
   ) => {
+    const { "aria-describedby": describedByFromProps, ...inputProps } = props;
     const reactId = useId();
-    const derivedId = `${idBase || "input"}-${reactId}`;
+    const idBasePrefix =
+      typeof idBase === "string" && idBase.trim() ? slugify(idBase) : "input";
+    const derivedId = `${idBasePrefix}-${reactId}`;
     const inputId = id || derivedId;
+    const errorId = `${inputId}-error`;
+    const hintId = `${inputId}-hint`;
+    const describedByFromStatus = error ? errorId : hint ? hintId : undefined;
+    const ariaDescribedBy = mergeSpaceSeparatedIds(
+      describedByFromProps,
+      describedByFromStatus
+    );
     const devTestId = import.meta.env.DEV && testId ? testId : undefined;
     const state = disabled ? "disabled" : error ? "error" : "enable";
     const sizeClass =
@@ -67,7 +98,7 @@ const Input = forwardRef(
 
     const fieldNode = (
       <div
-        className={cx("ui-input_field", sizeClass)}
+        className={cx("ui-input_field", sizeClass, fieldClassName)}
         data-icon={LeftIcon ? "with" : "without"}
         data-state={state}
         data-testid={devTestId}
@@ -82,6 +113,7 @@ const Input = forwardRef(
         ) : null}
 
         <input
+          {...inputProps}
           ref={ref}
           id={inputId}
           name={name}
@@ -92,9 +124,9 @@ const Input = forwardRef(
           disabled={disabled}
           autoComplete={autoComplete}
           aria-invalid={!!error}
+          aria-describedby={ariaDescribedBy}
           data-ui={uiMarker ? `${uiMarker}-input` : undefined}
           className={cx("ui-input_native", inputClassName)}
-          {...props}
         />
 
         {rightSlot ? <div className="ui-input_right">{rightSlot}</div> : null}
@@ -119,8 +151,16 @@ const Input = forwardRef(
           </>
         )}
 
-        {error ? <div className="ui-input_error">{error}</div> : null}
-        {!error && hint ? <div className="ui-input_hint">{hint}</div> : null}
+        {error ? (
+          <div id={errorId} className="ui-input_error">
+            {error}
+          </div>
+        ) : null}
+        {!error && hint ? (
+          <div id={hintId} className="ui-input_hint">
+            {hint}
+          </div>
+        ) : null}
       </div>
     );
   }

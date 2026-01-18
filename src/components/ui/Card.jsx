@@ -10,7 +10,9 @@ const Card = forwardRef(
       className = "",
       variant = "default",
       dataUi,
-      dta, // { page?, slot?, comp? } -> emits data-dta-* markers for automation/analytics
+      cta,
+      ctaPosition,
+      ctaCopy,
       ...props
     },
     ref
@@ -25,14 +27,13 @@ const Card = forwardRef(
     const uiMarker =
       typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
 
-    const dtaPage =
-      typeof dta?.page === "string" && dta.page.trim() ? dta.page.trim() : undefined;
-    const dtaSlot =
-      typeof dta?.slot === "string" && dta.slot.trim() ? dta.slot.trim() : undefined;
-    const dtaComp =
-      typeof dta?.comp === "string" && dta.comp.trim() ? dta.comp.trim() : undefined;
-    const dtaKey = [dtaPage, dtaSlot, dtaComp].filter(Boolean).join(".");
-    const dtaMarker = dtaKey ? dtaKey : undefined;
+    const ctaMarker = typeof cta === "string" && cta.trim() ? cta.trim() : undefined;
+    const ctaPositionMarker =
+      typeof ctaPosition === "string" && ctaPosition.trim()
+        ? ctaPosition.trim()
+        : undefined;
+    const ctaCopyMarker =
+      typeof ctaCopy === "string" && ctaCopy.trim() ? ctaCopy.trim() : undefined;
 
     const cardClasses = cx(variants[variant] || variants.default, className);
 
@@ -42,10 +43,9 @@ const Card = forwardRef(
         ref,
         className: cardClasses,
         "data-ui": uiMarker,
-        "data-dta": dtaMarker,
-        "data-dta-page": dtaPage,
-        "data-dta-slot": dtaSlot,
-        "data-dta-comp": dtaComp,
+        "data-cta": ctaMarker,
+        "data-cta-position": ctaPositionMarker,
+        "data-cta-copy": ctaCopyMarker,
         "data-card": "card",
         ...props,
       },

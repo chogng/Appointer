@@ -47,18 +47,33 @@ const JournalLinksCard = ({
       <h2 className="section_title">{t("journal_links")}</h2>
       <Card
         as="section"
-        dta={{ page: "lr", slot: "journal-panel", comp: "card" }}
+        cta="Literature research"
+        ctaPosition="journal-panel"
+        ctaCopy="card"
         aria-label={t("journal_links")}
       >
         <div className="toolbar_group">
           <Tabs
-            dta={{ page: "lr", slot: "journal", comp: "tabs" }}
             value={sourceType}
             onChange={onSourceChange}
             groupLabel="Journal view"
             options={[
-              { value: "nature", label: "Nature", icon: Leaf },
-              { value: "science", label: "Science", icon: FlaskConical },
+              {
+                value: "nature",
+                label: "Nature",
+                icon: Leaf,
+                cta: "Literature research",
+                ctaPosition: "journal",
+                ctaCopy: "nature",
+              },
+              {
+                value: "science",
+                label: "Science",
+                icon: FlaskConical,
+                cta: "Literature research",
+                ctaPosition: "journal",
+                ctaCopy: "science",
+              },
             ]}
           />
 
@@ -97,7 +112,6 @@ const JournalLinksCard = ({
             </div>
 
             <Input
-              dataUi="literature-max-results"
               label={t("literature_max_results")}
               labelPlacement="inline"
               className="shrink-0"
@@ -108,6 +122,7 @@ const JournalLinksCard = ({
               onChange={onMaxResultsInputChange}
               onFocus={onSettingsInputFocus}
               onBlur={onSettingsInputBlur}
+              fieldClassName="rounded-lg"
               inputClassName="w-24"
               cta="Literature research"
               ctaPosition="date filter warp"
@@ -128,17 +143,16 @@ const JournalLinksCard = ({
             <div className="ui-button_row">
               <button
                 data-ui="literature-add-url-btn"
-                data-style="ghost"
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="toolbar"
                 data-cta-copy="add url"
                 type="button"
                 onClick={onAddSeedUrl}
-                className="click_btn click_btn--md click_btn--fx click_btn--ghost"
+                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
                 aria-label="add url"
               >
-                <span className="click_btn_content">
+                <span className="action-btn__content">
                   <Plus size={16} />
                   {t("literature_add_url")}
                 </span>
@@ -146,7 +160,6 @@ const JournalLinksCard = ({
 
               <button
                 data-ui="literature-fetch-btn"
-                data-style={status.state === "loading" ? "disabled" : "primary"}
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="toolbar"
@@ -154,12 +167,12 @@ const JournalLinksCard = ({
                 type="button"
                 onClick={onSearch}
                 disabled={status.state === "loading"}
-                className={`click_btn click_btn--md click_btn--fx ${
-                  status.state === "loading" ? "click_btn--disabled" : "click_btn--primary"
+                className={`action-btn action-btn--md action-btn--fx ${
+                  status.state === "loading" ? "action-btn--disabled" : "action-btn--primary"
                 }`}
                 aria-label="fetch"
               >
-                <span className="click_btn_content">
+                <span className="action-btn__content">
                   <Search size={16} />
                   {status.state === "loading" ? t("literature_fetching") : t("literature_fetch")}
                 </span>
@@ -195,25 +208,26 @@ const JournalLinksCard = ({
                     onClick={() =>
                       onToggleSeedUrlSelectedAt(index, seedUrlSelected[index] === false)
                     }
-                    className="click_btn click_btn--md click_btn--icon-md-tight click_btn--fx click_btn--ghost click_btn--fx-muted bg-bg-page"
+                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--fx-muted bg-bg-page"
                     title={seedUrlSelected[index] !== false ? "Include (Enabled)" : "Exclude (Disabled)"}
                     aria-label={`Include seed url ${index + 1}`}
                     aria-pressed={seedUrlSelected[index] !== false}
-                    data-ui="literature-seed-url-select"
+                    id={`literature-seed-url-select-${index}`}
                     data-seed-index={index}
                   >
-                    <span className="click_btn_content">
+                    <span className="action-btn__content">
                       <Check size={16} className="ui-seed-url-check" />
                     </span>
                   </button>
 
                   <Input
-                    dataUi="literature-seed-url"
+                    id={`literature-seed-url-${index}`}
                     size="md"
                     value={value}
                     onChange={(nextValue) => onSeedUrlChangeAt(index, nextValue)}
                     onFocus={onSettingsInputFocus}
                     onBlur={onSettingsInputBlur}
+                    fieldClassName="rounded-lg"
                     inputClassName="rounded-lg"
                     spellCheck={false}
                     autoCorrect="off"
@@ -223,17 +237,18 @@ const JournalLinksCard = ({
                     }
                     leftIcon={LinkIcon}
                     className="flex-1"
-                    aria-label={`${t("literature_seed_urls")} ${index + 1}`}
+                    aria-label={`Seed url ${index + 1}`}
                     data-seed-index={index}
                   />
 
                   <Input
-                    dataUi="literature-seed-url-title"
+                    id={`literature-seed-url-title-${index}`}
                     size="md"
                     value={seedUrlTitles[index] ?? ""}
                     onChange={(nextValue) => onSeedUrlTitleChangeAt(index, nextValue)}
                     onFocus={onSettingsInputFocus}
                     onBlur={onSettingsInputBlur}
+                    fieldClassName="rounded-lg"
                     inputClassName="rounded-lg"
                     placeholder={t("literature_seed_title_placeholder")}
                     className="w-44 shrink-0"
@@ -246,16 +261,15 @@ const JournalLinksCard = ({
                     onClick={() => onRemoveSeedUrlAt(index)}
                     title={t("literature_remove_url")}
                     aria-label={t("literature_remove_url")}
-                    data-style="ghost"
                     data-icon="with"
                     data-cta="Literature research"
                     data-cta-position="seed urls"
                     data-cta-copy="remove url"
                     data-ui="literature-seed-url-remove-btn"
                     data-seed-index={index}
-                    className="click_btn click_btn--md click_btn--icon-md-tight click_btn--fx click_btn--fx-muted click_btn--danger"
+                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--fx action-btn--fx-muted action-btn--danger"
                   >
-                    <span className="click_btn_content">
+                    <span className="action-btn__content">
                       <Trash2 size={16} />
                     </span>
                   </button>

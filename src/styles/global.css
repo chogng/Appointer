@@ -179,41 +179,50 @@ body {
     @apply text-text-tertiary inline-flex;
   }
 
-  /* App buttons */
+  /* Action buttons (new: `action-btn*`, legacy alias: `click_btn*`) */
+  .action-btn,
   .click_btn {
     @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm font-medium transition-all;
   }
 
+  .action-btn--sm,
   .click_btn--sm {
     @apply h-8 px-3 text-xs;
   }
 
+  .action-btn--md,
   .click_btn--md {
     @apply h-[38px];
   }
 
+  .action-btn--lg,
   .click_btn--lg {
     @apply h-[42px] px-5 text-sm;
   }
 
+  .action-btn--control,
   .click_btn--control {
     @apply h-[38px] px-3 text-xs;
   }
 
+  .action-btn--icon-md,
   .click_btn--icon-md {
     @apply w-[38px] px-0;
   }
 
-  /* Visual match for 38px inputs when using `click_btn--fx` ring (shadow adds 1px on each side) */
+  /* Visual match for 38px inputs when using `action-btn--fx` ring (shadow adds 1px on each side) */
+  .action-btn--icon-md-tight,
   .click_btn--icon-md-tight {
     @apply w-[36px] h-[36px] px-0;
   }
 
   /* Icon-only buttons (e.g. remove row actions) */
+  .action-btn--icon,
   .click_btn--icon {
     @apply h-[42px] w-[42px] px-0;
   }
 
+  .action-btn__content,
   .click_btn_content {
     @apply relative z-10 flex items-center gap-2;
   }
@@ -228,6 +237,7 @@ body {
        --click-fx-border: border / ring color
        --click-fx-border-hover: hover border / ring color (defaults to --click-fx-border)
   */
+  .action-btn--fx,
   .click_btn--fx {
     @apply relative;
     --click-fx-bg: transparent;
@@ -243,11 +253,14 @@ body {
       background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   }
 
+  .action-btn--fx:not(:disabled):not(.action-btn--disabled):hover,
   .click_btn--fx:not(:disabled):not(.click_btn--disabled):hover {
     box-shadow: 0 0 0 1px var(--click-fx-bg),
       0 0 0 2px var(--click-fx-border-hover);
   }
 
+  .action-btn--fx:disabled,
+  .action-btn--fx.action-btn--disabled,
   .click_btn--fx:disabled,
   .click_btn--fx.click_btn--disabled {
     box-shadow: none;
@@ -257,11 +270,12 @@ body {
     @apply transition-all duration-300 opacity-0 scale-0;
   }
 
-  [data-ui="literature-seed-url-select"][aria-pressed="true"] .ui-seed-url-check {
+  button[aria-pressed="true"] .ui-seed-url-check {
     @apply opacity-100 scale-100;
   }
 
   /* Common muted ring for FX buttons outside toolbars */
+  .action-btn--fx-muted,
   .click_btn--fx-muted {
     --click-fx-bg: rgb(250, 249, 245);
     --click-fx-border: #d1d1d1;
@@ -269,14 +283,17 @@ body {
   }
 
 	  /* Keep semantic variants for colors/typography */
+	  .action-btn--primary,
 	  .click_btn--primary {
 	    @apply text-white bg-accent border border-transparent;
 	  }
 
+    .action-btn--secondary,
     .click_btn--secondary {
       @apply text-text-primary bg-white border border-border-subtle hover:bg-bg-subtle;
     }
 
+    .action-btn--text,
     .click_btn--text {
       @apply text-text-secondary hover:text-text-primary bg-transparent border border-transparent hover:bg-black/5;
     }
@@ -285,34 +302,40 @@ body {
      - Primary + FX: fixed dark ring (Claude-like)
      - Ghost + FX: keep default ghost ring color, but still shadow-only (no real border)
      Scoped to `.toolbar_group` to avoid global surprises. */
+  .toolbar_group .action-btn--primary.action-btn--fx,
   .toolbar_group .click_btn--primary.click_btn--fx {
     --click-fx-bg: rgb(20, 20, 19);
     --click-fx-border: rgb(48, 48, 46);
     --click-fx-border-hover: rgb(48, 48, 46);
   }
 
+  .toolbar_group .action-btn--ghost.action-btn--fx,
   .toolbar_group .click_btn--ghost.click_btn--fx {
     --click-fx-bg: rgb(250, 249, 245);
     --click-fx-border: #d1d1d1;
     --click-fx-border-hover: #d1d1d1;
   }
 
+  .action-btn--ghost,
   .click_btn--ghost {
     @apply text-text-secondary hover:text-text-primary bg-transparent border border-border;
     /* Avoid hard-coupling border to text color so demos can set borderColor independently */
   }
 
+  .action-btn--danger,
   .click_btn--danger {
     @apply text-text-tertiary hover:text-red-500;
   }
 
   /* If ghost is combined with FX, let FX's ring (box-shadow) be the only visible border */
+  .action-btn--ghost.action-btn--fx,
   .click_btn--ghost.click_btn--fx {
     border-color: transparent;
     border-width: 0;
   }
 
   /* Secondary also renders a real border; prefer FX ring-only */
+  .action-btn--secondary.action-btn--fx,
   .click_btn--secondary.click_btn--fx {
     border-color: transparent;
     border-width: 0;
@@ -323,11 +346,13 @@ body {
     border-width: 0 !important;
   }
 
+  .action-btn--disabled,
   .click_btn--disabled {
     @apply text-text-secondary cursor-not-allowed bg-bg-200 border border-transparent;
   }
 
   /* Claude-like "scale" illusion: hover uses box-shadow spread, not transform */
+  .action-btn--claude-shadow,
   .click_btn--claude-shadow {
     @apply inline-flex items-center justify-center px-4 h-[38px] rounded-lg text-sm;
     color: rgb(250, 249, 245);
@@ -337,6 +362,7 @@ body {
       background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   }
 
+  .action-btn--claude-shadow:hover,
   .click_btn--claude-shadow:hover {
     /* two-layer spread creates the "bigger" feel */
     box-shadow: 0 0 0 1px rgb(20, 20, 19), 0 0 0 2px rgb(48, 48, 46);
@@ -402,21 +428,6 @@ body {
 
   .ui-input_field[data-state="enable"]:focus-within {
     @apply border-border-200;
-  }
-
-  /* Literature: max-results uses a slightly tighter radius */
-  [data-ui="literature-max-results"] .ui-input_field {
-    @apply rounded-lg;
-  }
-
-  /* Literature: seed-url uses a slightly tighter radius */
-  [data-ui="literature-seed-url"] .ui-input_field {
-    @apply rounded-lg;
-  }
-
-  /* Literature: keywords uses a slightly tighter radius */
-  [data-ui="literature-keywords"] .ui-input_field {
-    @apply rounded-lg;
   }
 
   /* Literature inputs: hover does not change border (keep it calm like DateButton) */

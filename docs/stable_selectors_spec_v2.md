@@ -1,39 +1,33 @@
-# Stable Selectors / DTA (v2)
+# Stable Selectors / CTA (v2)
 
-This doc complements `docs/stable_selectors_spec.md` with a **hierarchical DTA** scheme that avoids repeating the same prefix across `data-ui`, `id`, and `aria-*`.
+This doc complements `docs/stable_selectors_spec.md` with **CTA markers** (`data-cta*`) that can be used as stable automation anchors without depending on DOM depth or Tailwind classes.
 
 ## Goals
 
 - Stable automation anchors without depending on DOM depth or Tailwind classes
-- Reduce duplication (e.g. no more repeating `lr-source` in `data-ui` + `id` + `aria-controls`)
+- Reduce duplication (avoid repeating the same prefix across `data-ui` + `id` + `aria-controls`)
 - Keep accessibility IDs internal (still required for `aria-controls` / `aria-labelledby`)
 
 ## Recommended Pattern (Tabs)
 
-Use **3-level DTA** on the tablist:
-
-- `data-dta-page="<page>"` (e.g. `lr`)
-- `data-dta-slot="<slot>"` (e.g. `source`, `match-mode`, `results-view`)
-- `data-dta-comp="<comp>"` (e.g. `tabs`)
-
-And then use **role/value markers** for the actual clickable items:
+Use **role/value markers** for the actual clickable items, plus optional CTA markers on the tab buttons:
 
 - Tablist: `data-tabs="menu"`
-- Tab: `data-tabs="tab"` + `data-value="<token>"`
-- Panel (if rendered by `Tabs.jsx`): `data-tabs="panel"` + `data-value="<token>"`
+- Tab: `data-tabs="tab"` + `data-cta*` (optional; recommended: include `data-cta-copy="<token>"` as the per-option token)
+- Panel (if rendered by `Tabs.jsx`): `data-tabs="panel"`
 
 ### Example selectors
 
 ```css
 /* Select the "Science" tab button in LiteratureResearch -> source tabs */
-[data-dta-page="lr"][data-dta-slot="source"][data-dta-comp="tabs"] [data-tabs="tab"][data-value="science"]
+[data-tabs="menu"] [data-tabs="tab"][data-cta="Literature research"][data-cta-position="source"][data-cta-copy="science"]
 
 /* Select the "matched" results-view tab button */
-[data-dta-page="lr"][data-dta-slot="results-view"][data-dta-comp="tabs"] [data-tabs="tab"][data-value="matched"]
+[data-tabs="menu"] [data-tabs="tab"][data-cta="Literature research"][data-cta-position="results-view"][data-cta-copy="matched"]
 ```
 
 ## Notes
 
-- IDs (`id`, `aria-controls`) still exist for accessibility, but **should not be used as automation selectors**.
-- `data-ui` is still useful for leaf components (inputs, buttons), but for composite widgets Tabs can be located more cleanly via DTA + `data-tabs` + `data-value`.
-
+- Selector priority: follow `docs/stable_selectors_spec.md` (prefer `id` + `aria-label`; avoid `data-ui`).
+- For Tabs specifically: prefer `data-tabs` + `data-cta*` (use `data-cta-copy` as the per-option token).
+- Avoid using `aria-controls`/`aria-labelledby` IDs as automation selectors unless they are explicitly made stable (e.g. via `idBase`).

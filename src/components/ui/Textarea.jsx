@@ -2,6 +2,26 @@ import { forwardRef, useId } from "react";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
+const slugify = (input) =>
+  String(input ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const mergeSpaceSeparatedIds = (...parts) => {
+  const ids = [];
+  for (const part of parts) {
+    if (typeof part !== "string") continue;
+    for (const token of part.split(/\s+/g)) {
+      const id = token.trim();
+      if (!id) continue;
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids.length ? ids.join(" ") : undefined;
+};
+
 /**
  * Textarea (UI)
  * - Controlled: value + onChange(nextValue)
@@ -22,6 +42,7 @@ const Textarea = forwardRef(
       name,
       rows = 3,
       className = "",
+      fieldClassName = "",
       textareaClassName = "",
       error,
       hint,
@@ -34,9 +55,19 @@ const Textarea = forwardRef(
     },
     ref
   ) => {
+    const { "aria-describedby": describedByFromProps, ...textareaProps } = props;
     const reactId = useId();
-    const derivedId = `${idBase || "textarea"}-${reactId}`;
+    const idBasePrefix =
+      typeof idBase === "string" && idBase.trim() ? slugify(idBase) : "textarea";
+    const derivedId = `${idBasePrefix}-${reactId}`;
     const textareaId = id || derivedId;
+    const errorId = `${textareaId}-error`;
+    const hintId = `${textareaId}-hint`;
+    const describedByFromStatus = error ? errorId : hint ? hintId : undefined;
+    const ariaDescribedBy = mergeSpaceSeparatedIds(
+      describedByFromProps,
+      describedByFromStatus
+    );
     const devTestId = import.meta.env.DEV && testId ? testId : undefined;
     const state = disabled ? "disabled" : error ? "error" : "enable";
     const uiMarker =
@@ -58,7 +89,7 @@ const Textarea = forwardRef(
 
     const fieldNode = (
       <div
-        className={cx("ui-input_field", "items-start py-2.5")}
+        className={cx("ui-input_field", "items-start py-2.5", fieldClassName)}
         data-icon="without"
         data-state={state}
         data-testid={devTestId}
@@ -67,6 +98,7 @@ const Textarea = forwardRef(
         data-cta-copy={ctaCopy}
       >
         <textarea
+          {...textareaProps}
           ref={ref}
           id={textareaId}
           name={name}
@@ -76,9 +108,9 @@ const Textarea = forwardRef(
           placeholder={placeholder}
           disabled={disabled}
           aria-invalid={!!error}
+          aria-describedby={ariaDescribedBy}
           data-ui={uiMarker ? `${uiMarker}-input` : undefined}
           className={cx("ui-textarea_native", textareaClassName)}
-          {...props}
         />
       </div>
     );
@@ -101,8 +133,16 @@ const Textarea = forwardRef(
           </>
         )}
 
-        {error ? <div className="ui-input_error">{error}</div> : null}
-        {!error && hint ? <div className="ui-input_hint">{hint}</div> : null}
+        {error ? (
+          <div id={errorId} className="ui-input_error">
+            {error}
+          </div>
+        ) : null}
+        {!error && hint ? (
+          <div id={hintId} className="ui-input_hint">
+            {hint}
+          </div>
+        ) : null}
       </div>
     );
   }

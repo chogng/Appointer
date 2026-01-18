@@ -23,14 +23,14 @@ return (
     <div className="page_content">
       <section aria-label="...">
         <h2 className="section_title">...</h2>
-        <Card as="section" dta={{ page: "...", slot: "...", comp: "card" }}>
+        <Card as="section" cta="..." ctaPosition="..." ctaCopy="card">
           ...
         </Card>
       </section>
 
       <section aria-label="...">
         <h2 className="section_title">...</h2>
-        <Card dta={{ page: "...", slot: "...", comp: "card" }}>
+        <Card cta="..." ctaPosition="..." ctaCopy="card">
           ...
         </Card>
       </section>
@@ -82,9 +82,10 @@ Each section should be:
 - Left padding: `pl-2` (aligned inset relative to cards/content)
 - Bottom spacing: `mb-2` (distance to the following card/content)
 
-## DTA anchors
+## Anchors
 
 For automation/analytics:
 
-- Prefer `dta={{ page, slot, comp }}` on `Card` and on composite widgets like `Tabs`
-- Keep `aria-*` for accessibility; do not use `id` as the primary automation selector
+- Prefer **semantic anchors**: `id` + `aria-label` (or `aria-labelledby`) on the `<section>` and key controls (see `docs/stable_selectors_spec.md`).
+- CTA markers (`data-cta`, `data-cta-position`, `data-cta-copy`) are optional helpers for analytics (and can help narrow selectors when needed).
+- `data-ui` is legacy; avoid adding new `data-ui` anchors.

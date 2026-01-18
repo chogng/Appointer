@@ -12,7 +12,6 @@ const Tabs = ({
     hoverPreview = true, // visual only: highlight on hover without changing selection
     groupLabel,
     dataUi,
-    dta, // { page?, slot?, comp? } -> emits data-dta-* markers for automation/analytics
     testId,
     idBase,
     panelIdBase,
@@ -33,15 +32,6 @@ const Tabs = ({
             .trim()
             .replace(/[^a-z0-9_-]+/g, "-")
             .replace(/^-+|-+$/g, "");
-
-    const dtaPage =
-        typeof dta?.page === "string" && dta.page.trim() ? dta.page.trim() : undefined;
-    const dtaSlot =
-        typeof dta?.slot === "string" && dta.slot.trim() ? dta.slot.trim() : undefined;
-    const dtaComp =
-        typeof dta?.comp === "string" && dta.comp.trim() ? dta.comp.trim() : undefined;
-    const dtaKey = [dtaPage, dtaSlot, dtaComp].filter(Boolean).join(".");
-    const dtaMarker = dtaKey ? dtaKey : undefined;
 
     // Prefer stable, semantic IDs (provided by caller), fallback to React-generated IDs.
     const hasExplicitIdBase = typeof idBase === "string" && idBase.trim();
@@ -202,10 +192,6 @@ const Tabs = ({
     const menu = (
         <div
             data-tabs="menu"
-            data-dta={dtaMarker}
-            data-dta-page={dtaPage}
-            data-dta-slot={dtaSlot}
-            data-dta-comp={dtaComp}
             data-ui={uiMarker}
             data-testid={devTestId}
             className={cx("tab_menu", className)}
@@ -233,7 +219,6 @@ const Tabs = ({
                         key={option.__key}
                         data-icon={Icon ? "with" : "without"}
                         data-tabs="tab"
-                        data-value={token}
                         data-ui={uiMarker ? `${uiMarker}-tab-${token}` : undefined}
                         data-cta={option?.cta}
                         data-cta-position={option?.ctaPosition}
@@ -352,7 +337,6 @@ const Tabs = ({
                             hidden={!isSelected}
                             tabIndex={0}
                             data-tabs="panel"
-                            data-value={token}
                             data-ui={uiMarker ? `${uiMarker}-panel-${token}` : undefined}
                         >
                             {renderPanel(option, { index, isSelected })}

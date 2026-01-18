@@ -18,15 +18,29 @@ const KeywordMatchCard = ({
       <h2 className="section_title">{t("literature_keyword_matching")}</h2>
       <Card
         as="section"
-        dta={{ page: "lr", slot: "keyword-panel", comp: "card" }}
+        id="literature-keyword-panel"
+        cta="Literature research"
+        ctaPosition="keyword-panel"
+        ctaCopy="card"
         aria-label={t("literature_keyword_matching")}
       >
         <div className="toolbar_group">
           <Tabs
-            dta={{ page: "lr", slot: "keyword", comp: "tabs" }}
             options={[
-              { value: "any", label: t("literature_match_any") },
-              { value: "all", label: t("literature_match_all") },
+              {
+                value: "any",
+                label: t("literature_match_any"),
+                cta: "Literature research",
+                ctaPosition: "keyword",
+                ctaCopy: "any",
+              },
+              {
+                value: "all",
+                label: t("literature_match_all"),
+                cta: "Literature research",
+                ctaPosition: "keyword",
+                ctaCopy: "all",
+              },
             ]}
             value={keywordMode}
             onChange={onKeywordModeChange}
@@ -34,13 +48,15 @@ const KeywordMatchCard = ({
           />
         </div>
 
-        <div className="mt-3" data-ui="literature-keywords-warp">
+        <div className="mt-3">
           <Textarea
-            dataUi="literature-keywords"
+            id="literature-keywords"
+            aria-label="keywords"
             value={keywordInput}
             onChange={onKeywordInputChange}
             placeholder={t("literature_keywords_placeholder")}
             rows={2}
+            fieldClassName="rounded-lg"
             hint={`${t("literature_keywords_count")}：${keywordsCount}`}
           />
         </div>

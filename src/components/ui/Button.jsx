@@ -4,7 +4,7 @@ const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 /**
  * Button (UI)
- * - Matches `docs/button_component_spec.md` (`click_btn*` classes in `src/styles/global.css`)
+ * - Matches `docs/button_component_spec.md` (`action-btn*` classes in `src/styles/global.css`)
  * - Defaults `type="button"` to avoid accidental submits
  */
 const Button = forwardRef(
@@ -35,6 +35,10 @@ const Button = forwardRef(
     const uiMarker =
       typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
     const devTestId = import.meta.env.DEV && testId ? testId : undefined;
+    const styleMarker =
+      typeof dataStyle === "string" && dataStyle.trim()
+        ? dataStyle.trim()
+        : undefined;
 
     const resolvedVariant = (() => {
       if (isDisabled) return "disabled";
@@ -45,20 +49,20 @@ const Button = forwardRef(
     })();
 
     const variantClass = (() => {
-      if (resolvedVariant === "disabled") return "click_btn--disabled";
-      if (resolvedVariant === "secondary") return "click_btn--secondary";
-      if (resolvedVariant === "ghost") return "click_btn--ghost";
-      if (resolvedVariant === "text") return "click_btn--text";
-      if (resolvedVariant === "danger") return "click_btn--danger";
-      if (resolvedVariant === "dark") return "click_btn--claude-shadow";
-      return "click_btn--primary";
+      if (resolvedVariant === "disabled") return "action-btn--disabled";
+      if (resolvedVariant === "secondary") return "action-btn--secondary";
+      if (resolvedVariant === "ghost") return "action-btn--ghost";
+      if (resolvedVariant === "text") return "action-btn--text";
+      if (resolvedVariant === "danger") return "action-btn--danger";
+      if (resolvedVariant === "dark") return "action-btn--claude-shadow";
+      return "action-btn--primary";
     })();
 
     const sizeClass = (() => {
-      if (size === "sm") return "click_btn--sm";
-      if (size === "lg") return "click_btn--lg";
-      if (size === "control") return "click_btn--control";
-      return "click_btn--md";
+      if (size === "sm") return "action-btn--sm";
+      if (size === "lg") return "action-btn--lg";
+      if (size === "control") return "action-btn--control";
+      return "action-btn--md";
     })();
 
     const shouldFx =
@@ -69,20 +73,12 @@ const Button = forwardRef(
       resolvedVariant !== "primary" &&
       resolvedVariant !== "danger";
 
-    const computedDataStyle = (() => {
-      if (isDisabled) return "disabled";
-      if (resolvedVariant === "ghost" || resolvedVariant === "secondary")
-        return "ghost";
-      if (resolvedVariant === "primary") return "primary";
-      return undefined;
-    })();
-
     return (
       <button
         ref={ref}
         type={type}
         disabled={isDisabled}
-        data-style={dataStyle ?? computedDataStyle}
+        data-style={styleMarker}
         data-icon={dataIcon}
         data-ui={uiMarker}
         data-testid={devTestId}
@@ -90,17 +86,17 @@ const Button = forwardRef(
         data-cta-position={ctaPosition}
         data-cta-copy={ctaCopy}
         className={cx(
-          "click_btn",
+          "action-btn",
           sizeClass,
           variantClass,
-          shouldFx && "click_btn--fx",
-          shouldFxMuted && "click_btn--fx-muted",
+          shouldFx && "action-btn--fx",
+          shouldFxMuted && "action-btn--fx-muted",
           fullWidth && "w-full",
           className,
         )}
         {...props}
       >
-        <span className="click_btn_content">{children}</span>
+        <span className="action-btn__content">{children}</span>
       </button>
     );
   },

@@ -1,6 +1,6 @@
 # Textarea（UI）组件规范 v1
 
-本文定义 [`src/components/ui/Textarea.jsx`](../src/components/ui/Textarea.jsx) 的 **DOM 输出、状态模型、稳定锚点（`data-ui`）与 A11y 约束**。
+本文定义 [`src/components/ui/Textarea.jsx`](../src/components/ui/Textarea.jsx) 的 **DOM 输出、状态模型、ID/aria 规则、CTA 标记与 A11y 约束**（推荐用 `id` + `aria-label`；`data-ui` 仅遗留兼容）。
 
 说明：Textarea 复用 Input 体系的样式与容器结构（`ui-input_*`），因此其外层仍使用 `data-style="input"`；差异在于渲染的原生控件为 `<textarea>`。
 
@@ -33,12 +33,13 @@ type TextareaProps = {
   rows?: number;
 
   className?: string; // wrapper
+  fieldClassName?: string; // field container (UI tweak, avoid page-level CSS)
   textareaClassName?: string; // textarea native
   error?: string;
   hint?: string;
 
   testId?: string; // DEV-only
-  dataUi?: string; // stable anchor
+  dataUi?: string; // legacy stable anchor (will be removed)
   cta?: string;
   ctaPosition?: string;
   ctaCopy?: string;
@@ -52,12 +53,12 @@ type TextareaProps = {
 Wrapper：
 - `div.ui-input_warp`
   - `data-style="input"`
-  - 可选：`data-ui="<dataUi>"`
+  - 可选（Legacy）：`data-ui="<dataUi>"`
 
 Label（可选）：
 - `label.ui-input_label`
   - `htmlFor="<textareaId>"`
-  - 当传入 `dataUi`：输出 `data-ui="<dataUi>-label"`
+  - 当传入 `dataUi`（Legacy）：输出 `data-ui="<dataUi>-label"`
 
 Field：
 - `div.ui-input_field`
@@ -71,11 +72,15 @@ Native textarea：
   - `id="<textareaId>"`
   - `disabled={disabled}`
   - `aria-invalid={!!error}`
-  - 当传入 `dataUi`：输出 `data-ui="<dataUi>-input"`
+  - `aria-describedby`：由 `error/hint` 决定（并与调用方传入的 `aria-describedby` 合并）
+  - 无 label：调用方必须提供 `aria-label` 或 `aria-labelledby`
+  - 当传入 `dataUi`（Legacy）：输出 `data-ui="<dataUi>-input"`
 
 Error/Hint：
 - 错误优先：`div.ui-input_error`
+  - `id="<textareaId>-error"`
 - 无错误时可显示：`div.ui-input_hint`
+  - `id="<textareaId>-hint"`
 
 ---
 
@@ -86,3 +91,13 @@ Error/Hint：
   - `disabled === true` → `disabled`
   - 否则 `error` 有值 → `error`
   - 否则 → `enable`
+
+---
+
+## 5. 稳定锚点（推荐：id + aria-label）
+
+- 推荐：调用方提供稳定 `id`（kebab-case）与可读 `aria-label`（无 label 时必填）。
+- `data-ui` 进入弃用通道：仅用于遗留兼容，不再新增，不作为自动化主锚点。
+
+示例：
+- `id="literature-keywords"` + `aria-label="keywords"`

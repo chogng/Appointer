@@ -249,16 +249,14 @@ Tabs supports CTA markers on each tab button (for analytics), and stable per-opt
   - `data-tabs="menu"`
 - Tab button:
   - `data-tabs="tab"`
-  - `data-value="<token>"`
   - `data-cta="<cta>"` (optional)
   - `data-cta-position="<position>"` (optional)
-  - `data-cta-copy="<copy>"` (optional)
+  - `data-cta-copy="<copy>"` (optional; recommended as the per-option token for automation)
 - Panel (when `renderPanel` is provided):
   - `data-tabs="panel"`
-  - `data-value="<token>"`
 
 Recommended selector example:
 
 ```css
-[data-tabs="menu"] [data-tabs="tab"][data-cta="Literature research"][data-cta-position="source"][data-value="science"]
+[data-tabs="menu"] [data-tabs="tab"][data-cta="Literature research"][data-cta-position="source"][data-cta-copy="science"]
 ```

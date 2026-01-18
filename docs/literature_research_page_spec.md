@@ -6,9 +6,10 @@
 
 ## 1. 总体原则
 
-- `data-ui` 用于稳定定位（自动化/脚本/必要的样式 scope）。
+- 主定位锚点：`id/htmlFor` + `aria-label`（自动化/脚本）。
+- `data-ui`：遗留兼容，逐步移除；新锚点不要再新增。
 - `ui-*` / Tailwind class 只用于样式，不作为定位主入口。
-- 列表项（results/seed urls）使用“固定 `data-ui` + 动态 `data-*` 属性（index/item-id）”的组合策略，避免把动态 id 直接拼进 `data-ui`。
+- 列表项（results/seed urls）允许使用稳定 `id`（可带 index）与动态 `data-*`（index/item-id）组合定位，避免依赖 DOM 深度。
 
 ## 2. 顶部过滤卡片（Toolbar + Filters）
 
@@ -25,9 +26,8 @@
   - label：`[data-ui="literature-end-date-label"]`
   - 按钮：`[data-ui="literature-end-date-btn"]`
 - 最大返回条数：
-  - label：`[data-ui="literature-max-results-label"]` 或 `label[for="literature-max-results"]`
-  - Input wrapper：`[data-ui="literature-max-results"]`
-  - input：`[data-ui="literature-max-results-input"]`
+  - label：`label[for="literature-max-results"]`
+  - input：`#literature-max-results` 或 `input[aria-label="max results input"]`
 - Toolbar buttons：
   - 添加链接：`[data-ui="literature-add-url-btn"]`
   - 开始抓取：`[data-ui="literature-fetch-btn"]`
@@ -38,8 +38,8 @@
 - 标题旁抓取计数：`[data-ui="literature-seed-url-fetch-count"]`（展示 `Nature A / Science B`，仅统计“勾选且非空”的链接）
 - 列表容器：`[data-ui="literature-seed-url-list"]`
 - 行容器：`[data-ui="literature-seed-url-row"][data-seed-index="0"]`
-- 勾选框：`[data-ui="literature-seed-url-select"][data-seed-index="0"]`
-- 输入框：`[data-ui="literature-seed-url-input"][data-seed-index="0"]`
+- 勾选框：`#literature-seed-url-select-0`（也会保留 `data-seed-index="0"`）
+- 输入框：`#literature-seed-url-0` / `#literature-seed-url-title-0`
 - 删除按钮：`[data-ui="literature-seed-url-remove-btn"][data-seed-index="0"]`
 
 **行为规则（抓取范围）**
@@ -49,13 +49,12 @@
 ## 4. Keyword Matching / Export / Clear
 
 **必须锚点**（已落地）：
-- Keyword panel：`[data-ui="literature-keyword-panel"]`
+- Keyword panel：`#literature-keyword-panel`
 - 导出 docx：`[data-ui="literature-export-docx-btn"]`
 - 导出 json：`[data-ui="literature-export-json-btn"]`
 - 清空 session：`[data-ui="literature-clear-session-btn"]`
-- 匹配模式 Tabs wrapper：`[data-ui="literature-keyword-mode-toggle"]`
-- 关键词输入容器：`[data-ui="literature-keywords-warp"]`
-- 关键词输入：`[data-ui="literature-keywords-input"]`
+- 匹配模式 Tabs：`[role="tablist"][aria-label="Match view"]`（Tabs.jsx 输出）
+- 关键词输入：`#literature-keywords` / `textarea[aria-label="keywords"]`
 
 ## 5. Results 区域（视图切换 / 批量 / 卡片动作）
 
@@ -74,7 +73,7 @@
 
 - 禁止使用 `#root > div > ...` 这类依赖 DOM 深度的选择器。
 - 禁止把 `section.bg-bg-surface.border...` 等 Tailwind/样式 class 当作定位锚点。
-- 如必须取“外层容器”，先用稳定 `data-ui` 找到内部锚点，再用 `closest()` 回溯。
+- 如必须取“外层容器”，先用稳定 `id/aria-label` 找到内部锚点，再用 `closest()` 回溯。
 
 ---
 

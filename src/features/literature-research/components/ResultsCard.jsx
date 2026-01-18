@@ -32,13 +32,14 @@ const ResultsCard = ({
     <section aria-label={t("literature_results_title")}>
       <h2 className="section_title">{t("literature_results_title")}</h2>
       <Card
-        dta={{ page: "lr", slot: "result-panel", comp: "card" }}
+        cta="Literature research"
+        ctaPosition="result-panel"
+        ctaCopy="card"
         className="min-h-[600px]"
         aria-label={t("literature_results_title")}
       >
         <div className="toolbar_group">
           <Tabs
-            dta={{ page: "lr", slot: "result", comp: "tabs" }}
             options={[
               {
                 value: "all",
@@ -77,10 +78,10 @@ const ResultsCard = ({
               type="button"
               onClick={onToggleSelectAllVisible}
               disabled={isExportingDocx || statusState === "loading" || visibleResultsLength === 0}
-              className={`click_btn click_btn--md click_btn--icon-md ${
+              className={`action-btn action-btn--md action-btn--icon-md ${
                 isExportingDocx || statusState === "loading" || visibleResultsLength === 0
-                  ? "click_btn--disabled"
-                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+                  ? "action-btn--disabled"
+                  : "action-btn--ghost action-btn--fx action-btn--fx-muted"
               }`}
               title={
                 selectionToggleAction === "deselect-all"
@@ -92,11 +93,6 @@ const ResultsCard = ({
                   ? t("literature_deselect_all_filtered")
                   : t("literature_select_all_filtered")
               }
-              data-style={
-                isExportingDocx || statusState === "loading" || visibleResultsLength === 0
-                  ? "disabled"
-                  : "ghost"
-              }
               data-icon="with"
               data-cta="Literature research"
               data-cta-position="result"
@@ -104,7 +100,7 @@ const ResultsCard = ({
               data-action={selectionToggleAction}
               data-ui="literature-selection-toggle-btn"
             >
-              <span className="click_btn_content">
+              <span className="action-btn__content">
                 {selectionToggleAction === "deselect-all" ? (
                   <ListX size={16} />
                 ) : (
@@ -117,19 +113,18 @@ const ResultsCard = ({
               type="button"
               onClick={onExportDocx}
               disabled={isExportingDocx || selectedCount === 0}
-              className={`click_btn click_btn--md click_btn--fx ${
-                isExportingDocx || selectedCount === 0 ? "click_btn--disabled" : "click_btn--primary"
+              className={`action-btn action-btn--md action-btn--fx ${
+                isExportingDocx || selectedCount === 0 ? "action-btn--disabled" : "action-btn--primary"
               }`}
               title={exportDocxLabel}
               aria-label={exportDocxLabel}
-              data-style={isExportingDocx || selectedCount === 0 ? "disabled" : "primary"}
               data-icon="with"
               data-cta="Literature research"
               data-cta-position="result"
               data-cta-copy="export docx"
               data-ui="literature-export-docx-btn"
             >
-              <span className="click_btn_content">
+              <span className="action-btn__content">
                 {isExportingDocx ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
@@ -143,19 +138,18 @@ const ResultsCard = ({
               type="button"
               onClick={onExportJson}
               disabled={isExportingDocx || selectedCount === 0}
-              className={`click_btn click_btn--md click_btn--fx ${
-                isExportingDocx || selectedCount === 0 ? "click_btn--disabled" : "click_btn--primary"
+              className={`action-btn action-btn--md action-btn--fx ${
+                isExportingDocx || selectedCount === 0 ? "action-btn--disabled" : "action-btn--primary"
               }`}
               title={t("literature_export_json")}
               aria-label={t("literature_export_json")}
-              data-style={isExportingDocx || selectedCount === 0 ? "disabled" : "primary"}
               data-icon="with"
               data-cta="Literature research"
               data-cta-position="result"
               data-cta-copy="export json"
               data-ui="literature-export-json-btn"
             >
-              <span className="click_btn_content">
+              <span className="action-btn__content">
                 <FileDown size={16} />
                 {"JSON"}
               </span>
@@ -165,16 +159,16 @@ const ResultsCard = ({
               type="button"
               onClick={onClearPageSession}
               disabled={isExportingDocx || statusState === "loading" || isAnyTranslationInFlight}
-              className={`click_btn click_btn--md click_btn--icon-md ${
+              className={`action-btn action-btn--md action-btn--icon-md ${
                 isExportingDocx || statusState === "loading" || isAnyTranslationInFlight
-                  ? "click_btn--disabled"
-                  : "click_btn--ghost click_btn--fx click_btn--fx-muted"
+                  ? "action-btn--disabled"
+                  : "action-btn--ghost action-btn--fx action-btn--fx-muted"
               }`}
               title={t("literature_clear_session")}
               aria-label={t("literature_clear_session")}
               data-ui="literature-clear-session-btn"
             >
-              <span className="click_btn_content">
+              <span className="action-btn__content">
                 <RefreshCw size={16} className="transition-transform duration-500 hover:rotate-180" />
               </span>
             </button>
@@ -226,19 +220,18 @@ const ResultsCard = ({
                     type="button"
                     onClick={() => onExportDocx({ seedKey: group.key })}
                     disabled={groupExportDisabled}
-                    className={`click_btn click_btn--md click_btn--fx ${
-                      groupExportDisabled ? "click_btn--disabled" : "click_btn--primary"
+                    className={`action-btn action-btn--md action-btn--fx ${
+                      groupExportDisabled ? "action-btn--disabled" : "action-btn--primary"
                     }`}
                     title={exportDocxLabel}
                     aria-label={exportDocxLabel}
-                    data-style={groupExportDisabled ? "disabled" : "primary"}
                     data-icon="with"
                     data-cta="Literature research"
                     data-cta-position="result group"
                     data-cta-copy="export docx group"
                     data-ui="literature-group-export-docx-btn"
                   >
-                    <span className="click_btn_content">
+                    <span className="action-btn__content">
                       {isExportingDocx ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
