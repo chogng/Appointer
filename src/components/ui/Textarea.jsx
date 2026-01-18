@@ -80,7 +80,7 @@ const Textarea = forwardRef(
     const labelNode = label ? (
       <label
         htmlFor={textareaId}
-        className={cx("ui-input_label", shouldInlineLabel && "whitespace-nowrap")}
+        className={cx("input_label", shouldInlineLabel && "whitespace-nowrap")}
         data-ui={uiMarker ? `${uiMarker}-label` : undefined}
       >
         {label}
@@ -89,7 +89,7 @@ const Textarea = forwardRef(
 
     const fieldNode = (
       <div
-        className={cx("ui-input_field", "items-start py-2.5", fieldClassName)}
+        className={cx("input_field", "items-start py-2.5", fieldClassName)}
         data-icon="without"
         data-state={state}
         data-testid={devTestId}
@@ -110,14 +110,14 @@ const Textarea = forwardRef(
           aria-invalid={!!error}
           aria-describedby={ariaDescribedBy}
           data-ui={uiMarker ? `${uiMarker}-input` : undefined}
-          className={cx("ui-textarea_native", textareaClassName)}
+          className={cx("textarea_native", textareaClassName)}
         />
       </div>
     );
 
     return (
       <div
-        className={cx("ui-input_warp", className)}
+        className={cx("input_warp", className)}
         data-style="input"
         data-ui={uiMarker}
       >
@@ -134,12 +134,12 @@ const Textarea = forwardRef(
         )}
 
         {error ? (
-          <div id={errorId} className="ui-input_error">
+          <div id={errorId} className="input_error">
             {error}
           </div>
         ) : null}
         {!error && hint ? (
-          <div id={hintId} className="ui-input_hint">
+          <div id={hintId} className="input_hint">
             {hint}
           </div>
         ) : null}

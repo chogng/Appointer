@@ -56,7 +56,6 @@ const KeywordMatchCard = ({
             onChange={onKeywordInputChange}
             placeholder={t("literature_keywords_placeholder")}
             rows={2}
-            fieldClassName="rounded-lg"
             hint={`${t("literature_keywords_count")}：${keywordsCount}`}
           />
         </div>

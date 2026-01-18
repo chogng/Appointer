@@ -42,31 +42,31 @@
 
 Input 的输出结构固定为：
 
-- 外层容器：`div.ui-input_warp`
+- 外层容器：`div.input_warp`
   - 必须属性：`data-style="input"`
   - 可选稳定锚点（Legacy）：当传入 `dataUi` 时输出 `data-ui="<dataUi>"`
-- 可选 label：`label.ui-input_label`
+- 可选 label：`label.input_label`
   - `htmlFor="<inputId>"`
   - 当传入 `dataUi`（Legacy）：输出 `data-ui="<dataUi>-label"`
   - 当 `labelPlacement="inline"`：与 Field 一起包在 `div.flex.items-center.gap-2` 内（仅布局差异）
-- Field 容器：`div.ui-input_field ui-input_field--<size>`
+- Field 容器：`div.input_field input_field--<size>`
   - 必须属性：
     - `data-icon="with|without"`（是否包含 leftIcon）
     - `data-state="enable|error|disabled"`
     - 可选（DEV-only）`data-testid`
   - 可选 CTA 标记：`data-cta` / `data-cta-position` / `data-cta-copy`
-- 可选 left icon：`span.ui-input_icon`（`aria-hidden="true"`）
-- 原生输入：`input.ui-input_native`
+- 可选 left icon：`span.input_icon`（`aria-hidden="true"`）
+- 原生输入：`input.input_native`
   - `id="<inputId>"`、`name`、`type`、`value`、`placeholder`、`disabled`、`autoComplete`
   - `aria-invalid`：由 `error` 决定
   - `aria-describedby`：由 `error/hint` 决定（并与调用方传入的 `aria-describedby` 合并）
   - 当传入 `dataUi`（Legacy）：输出 `data-ui="<dataUi>-input"`
   - 其余 props 透传到 `<input>`（例如 `spellCheck`、`inputMode`、`aria-label`、`aria-describedby`、`data-*` 等）
-- 可选 right slot：`div.ui-input_right`
+- 可选 right slot：`div.input_right`
 - 错误/提示文案（Field 之后）：
-  - 错误优先：`div.ui-input_error`
+  - 错误优先：`div.input_error`
     - `id="<inputId>-error"`
-  - 无错误时可显示：`div.ui-input_hint`
+  - 无错误时可显示：`div.input_hint`
     - `id="<inputId>-hint"`
 
 ---
@@ -143,8 +143,8 @@ type InputProps = {
   - 否则 `error` 有值 → `error`
   - 否则 → `enable`
 - 错误/提示：
-  - `error` 存在：渲染 `.ui-input_error`，并设置 `aria-invalid=true`
-  - `error` 不存在且 `hint` 存在：渲染 `.ui-input_hint`
+  - `error` 存在：渲染 `.input_error`，并设置 `aria-invalid=true`
+  - `error` 不存在且 `hint` 存在：渲染 `.input_hint`
 
 ---
 
@@ -161,9 +161,9 @@ type InputProps = {
 
 样式定义在 [`src/styles/global.css`](../src/styles/global.css) 的 `@layer components`（细节可逐步替代；调用方只依赖 `size` 与稳定 DOM/marker）：
 
-- `ui-input_field--sm`：`h-6 text-xs`
-- `ui-input_field--md`：`h-[38px] text-sm`
-- `ui-input_field--lg`：`h-[42px] text-sm`
+- `input_field--sm`：`h-6 text-xs`
+- `input_field--md`：`h-[38px] text-sm`
+- `input_field--lg`：`h-[42px] text-sm`
 
 ---
 

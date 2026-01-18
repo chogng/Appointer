@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import Card from "../../../components/ui/Card";
 
 const PREVIEW_ROW_OVERSCAN = 12;
 const DEFAULT_PREVIEW_ROW_HEIGHT_PX = 44;
@@ -169,21 +170,33 @@ const DataPreviewTable = ({ processedData }) => {
 
   if (!processedData || processedData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-text-secondary border border-dashed border-border rounded-xl bg-bg-surface/50 h-[300px]">
+      <Card
+        variant="panel"
+        className="flex flex-col items-center justify-center p-12 text-text-secondary border border-dashed border-border bg-bg-surface/50 h-[300px]"
+      >
         <p>No data extracted yet.</p>
         <p className="text-sm">
           Import CSVs and apply a template to see results.
         </p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-bg-surface border border-border rounded-xl flex flex-col h-[500px]">
-      <div className="flex items-center gap-1 p-2 border-b border-border overflow-x-auto">
+    <Card
+      id="device-analysis-data-preview"
+      className="flex flex-col h-[500px] p-0 overflow-hidden"
+    >
+      <div
+        id="device-analysis-data-preview-file-tabs"
+        className="flex items-center gap-1 p-2 border-b border-border overflow-x-auto"
+      >
         {processedData.map((file) => (
           <button
             key={file.fileId}
+            type="button"
+            data-file-id={file.fileId}
+            aria-pressed={effectiveActiveFileId === file.fileId}
             onClick={() => setActiveFileId(file.fileId)}
             className={`
               px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
@@ -211,6 +224,8 @@ const DataPreviewTable = ({ processedData }) => {
         </div>
 
         <select
+          id="device-analysis-data-preview-series-select"
+          aria-label="Select series"
           value={effectiveActiveSeriesId ?? ""}
           onChange={(e) => setActiveSeriesId(e.target.value)}
           disabled={!activeFile?.series?.length}
@@ -227,6 +242,7 @@ const DataPreviewTable = ({ processedData }) => {
 
       <div
         ref={previewScrollRef}
+        id="device-analysis-data-preview-scroll"
         className="flex-1 overflow-auto p-4 custom-scrollbar"
       >
         {activeSeries ? (
@@ -333,7 +349,7 @@ const DataPreviewTable = ({ processedData }) => {
         <span>Points: {activeSeries?.data?.length || 0}</span>
         <span>Series: {activeFile?.series?.length || 0}</span>
       </div>
-    </div>
+    </Card>
   );
 };
 

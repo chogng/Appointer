@@ -48,6 +48,7 @@
 ## 页面/选择器/测试相关
 
 - [`literature_research_page_spec.md`](./literature_research_page_spec.md)：Literature Research 页面稳定锚点（便于自动化/脚本）
+- [`device_analysis_page_spec.md`](./device_analysis_page_spec.md)：Device Analysis 页面稳定锚点（便于自动化/脚本）
 - [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记规范（`data-*` 等约定）
 
 ---
