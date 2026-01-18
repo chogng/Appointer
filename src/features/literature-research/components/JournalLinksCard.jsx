@@ -56,6 +56,7 @@ const JournalLinksCard = ({
           <Tabs
             value={sourceType}
             onChange={onSourceChange}
+            idBase="literature-source"
             groupLabel="Journal view"
             options={[
               {
@@ -78,30 +79,27 @@ const JournalLinksCard = ({
           />
 
           <div className="ui-filter_warp" aria-label="date filter warp">
-            <div className="date_btn_warp flex-none" data-ui="literature-start-date">
-              <label className="date_btn_label" data-ui="literature-start-date-label">
+            <div className="date_btn_warp flex-none">
+              <label className="date_btn_label">
                 {t("literature_start_date")}
               </label>
               <DatePicker
-                dataUi="literature-start-date"
+                id="literature-start-date"
                 value={startDate}
                 onChange={onStartDateChange}
                 placeholder={t("literature_start_date")}
-                cta="Literature research"
-                ctaPosition="date filter warp"
-                ctaCopy="start date"
                 className="min-w-0"
                 textClassName="hidden sm:block"
                 aria-label="start date"
               />
             </div>
 
-            <div className="date_btn_warp flex-none" data-ui="literature-end-date">
-              <label className="date_btn_label" data-ui="literature-end-date-label">
+            <div className="date_btn_warp flex-none">
+              <label className="date_btn_label">
                 {t("literature_end_date")}
               </label>
               <DatePicker
-                dataUi="literature-end-date"
+                id="literature-end-date"
                 value={endDate}
                 onChange={onEndDateChange}
                 placeholder={t("literature_end_date")}
@@ -142,7 +140,7 @@ const JournalLinksCard = ({
           <div className="ui-button_warp">
             <div className="ui-button_row">
               <button
-                data-ui="literature-add-url-btn"
+                id="literature-add-url"
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="toolbar"
@@ -159,7 +157,7 @@ const JournalLinksCard = ({
               </button>
 
               <button
-                data-ui="literature-fetch-btn"
+                id="literature-fetch"
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="toolbar"
@@ -187,20 +185,16 @@ const JournalLinksCard = ({
               <label className="text-sm font-semibold text-text-primary">
                 {t("literature_seed_urls")}
               </label>
-              <span
-                className="text-xs text-text-secondary whitespace-nowrap"
-                data-ui="literature-seed-url-fetch-count"
-              >
+              <span className="text-xs text-text-secondary whitespace-nowrap">
                 (Nature {fetchSeedUrlCounts.nature} / Science {fetchSeedUrlCounts.science})
               </span>
             </div>
 
-            <div className="mt-3 space-y-2" data-ui="literature-seed-url-list">
+            <div className="mt-3 space-y-2" id="literature-seed-url-list">
               {seedUrls.map((value, index) => (
                 <div
                   key={`${index}`}
                   className="flex items-center gap-2 group"
-                  data-ui="literature-seed-url-row"
                   data-seed-index={index}
                 >
                   <button
@@ -213,6 +207,9 @@ const JournalLinksCard = ({
                     aria-label={`Include seed url ${index + 1}`}
                     aria-pressed={seedUrlSelected[index] !== false}
                     id={`literature-seed-url-select-${index}`}
+                    data-cta="Literature research"
+                    data-cta-position="seed urls"
+                    data-cta-copy="toggle include"
                     data-seed-index={index}
                   >
                     <span className="action-btn__content">
@@ -261,11 +258,11 @@ const JournalLinksCard = ({
                     onClick={() => onRemoveSeedUrlAt(index)}
                     title={t("literature_remove_url")}
                     aria-label={t("literature_remove_url")}
+                    id={`literature-seed-url-remove-${index}`}
                     data-icon="with"
                     data-cta="Literature research"
                     data-cta-position="seed urls"
                     data-cta-copy="remove url"
-                    data-ui="literature-seed-url-remove-btn"
                     data-seed-index={index}
                     className="action-btn action-btn--md action-btn--icon-md-tight action-btn--fx action-btn--fx-muted action-btn--danger"
                   >
@@ -279,8 +276,8 @@ const JournalLinksCard = ({
           </div>
         </div>
 
-        <div className="mt-3" data-ui="literature-fetch-progress-warp">
-          <div data-ui="literature-fetch-progress">
+        <div className="mt-3" id="literature-fetch-progress">
+          <div>
             <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-terracotta to-orange-400 transition-[width] duration-500 ease-out shadow-[0_0_8px_rgba(217,119,87,0.4)]"
@@ -309,7 +306,7 @@ const JournalLinksCard = ({
               <span
                 className="truncate opacity-60 font-mono text-[10px]"
                 title={fetchProgress.activeSeedUrl}
-                data-ui="literature-fetch-progress-active-url"
+                id="literature-fetch-progress-active-url"
               >
                 {(() => {
                   const url = fetchProgress.activeSeedUrl;
@@ -324,7 +321,7 @@ const JournalLinksCard = ({
           {fetchProgress.errors.length > 0 && (
             <div
               className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500"
-              data-ui="literature-fetch-progress-errors"
+              id="literature-fetch-progress-errors"
             >
               <div className="font-semibold">{"部分入口抓取失败："}</div>
               <div className="mt-2 space-y-2">
@@ -332,7 +329,6 @@ const JournalLinksCard = ({
                   <div
                     key={err.seedUrl}
                     className="flex flex-col gap-0.5"
-                    data-ui="literature-fetch-progress-error-row"
                   >
                     <span className="block truncate" title={err.seedUrl}>
                       {seedUrlTitleBySeedUrl.get(err.seedUrl) ||

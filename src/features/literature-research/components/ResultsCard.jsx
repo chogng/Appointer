@@ -65,11 +65,12 @@ const ResultsCard = ({
             ]}
             value={resultView}
             onChange={onResultViewChange}
+            idBase="literature-results-view"
             groupLabel="Results view"
           />
 
           <div className="flex items-center gap-2">
-            <div className="text-xs text-text-tertiary px-2" data-ui="literature-selected-count-label">
+            <div className="text-xs text-text-tertiary px-2">
               <span>{t("literature_selected_count")}：</span>
               <span className="">{selectedCount}</span>
             </div>
