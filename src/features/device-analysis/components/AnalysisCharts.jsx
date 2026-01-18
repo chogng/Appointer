@@ -3012,7 +3012,6 @@ How to use (manual fallback):
                     },
                   ]}
                   size="md"
-                  className="p-0"
                   itemClassName="px-2"
                 />
               </div>
@@ -3058,7 +3057,6 @@ How to use (manual fallback):
                       });
                     }}
                     size="md"
-                    className="p-0"
                     itemClassName="px-2 py-1"
                   />
                 )}
