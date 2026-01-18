@@ -61,8 +61,8 @@ Label（可选）：
 
 Field：
 - `div.ui-input_field`
-  - `data-state="enable|error|disabled"`
   - `data-icon="without"`
+  - `data-state="enable|error|disabled"`
   - 可选：`data-testid`（DEV-only）
   - 可选埋点：`data-cta` / `data-cta-position` / `data-cta-copy`
 

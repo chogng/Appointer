@@ -59,8 +59,8 @@ const Textarea = forwardRef(
     const fieldNode = (
       <div
         className={cx("ui-input_field", "items-start py-2.5")}
-        data-state={state}
         data-icon="without"
+        data-state={state}
         data-testid={devTestId}
         data-cta={cta}
         data-cta-position={ctaPosition}

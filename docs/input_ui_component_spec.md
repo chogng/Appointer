@@ -27,9 +27,9 @@ Input 的输出结构固定为：
   - 当传入 `dataUi`：输出 `data-ui="<dataUi>-label"`
 - Field 容器：`div.ui-input_field ui-input_field--<size>`
   - 必须属性：
-    - `data-state="enable|error|disabled"`
     - `data-icon="with|without"`（是否包含 leftIcon）
-  - 可选（DEV-only）`data-testid`
+    - `data-state="enable|error|disabled"`
+    - 可选（DEV-only）`data-testid`
   - 可选埋点：`data-cta` / `data-cta-position` / `data-cta-copy`
 - 原生输入：`input.ui-input_native`
   - `id="<inputId>"`、`name`、`type`、`value`、`placeholder`、`disabled`、`autoComplete`
@@ -44,6 +44,7 @@ Input 的输出结构固定为：
 ## 3. Props（冻结）
 
 - `label?: ReactNode`：可选 label；若不提供 label，调用方应提供 `aria-label`。
+- `labelPlacement?: "stack" | "inline"`：label 布局（默认 `stack`）
 - `value: string` / `onChange(nextValue: string)`：受控输入。
 - `placeholder?: string`
 - `disabled?: boolean`
