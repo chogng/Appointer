@@ -241,17 +241,18 @@ type TabsProps = {
 
 ---
 
-## 10. DTA / Automation Markers (v2)
+## 10. CTA / Automation Markers (v2)
 
-Tabs now supports hierarchical DTA markers on the tablist (for analytics/automation), and stable per-option tokens on tabs/panels:
+Tabs supports CTA markers on each tab button (for analytics), and stable per-option tokens on tabs/panels:
 
 - Tablist:
   - `data-tabs="menu"`
-  - `data-dta="<page>.<slot>.<comp>"` (optional)
-  - `data-dta-page="<page>"` / `data-dta-slot="<slot>"` / `data-dta-comp="<comp>"` (optional)
 - Tab button:
   - `data-tabs="tab"`
   - `data-value="<token>"`
+  - `data-cta="<cta>"` (optional)
+  - `data-cta-position="<position>"` (optional)
+  - `data-cta-copy="<copy>"` (optional)
 - Panel (when `renderPanel` is provided):
   - `data-tabs="panel"`
   - `data-value="<token>"`
@@ -259,5 +260,5 @@ Tabs now supports hierarchical DTA markers on the tablist (for analytics/automat
 Recommended selector example:
 
 ```css
-[data-dta-page="lr"][data-dta-slot="source"][data-dta-comp="tabs"] [data-tabs="tab"][data-value="science"]
+[data-tabs="menu"] [data-tabs="tab"][data-cta="Literature research"][data-cta-position="source"][data-value="science"]
 ```
