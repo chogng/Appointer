@@ -1353,8 +1353,22 @@ const TemplateManager = ({
                   }}
                   groupLabel="Template mode"
                   options={[
-                    { value: "select", label: "Select", icon: List },
-                    { value: "save", label: "Save", icon: Save },
+                    {
+                      value: "select",
+                      label: "Select",
+                      icon: List,
+                      cta: "Device Analysis",
+                      ctaPosition: "template-mode",
+                      ctaCopy: "select",
+                    },
+                    {
+                      value: "save",
+                      label: "Save",
+                      icon: Save,
+                      cta: "Device Analysis",
+                      ctaPosition: "template-mode",
+                      ctaCopy: "save",
+                    },
                   ]}
                 />
               </div>

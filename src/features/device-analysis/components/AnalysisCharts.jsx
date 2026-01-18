@@ -589,10 +589,29 @@ const OverviewGrid = React.memo(function OverviewGrid({
 
         <div className="flex items-center gap-3">
           <Tabs
+            groupLabel="Curve filter"
             options={[
-              { label: "All", value: "all" },
-              { label: "Transfer", value: "transfer" },
-              { label: "Output", value: "output" },
+              {
+                label: "All",
+                value: "all",
+                cta: "Device Analysis",
+                ctaPosition: "curve-filter",
+                ctaCopy: "all",
+              },
+              {
+                label: "Transfer",
+                value: "transfer",
+                cta: "Device Analysis",
+                ctaPosition: "curve-filter",
+                ctaCopy: "transfer",
+              },
+              {
+                label: "Output",
+                value: "output",
+                cta: "Device Analysis",
+                ctaPosition: "curve-filter",
+                ctaCopy: "output",
+              },
             ]}
             value={curveFilter}
             onChange={setCurveFilter}
@@ -2955,6 +2974,7 @@ How to use (manual fallback):
                   Y unit:
                 </span>
                 <Tabs
+                  groupLabel="Y unit"
                   value={yUnit}
                   onChange={(next) => {
                     const nextUnit =
@@ -2969,9 +2989,27 @@ How to use (manual fallback):
                       .catch(() => { });
                   }}
                   options={[
-                    { value: "A", label: "A" },
-                    { value: "uA", label: "µA" },
-                    { value: "nA", label: "nA" },
+                    {
+                      value: "A",
+                      label: "A",
+                      cta: "Device Analysis",
+                      ctaPosition: "y-unit",
+                      ctaCopy: "A",
+                    },
+                    {
+                      value: "uA",
+                      label: "µA",
+                      cta: "Device Analysis",
+                      ctaPosition: "y-unit",
+                      ctaCopy: "uA",
+                    },
+                    {
+                      value: "nA",
+                      label: "nA",
+                      cta: "Device Analysis",
+                      ctaPosition: "y-unit",
+                      ctaCopy: "nA",
+                    },
                   ]}
                   size="md"
                   className="p-0"
@@ -2989,9 +3027,22 @@ How to use (manual fallback):
                   </span>
                 ) : (
                   <Tabs
+                    groupLabel="Y scale"
                     options={[
-                      { value: "linear", label: "Linear" },
-                      { value: "log", label: "Log" },
+                      {
+                        value: "linear",
+                        label: "Linear",
+                        cta: "Device Analysis",
+                        ctaPosition: "y-scale",
+                        ctaCopy: "linear",
+                      },
+                      {
+                        value: "log",
+                        label: "Log",
+                        cta: "Device Analysis",
+                        ctaPosition: "y-scale",
+                        ctaCopy: "log",
+                      },
                     ]}
                     value={axis.yScale === "logAbs" ? "log" : axis.yScale}
                     onChange={(next) => {
