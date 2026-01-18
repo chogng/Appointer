@@ -1,6 +1,7 @@
 import React, {
   startTransition,
   useCallback,
+  useMemo,
   useDeferredValue,
   useEffect,
   useRef,
@@ -64,7 +65,6 @@ const DeviceAnalysis = () => {
     state: "idle", // 'idle' | 'loading' | 'ready' | 'error'
     message: "",
   });
-  const [previewLoadedRowCount, setPreviewLoadedRowCount] = useState(0);
   const [_processingStatus, setProcessingStatus] = useState({
     state: "idle", // 'idle' | 'processing' | 'done' | 'error'
     processed: 0,
@@ -81,8 +81,37 @@ const DeviceAnalysis = () => {
   const previewRowsCacheRef = useRef(new Map());
   const previewLoadedChunksRef = useRef(new Set());
   const previewCacheFileIdRef = useRef(null);
-  const previewRowsUpdateRafRef = useRef(0);
-  const pendingPreviewLoadedRowCountRef = useRef(0);
+
+  const previewRowsVersionRef = useRef(0);
+  const previewRowsSubscribersRef = useRef(new Set());
+  const previewRowsNotifyRafRef = useRef(0);
+
+  const getPreviewRowsVersion = useCallback(
+    () => previewRowsVersionRef.current,
+    [],
+  );
+
+  const subscribePreviewRowsVersion = useCallback((callback) => {
+    const subs = previewRowsSubscribersRef.current;
+    subs.add(callback);
+    return () => subs.delete(callback);
+  }, []);
+
+  const notifyPreviewRowsVersion = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (previewRowsNotifyRafRef.current) return;
+    previewRowsNotifyRafRef.current = requestAnimationFrame(() => {
+      previewRowsNotifyRafRef.current = 0;
+      previewRowsVersionRef.current += 1;
+      for (const cb of Array.from(previewRowsSubscribersRef.current)) {
+        try {
+          cb();
+        } catch {
+          // ignore subscriber errors
+        }
+      }
+    });
+  }, []);
 
   const PREVIEW_ROW_CHUNK_SIZE = 50;
 
@@ -92,6 +121,15 @@ const DeviceAnalysis = () => {
   const processingStopOnErrorRef = useRef(false);
 
   const deferredSelectedPreviewFileId = useDeferredValue(selectedPreviewFileId);
+  const rawDataById = useMemo(() => {
+    const map = new Map();
+    for (const entry of Array.isArray(rawData) ? rawData : []) {
+      const id = entry?.fileId;
+      if (typeof id !== "string") continue;
+      map.set(id, entry);
+    }
+    return map;
+  }, [rawData]);
 
   const _getExcelColumnLabel = (index) => {
     let label = "";
@@ -120,18 +158,12 @@ const DeviceAnalysis = () => {
     if (type === "previewResult") {
       if (payload?.requestId !== previewRequestIdRef.current) return;
 
-      if (previewRowsUpdateRafRef.current) {
-        cancelAnimationFrame(previewRowsUpdateRafRef.current);
-        previewRowsUpdateRafRef.current = 0;
-      }
-
       const fileId = payload.fileId ?? null;
       previewCacheFileIdRef.current = fileId;
 
       if (!fileId) {
         previewRowsCacheRef.current = new Map();
         previewLoadedChunksRef.current = new Set();
-        setPreviewLoadedRowCount(0);
       } else {
         const cacheByFileId = previewRowsCacheByFileIdRef.current;
         const chunksByFileId = previewLoadedChunksByFileIdRef.current;
@@ -150,17 +182,18 @@ const DeviceAnalysis = () => {
 
         previewRowsCacheRef.current = rowCache;
         previewLoadedChunksRef.current = loadedChunks;
-        setPreviewLoadedRowCount(rowCache.size);
       }
 
-      setPreviewFile({
-        fileId,
-        fileName: payload.fileName,
-        rowCount: payload.rowCount,
-        columnCount: payload.columnCount,
-        maxCellLengths: payload.maxCellLengths,
+      startTransition(() => {
+        setPreviewFile({
+          fileId,
+          fileName: payload.fileName,
+          rowCount: payload.rowCount,
+          columnCount: payload.columnCount,
+          maxCellLengths: payload.maxCellLengths,
+        });
+        setPreviewStatus({ state: "ready", message: "" });
       });
-      setPreviewStatus({ state: "ready", message: "" });
       return;
     }
 
@@ -187,14 +220,7 @@ const DeviceAnalysis = () => {
           cache.set(startRow + i, rows[i]);
         }
 
-        pendingPreviewLoadedRowCountRef.current = cache.size;
-        if (!previewRowsUpdateRafRef.current) {
-          previewRowsUpdateRafRef.current = requestAnimationFrame(() => {
-            previewRowsUpdateRafRef.current = 0;
-            const nextCount = pendingPreviewLoadedRowCountRef.current;
-            startTransition(() => setPreviewLoadedRowCount(nextCount));
-          });
-        }
+        notifyPreviewRowsVersion();
         resolve(rows);
       } catch (err) {
         reject(err);
@@ -220,12 +246,14 @@ const DeviceAnalysis = () => {
       }
 
       console.error("Preview worker error:", payload?.message);
-      setPreviewStatus({
-        state: "error",
-        message: payload?.message ?? "Preview worker error",
+      startTransition(() => {
+        setPreviewStatus({
+          state: "error",
+          message: payload?.message ?? "Preview worker error",
+        });
       });
     }
-  }, []);
+  }, [notifyPreviewRowsVersion]);
 
   const createPreviewWorker = useCallback(() => {
     const worker = new Worker(
@@ -283,18 +311,17 @@ const DeviceAnalysis = () => {
 
     setPreviewFile(null);
     setPreviewStatus({ state: "idle", message: "" });
-    setPreviewLoadedRowCount(0);
-    pendingPreviewLoadedRowCountRef.current = 0;
 
     previewRowsCacheByFileIdRef.current = new Map();
     previewLoadedChunksByFileIdRef.current = new Map();
     previewRowsCacheRef.current = new Map();
     previewLoadedChunksRef.current = new Set();
     previewCacheFileIdRef.current = null;
-    if (previewRowsUpdateRafRef.current) {
-      cancelAnimationFrame(previewRowsUpdateRafRef.current);
-      previewRowsUpdateRafRef.current = 0;
+    if (previewRowsNotifyRafRef.current) {
+      cancelAnimationFrame(previewRowsNotifyRafRef.current);
+      previewRowsNotifyRafRef.current = 0;
     }
+    notifyPreviewRowsVersion();
 
     setProcessedData([]);
     setExtractionErrors([]);
@@ -307,6 +334,7 @@ const DeviceAnalysis = () => {
   }, [
     cancelPendingPreviewRowRequests,
     hasSessionData,
+    notifyPreviewRowsVersion,
     resetPreviewWorker,
     resetProcessingWorker,
     setExtractionErrors,
@@ -360,9 +388,9 @@ const DeviceAnalysis = () => {
 
     return () => {
       cancelPendingPreviewRowRequests("Preview unmounted");
-      if (previewRowsUpdateRafRef.current) {
-        cancelAnimationFrame(previewRowsUpdateRafRef.current);
-        previewRowsUpdateRafRef.current = 0;
+      if (previewRowsNotifyRafRef.current) {
+        cancelAnimationFrame(previewRowsNotifyRafRef.current);
+        previewRowsNotifyRafRef.current = 0;
       }
       if (previewWorkerRef.current) {
         previewWorkerRef.current.terminate();
@@ -392,21 +420,21 @@ const DeviceAnalysis = () => {
       previewRowsCacheRef.current = new Map();
       previewLoadedChunksRef.current = new Set();
       previewCacheFileIdRef.current = null;
-      if (previewRowsUpdateRafRef.current) {
-        cancelAnimationFrame(previewRowsUpdateRafRef.current);
-        previewRowsUpdateRafRef.current = 0;
+      if (previewRowsNotifyRafRef.current) {
+        cancelAnimationFrame(previewRowsNotifyRafRef.current);
+        previewRowsNotifyRafRef.current = 0;
       }
-      setPreviewLoadedRowCount(0);
+      notifyPreviewRowsVersion();
       return;
     }
 
     const effectiveFileId =
       deferredSelectedPreviewFileId &&
-        rawData.some((f) => f.fileId === deferredSelectedPreviewFileId)
+        rawDataById.has(deferredSelectedPreviewFileId)
         ? deferredSelectedPreviewFileId
         : (rawData[0]?.fileId ?? null);
 
-    const target = rawData.find((f) => f.fileId === effectiveFileId) ?? null;
+    const target = rawDataById.get(effectiveFileId) ?? null;
     if (!target?.file || !target?.fileId) return;
     if (previewFile?.fileId === target.fileId) return;
 
@@ -416,7 +444,9 @@ const DeviceAnalysis = () => {
     const requestId = previewRequestIdRef.current + 1;
     previewRequestIdRef.current = requestId;
 
-    setPreviewStatus({ state: "loading", message: "Parsing CSV preview…" });
+    startTransition(() => {
+      setPreviewStatus({ state: "loading", message: "Parsing CSV preview…" });
+    });
 
     worker.postMessage({
       type: "preview",
@@ -432,7 +462,9 @@ const DeviceAnalysis = () => {
     deferredSelectedPreviewFileId,
     previewFile?.fileId,
     rawData,
+    rawDataById,
     cancelPendingPreviewRowRequests,
+    notifyPreviewRowsVersion,
     setSelectedPreviewFileId,
   ]);
 
@@ -544,11 +576,11 @@ const DeviceAnalysis = () => {
       previewCacheFileIdRef.current = null;
       previewRowsCacheRef.current = new Map();
       previewLoadedChunksRef.current = new Set();
-      if (previewRowsUpdateRafRef.current) {
-        cancelAnimationFrame(previewRowsUpdateRafRef.current);
-        previewRowsUpdateRafRef.current = 0;
+      if (previewRowsNotifyRafRef.current) {
+        cancelAnimationFrame(previewRowsNotifyRafRef.current);
+        previewRowsNotifyRafRef.current = 0;
       }
-      setPreviewLoadedRowCount(0);
+      notifyPreviewRowsVersion();
     }
 
     const worker = previewWorkerRef.current;
@@ -564,14 +596,14 @@ const DeviceAnalysis = () => {
     (fileId) => {
       const next = typeof fileId === "string" ? fileId : null;
       if (!next) return;
-      if (!rawData.some((f) => f.fileId === next)) return;
+      if (!rawDataById.has(next)) return;
       setSelectedPreviewFileId(next);
     },
-    [rawData, setSelectedPreviewFileId],
+    [rawDataById, setSelectedPreviewFileId],
   );
 
   // Handler when template is applied
-  const handleTemplateApplied = (config) => {
+  const handleTemplateApplied = useCallback((config) => {
     const prepared = prepareDeviceAnalysisExtraction({
       rawData,
       config,
@@ -703,7 +735,15 @@ const DeviceAnalysis = () => {
       type: warnings.length ? "warning" : "success",
       message: `Started extracting ${queue.length} file(s) (${groupSizeText}${groupsText}). Charts will appear progressively.${warningText}`,
     };
-  };
+  }, [
+    getPreviewRow,
+    previewFile,
+    rawData,
+    setExtractionErrors,
+    setProcessedData,
+    setProcessingStatus,
+    t,
+  ]);
 
   const handleExport = async () => {
     if (processedData.length === 0) return;
@@ -1221,7 +1261,10 @@ Note:
               title="Reset session"
               className="ml-auto p-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
             >
-              <RefreshCw size={18} className="transition-transform duration-500 hover:rotate-180" />
+              <RefreshCw
+                size={18}
+                className="transition-transform duration-500 hover:rotate-180"
+              />
             </button>
           </div>
           <CsvImporter
@@ -1239,10 +1282,11 @@ Note:
           <TemplateManager
             previewFile={previewFile}
             previewStatus={previewStatus}
-            previewLoadedRowCount={previewLoadedRowCount}
             getPreviewRow={getPreviewRow}
             ensurePreviewRows={ensurePreviewRows}
             onTemplateApplied={handleTemplateApplied}
+            subscribePreviewRowsVersion={subscribePreviewRowsVersion}
+            getPreviewRowsVersion={getPreviewRowsVersion}
           />
         </section>
 

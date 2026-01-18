@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatNumber } from "./analysisMath";
+import { COLORS } from "./chartColors";
 
 const DEFAULT_PADDING = { top: 10, right: 10, bottom: 10, left: 10 };
 
@@ -39,9 +40,38 @@ const binarySearchNearest = (arr, value) => {
   return d0 <= d1 ? i0 : i1;
 };
 
-const colorForYCol = (yCol, alpha = 0.28) => {
-  const hue = ((Number(yCol) || 0) * 37) % 360;
-  return `hsla(${hue}, 78%, 58%, ${alpha})`;
+const clampAlpha = (alpha) => {
+  const a = Number(alpha);
+  if (!Number.isFinite(a)) return 1;
+  return Math.min(1, Math.max(0, a));
+};
+
+const hexToRgb = (hex) => {
+  const normalized = String(hex || "").trim();
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(normalized);
+  if (!m) return null;
+  const int = Number.parseInt(m[1], 16);
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+};
+
+const applyAlphaToHex = (hex, alpha) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const a = clampAlpha(alpha);
+  if (a >= 1) return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
+};
+
+const colorForSeriesIndex = (seriesIndex, alpha = 0.28) => {
+  const idx = Math.floor(Number(seriesIndex) || 0);
+  const paletteSize = Array.isArray(COLORS) ? COLORS.length : 0;
+  const paletteIdx = paletteSize ? ((idx % paletteSize) + paletteSize) % paletteSize : 0;
+  const base = (paletteSize ? COLORS[paletteIdx] : null) ?? "#8884d8";
+  return applyAlphaToHex(base, alpha);
 };
 
 const CanvasMultiLineChart = ({
@@ -79,7 +109,8 @@ const CanvasMultiLineChart = ({
 
     const seriesWithColor = safeSeries.map((s, idx) => ({
       ...s,
-      _color: colorForYCol(s?.yCol ?? idx),
+      _color: colorForSeriesIndex(idx, 0.28),
+      _hoverColor: colorForSeriesIndex(idx, 0.92),
     }));
 
     const seriesByGroup = new Map();
@@ -273,7 +304,7 @@ const CanvasMultiLineChart = ({
     if (n < 2) return;
 
     ctx.save();
-    ctx.strokeStyle = colorForYCol(s?.yCol, 0.92);
+    ctx.strokeStyle = s?._hoverColor ?? colorForSeriesIndex(0, 0.92);
     ctx.lineWidth = 2;
     ctx.beginPath();
     let started = false;

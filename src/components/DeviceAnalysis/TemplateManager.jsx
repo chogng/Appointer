@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   Trash2,
@@ -34,9 +35,11 @@ const formatPreviewCell = (value) => {
   if (typeof value === "number") return formatNumber(value, { digits: 4 });
   if (typeof value !== "string") return String(value);
 
+  if (!value) return value;
+  if (!value.includes("e") && !value.includes("E")) return value;
+
   const trimmed = value.trim();
   if (!trimmed) return value;
-  if (!/[eE]/.test(trimmed)) return value;
 
   const num = Number(trimmed);
   if (!Number.isFinite(num)) return value;
@@ -58,12 +61,151 @@ const lowerBound = (arr, value) => {
   return lo;
 };
 
+const noopSubscribe = () => () => {};
+const getZero = () => 0;
+const EMPTY_ARRAY = [];
+
+const PreviewRow = React.memo(
+  ({
+    rowIndex,
+    rowCellsRaw,
+    hasLeftColSpacer,
+    hasRightColSpacer,
+    visibleColumnIndices,
+    selectedColumnsSet,
+    handleCellMouseDown,
+  }) => {
+    const rowLabel = rowIndex + 1;
+    const rowCells = Array.isArray(rowCellsRaw) ? rowCellsRaw : EMPTY_ARRAY;
+    const isRowLoaded = Array.isArray(rowCellsRaw);
+
+    return (
+      <tr>
+        <td className="p-1 h-7 border-b border-r border-border font-mono text-xs text-center select-none bg-bg-surface text-text-secondary w-12 align-middle sticky left-0 z-10">
+          {rowLabel}
+        </td>
+        {hasLeftColSpacer && (
+          <td
+            aria-hidden="true"
+            className="p-0 h-7 border-b border-r border-border bg-transparent"
+          />
+        )}
+        {visibleColumnIndices.map((idx) => {
+          const cell = rowCells[idx] ?? "";
+          const raw = isRowLoaded ? String(cell) : "";
+          const display = isRowLoaded ? formatPreviewCell(cell) : "";
+          return (
+            <td
+              key={idx}
+              data-row={rowIndex}
+              data-col={idx}
+              className={`
+                            px-2 py-1 h-7 border-b border-r border-border last:border-r-0 whitespace-nowrap text-xs transition-colors cursor-default overflow-hidden text-ellipsis
+                            ${selectedColumnsSet.has(idx) ? "bg-accent/5 border-accent/20 text-text-primary" : "text-text-secondary"}
+
+                          `}
+              onMouseDown={handleCellMouseDown}
+              title={raw}
+            >
+              {display}
+            </td>
+          );
+        })}
+        {hasRightColSpacer && (
+          <td
+            aria-hidden="true"
+            className="p-0 h-7 border-b border-border bg-transparent"
+          />
+        )}
+      </tr>
+    );
+  },
+);
+
+PreviewRow.displayName = "PreviewRow";
+
+const PreviewTbody = ({
+  subscribePreviewRowsVersion,
+  getPreviewRowsVersion,
+  previewWindow,
+  previewRenderColCount,
+  hasLeftColSpacer,
+  hasRightColSpacer,
+  visibleColumnIndices,
+  selectedColumnsSet,
+  getPreviewRow,
+  handleCellMouseDown,
+}) => {
+  const previewRowsSubscribe =
+    typeof subscribePreviewRowsVersion === "function"
+      ? subscribePreviewRowsVersion
+      : noopSubscribe;
+  const previewRowsGetSnapshot =
+    typeof getPreviewRowsVersion === "function" ? getPreviewRowsVersion : getZero;
+
+  useSyncExternalStore(
+    previewRowsSubscribe,
+    previewRowsGetSnapshot,
+    previewRowsGetSnapshot,
+  );
+
+  const rows = [];
+  for (
+    let rowIndex = previewWindow.startRow;
+    rowIndex < previewWindow.endRow;
+    rowIndex++
+  ) {
+    const rowCellsRaw =
+      typeof getPreviewRow === "function" ? getPreviewRow(rowIndex) : null;
+    rows.push(
+      <PreviewRow
+        key={rowIndex}
+        rowIndex={rowIndex}
+        rowCellsRaw={rowCellsRaw}
+        hasLeftColSpacer={hasLeftColSpacer}
+        hasRightColSpacer={hasRightColSpacer}
+        visibleColumnIndices={visibleColumnIndices}
+        selectedColumnsSet={selectedColumnsSet}
+        handleCellMouseDown={handleCellMouseDown}
+      />,
+    );
+  }
+
+  return (
+    <tbody>
+      {previewWindow.topSpacerHeight > 0 && (
+        <tr aria-hidden="true">
+          <td
+            colSpan={previewRenderColCount}
+            className="p-0 border-0"
+            style={{ height: previewWindow.topSpacerHeight }}
+          />
+        </tr>
+      )}
+      {rows}
+      {previewWindow.bottomSpacerHeight > 0 && (
+        <tr aria-hidden="true">
+          <td
+            colSpan={previewRenderColCount}
+            className="p-0 border-0"
+            style={{ height: previewWindow.bottomSpacerHeight }}
+          />
+        </tr>
+      )}
+    </tbody>
+  );
+};
+
+PreviewTbody.displayName = "PreviewTbody";
+
 const TemplateManager = ({
   previewFile,
   previewStatus,
   getPreviewRow,
   ensurePreviewRows,
   onTemplateApplied,
+  subscribePreviewRowsVersion,
+  getPreviewRowsVersion,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -322,7 +464,7 @@ const TemplateManager = ({
       previewScrollLeftRef.current = left;
       handlePreviewScroll(top, left);
     });
-  }, [getPreviewRow, writeFieldFromPreview, previewFile?.columnCount]);
+  }, [getPreviewRow, handlePreviewScroll, writeFieldFromPreview, previewFile?.columnCount]);
 
   const handleSaveTemplate = async () => {
     const name = config.name.trim();
@@ -1812,88 +1954,18 @@ const TemplateManager = ({
                         )}
                       </tr>
                     </thead>
-                    <tbody>
-                      {previewWindow.topSpacerHeight > 0 && (
-                        <tr aria-hidden="true">
-                          <td
-                            colSpan={previewRenderColCount}
-                            className="p-0 border-0"
-                            style={{ height: previewWindow.topSpacerHeight }}
-                          />
-                        </tr>
-                      )}
-                      {Array.from(
-                        {
-                          length: Math.max(
-                            0,
-                            previewWindow.endRow - previewWindow.startRow,
-                          ),
-                        },
-                        (_, offset) => previewWindow.startRow + offset,
-                      ).map((rowIndex) => {
-                        const rowLabel = rowIndex + 1;
-                        const rowCellsRaw =
-                          typeof getPreviewRow === "function"
-                            ? getPreviewRow(rowIndex)
-                            : null;
-                        const rowCells = Array.isArray(rowCellsRaw)
-                          ? rowCellsRaw
-                          : [];
-                        const isRowLoaded = Array.isArray(rowCellsRaw);
-
-                        return (
-                          <tr key={rowIndex}>
-                            <td className="p-1 h-7 border-b border-r border-border font-mono text-xs text-center select-none bg-bg-surface text-text-secondary w-12 align-middle sticky left-0 z-10">
-                              {rowLabel}
-                            </td>
-                            {hasLeftColSpacer && (
-                              <td
-                                aria-hidden="true"
-                                className="p-0 h-7 border-b border-r border-border bg-transparent"
-                              />
-                            )}
-                            {visibleColumnIndices.map((idx) => {
-                              const cell = rowCells[idx] ?? "";
-                              const raw = isRowLoaded ? String(cell) : "";
-                              const display = isRowLoaded
-                                ? formatPreviewCell(cell)
-                                : "";
-                              return (
-                                <td
-                                  key={idx}
-                                  data-row={rowIndex}
-                                  data-col={idx}
-                                  className={`
-                            px-2 py-1 h-7 border-b border-r border-border last:border-r-0 whitespace-nowrap text-xs transition-colors cursor-default overflow-hidden text-ellipsis
-                            ${selectedColumnsSet.has(idx) ? "bg-accent/5 border-accent/20 text-text-primary" : "text-text-secondary"}
-
-                          `}
-                                  onMouseDown={handleCellMouseDown}
-                                  title={raw}
-                                >
-                                  {display}
-                                </td>
-                              );
-                            })}
-                            {hasRightColSpacer && (
-                              <td
-                                aria-hidden="true"
-                                className="p-0 h-7 border-b border-border bg-transparent"
-                              />
-                            )}
-                          </tr>
-                        );
-                      })}
-                      {previewWindow.bottomSpacerHeight > 0 && (
-                        <tr aria-hidden="true">
-                          <td
-                            colSpan={previewRenderColCount}
-                            className="p-0 border-0"
-                            style={{ height: previewWindow.bottomSpacerHeight }}
-                          />
-                        </tr>
-                      )}
-                    </tbody>
+                    <PreviewTbody
+                      subscribePreviewRowsVersion={subscribePreviewRowsVersion}
+                      getPreviewRowsVersion={getPreviewRowsVersion}
+                      previewWindow={previewWindow}
+                      previewRenderColCount={previewRenderColCount}
+                      hasLeftColSpacer={hasLeftColSpacer}
+                      hasRightColSpacer={hasRightColSpacer}
+                      visibleColumnIndices={visibleColumnIndices}
+                      selectedColumnsSet={selectedColumnsSet}
+                      getPreviewRow={getPreviewRow}
+                      handleCellMouseDown={handleCellMouseDown}
+                    />
                   </table>
                 </div>
               </div>
@@ -1930,4 +2002,4 @@ const TemplateManager = ({
   );
 };
 
-export default TemplateManager;
+export default React.memo(TemplateManager);

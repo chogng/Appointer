@@ -509,6 +509,7 @@ class ApiService {
       return {
         seedUrls: [],
         seedUrlsBySourceType: { nature: [], science: [] },
+        seedUrlTitlesBySourceType: { nature: [], science: [] },
         sourceType: "nature",
         startDate: null,
         endDate: null,
@@ -570,6 +571,23 @@ class ApiService {
               science: seedSource === "science" ? seedUrls : [],
             };
 
+      const seedUrlTitles = Array.isArray(parsed?.seedUrlTitles) ? parsed.seedUrlTitles : [];
+      const seedUrlTitlesBySourceTypeRaw = parsed?.seedUrlTitlesBySourceType;
+      const seedUrlTitlesBySourceType =
+        seedUrlTitlesBySourceTypeRaw && typeof seedUrlTitlesBySourceTypeRaw === "object"
+          ? {
+              nature: Array.isArray(seedUrlTitlesBySourceTypeRaw.nature)
+                ? seedUrlTitlesBySourceTypeRaw.nature
+                : [],
+              science: Array.isArray(seedUrlTitlesBySourceTypeRaw.science)
+                ? seedUrlTitlesBySourceTypeRaw.science
+                : [],
+            }
+          : {
+              nature: seedSource === "nature" ? seedUrlTitles : [],
+              science: seedSource === "science" ? seedUrlTitles : [],
+            };
+
       const sourceType =
         parsed?.sourceType === "nature" || parsed?.sourceType === "science"
           ? parsed.sourceType
@@ -578,6 +596,7 @@ class ApiService {
       return {
         seedUrls,
         seedUrlsBySourceType,
+        seedUrlTitlesBySourceType,
         sourceType,
         startDate: typeof parsed?.startDate === "string" ? parsed.startDate : null,
         endDate: typeof parsed?.endDate === "string" ? parsed.endDate : null,

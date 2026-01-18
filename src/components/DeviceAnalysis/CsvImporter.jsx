@@ -1,5 +1,9 @@
 // ... existing imports
 import React, {
+  startTransition,
+  useCallback,
+  useMemo,
+  useOptimistic,
   useRef,
   useState,
   useImperativeHandle,
@@ -114,6 +118,39 @@ const ExpandedCard = ({
   );
 };
 
+const CsvFileItem = React.memo(
+  ({ fileEntry, isSelected, isInvisible, onSelect, onRemove }) => (
+    <div
+      aria-label="csv-file-item"
+      onClick={() => onSelect?.(fileEntry?.fileId ?? null)}
+      className={cx(
+        styles.fileItem,
+        "group",
+        isSelected && styles.fileItemSelected,
+        isInvisible && "invisible",
+      )}
+    >
+      <div className={styles.fileContent}>
+        <div className={styles.fileIcon}>
+          <FileText size={16} />
+        </div>
+        <span className={styles.fileName}>{fileEntry?.file?.name}</span>
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove?.(fileEntry?.fileId ?? null);
+        }}
+        className={styles.fileRemove}
+      >
+        <X size={16} />
+      </button>
+    </div>
+  ),
+);
+
+CsvFileItem.displayName = "CsvFileItem";
+
 const CsvImporter = forwardRef(
   (
     {
@@ -125,6 +162,13 @@ const CsvImporter = forwardRef(
     },
     ref,
   ) => {
+    const VIRTUALIZE_MIN_COUNT = 200;
+    const GRID_MIN_COL_WIDTH = 280; // px
+    const GRID_GAP = 12; // gap-3 => 0.75rem
+    const GRID_ROW_HEIGHT = 56; // p-3 + 32px icon => stable row height
+    const GRID_PADDING_Y = 24; // py-6 => 1.5rem
+    const GRID_OVERSCAN_ROWS = 3;
+
     const fileInputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
     const isControlled = Array.isArray(externalFiles);
@@ -138,6 +182,27 @@ const CsvImporter = forwardRef(
     const [originRect, setOriginRect] = useState(null);
     const [containerBounds, setContainerBounds] = useState(null);
     const containerRef = useRef(null);
+
+    const [optimisticSelectedFileId, setOptimisticSelectedFileId] =
+      useOptimistic(selectedFileId ?? null, (_prev, next) => next);
+
+    const effectiveSelectedFileId = optimisticSelectedFileId ?? selectedFileId;
+
+    const setEffectiveSelectedFileId = useCallback(
+      (next) => {
+        setOptimisticSelectedFileId(next);
+        if (!onFileSelected) return;
+        startTransition(() => {
+          onFileSelected(next);
+        });
+      },
+      [onFileSelected, setOptimisticSelectedFileId],
+    );
+
+    const [scrollTop, setScrollTop] = useState(0);
+    const [viewportHeight, setViewportHeight] = useState(0);
+    const [contentWidth, setContentWidth] = useState(0);
+    const scrollRafRef = useRef(0);
 
     useImperativeHandle(
       ref,
@@ -161,6 +226,53 @@ const CsvImporter = forwardRef(
         });
       }
     }, [files]);
+
+    useEffect(() => {
+      return () => {
+        if (scrollRafRef.current) {
+          cancelAnimationFrame(scrollRafRef.current);
+          scrollRafRef.current = 0;
+        }
+      };
+    }, []);
+
+    useEffect(() => {
+      if (typeof window === "undefined") return;
+      const el = containerRef.current;
+      if (!el) return;
+
+      const measure = () => {
+        const target = containerRef.current;
+        if (!target) return;
+        const cs = window.getComputedStyle(target);
+        const paddingLeft = parseFloat(cs.paddingLeft) || 0;
+        const paddingRight = parseFloat(cs.paddingRight) || 0;
+        setViewportHeight(target.clientHeight);
+        setContentWidth(
+          Math.max(0, target.clientWidth - paddingLeft - paddingRight),
+        );
+      };
+
+      measure();
+
+      if (typeof ResizeObserver === "undefined") {
+        window.addEventListener("resize", measure);
+        return () => window.removeEventListener("resize", measure);
+      }
+
+      const ro = new ResizeObserver(() => measure());
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
+
+    const handleScroll = useCallback(() => {
+      if (scrollRafRef.current) return;
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = 0;
+        const el = containerRef.current;
+        setScrollTop(el ? el.scrollTop : 0);
+      });
+    }, []);
 
     const handleFileChange = (event) => {
       const selectedFiles = Array.from(event.target.files);
@@ -240,6 +352,15 @@ const CsvImporter = forwardRef(
       });
     };
 
+    const handleSelectFile = useCallback(
+      (fileId) => {
+        const next = typeof fileId === "string" ? fileId : null;
+        if (!next) return;
+        setEffectiveSelectedFileId(next);
+      },
+      [setEffectiveSelectedFileId],
+    );
+
     const handleDragOver = (e) => {
       e.preventDefault();
       setIsDragging(true);
@@ -300,7 +421,16 @@ const CsvImporter = forwardRef(
       }
     };
 
-    const removeFile = (fileId) => {
+    const handleCloseExpanded = useCallback(() => {
+      setActiveFile(null);
+      setOriginRect(null);
+    }, []);
+
+    const removeFile = useCallback((fileId) => {
+      if (typeof fileId !== "string") return;
+      if (optimisticSelectedFileId === fileId) {
+        setEffectiveSelectedFileId(null);
+      }
       if (setFiles) {
         setFiles((prev) => prev.filter((entry) => entry.fileId !== fileId));
       }
@@ -311,11 +441,14 @@ const CsvImporter = forwardRef(
       if (onDataRemoved) {
         onDataRemoved(fileId);
       }
-    };
-
-    const handleSelectFile = (fileEntry) => {
-      onFileSelected?.(fileEntry?.fileId ?? null);
-    };
+    }, [
+      activeFile?.fileId,
+      handleCloseExpanded,
+      onDataRemoved,
+      optimisticSelectedFileId,
+      setEffectiveSelectedFileId,
+      setFiles,
+    ]);
 
     const _handleShowFullName = (fileEntry, e) => {
       e.stopPropagation();
@@ -327,10 +460,58 @@ const CsvImporter = forwardRef(
       }
     };
 
-    const handleCloseExpanded = () => {
-      setActiveFile(null);
-      setOriginRect(null);
-    };
+    const virtual = useMemo(() => {
+      const shouldVirtualize = files.length >= VIRTUALIZE_MIN_COUNT;
+      if (!shouldVirtualize) {
+        return {
+          enabled: false,
+          gridStyle: undefined,
+          visibleFiles: files,
+        };
+      }
+
+      const cols = Math.max(
+        1,
+        Math.floor((contentWidth + GRID_GAP) / (GRID_MIN_COL_WIDTH + GRID_GAP)),
+      );
+      const rowCount = Math.max(0, Math.ceil(files.length / cols));
+      const rowStep = GRID_ROW_HEIGHT + GRID_GAP;
+
+      const scrollY = scrollTop - GRID_PADDING_Y;
+      const startRow = Math.max(
+        0,
+        Math.floor(scrollY / rowStep) - GRID_OVERSCAN_ROWS,
+      );
+      const endRow = Math.min(
+        rowCount,
+        Math.ceil((scrollY + viewportHeight) / rowStep) + GRID_OVERSCAN_ROWS,
+      );
+
+      const startIndex = Math.max(0, startRow * cols);
+      const endIndex = Math.min(files.length, endRow * cols);
+
+      return {
+        enabled: true,
+        gridStyle: {
+          paddingTop: `${startRow * rowStep}px`,
+          paddingBottom: `${Math.max(0, (rowCount - endRow) * rowStep)}px`,
+          gridTemplateColumns: `repeat(${cols}, minmax(${GRID_MIN_COL_WIDTH}px, 1fr))`,
+          gridAutoRows: `${GRID_ROW_HEIGHT}px`,
+        },
+        visibleFiles: files.slice(startIndex, endIndex),
+      };
+    }, [
+      VIRTUALIZE_MIN_COUNT,
+      GRID_GAP,
+      GRID_MIN_COL_WIDTH,
+      GRID_ROW_HEIGHT,
+      GRID_PADDING_Y,
+      GRID_OVERSCAN_ROWS,
+      contentWidth,
+      files,
+      scrollTop,
+      viewportHeight,
+    ]);
 
     return (
       <div className="mb-6">
@@ -345,6 +526,7 @@ const CsvImporter = forwardRef(
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onScroll={handleScroll}
           onClick={
             files.length === 0 ? () => fileInputRef.current.click() : undefined
           }
@@ -374,39 +556,17 @@ const CsvImporter = forwardRef(
             </div>
           ) : (
             <div className="w-full min-h-full flex flex-col py-6">
-              <div className={styles.fileGrid}>
+              <div className={styles.fileGrid} style={virtual.gridStyle}>
                 {/* Reverse to show newest first? Or just append. Currently appending. */}
-                {files.map((fileEntry) => (
-                  <div
+                {virtual.visibleFiles.map((fileEntry) => (
+                  <CsvFileItem
                     key={fileEntry.fileId}
-                    aria-label="csv-file-item"
-                    onClick={() => handleSelectFile(fileEntry)}
-                    className={cx(
-                      styles.fileItem,
-                      "group",
-                      selectedFileId === fileEntry.fileId &&
-                        styles.fileItemSelected,
-                      activeFile?.fileId === fileEntry.fileId && "invisible",
-                    )}
-                  >
-                    <div className={styles.fileContent}>
-                      <div className={styles.fileIcon}>
-                        <FileText size={16} />
-                      </div>
-                      <span className={styles.fileName}>
-                        {fileEntry.file.name}
-                      </span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(fileEntry.fileId);
-                      }}
-                      className={styles.fileRemove}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
+                    fileEntry={fileEntry}
+                    isSelected={effectiveSelectedFileId === fileEntry.fileId}
+                    isInvisible={activeFile?.fileId === fileEntry.fileId}
+                    onSelect={handleSelectFile}
+                    onRemove={removeFile}
+                  />
                 ))}
               </div>
             </div>

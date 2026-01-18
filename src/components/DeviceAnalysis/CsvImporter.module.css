@@ -33,11 +33,11 @@
 }
 
 .fileItem {
-  @apply flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer relative;
+  @apply flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg transition-colors cursor-pointer relative;
 }
 
 .fileItemSelected {
-  @apply border-black bg-black/5;
+  @apply border-black;
 }
 
 .fileContent {

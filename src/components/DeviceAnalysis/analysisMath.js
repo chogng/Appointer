@@ -1,7 +1,16 @@
 const isFiniteNumber = (value) =>
   typeof value === "number" && Number.isFinite(value);
 
-const toPoint = (x, y) => ({ x, y: isFiniteNumber(y) ? y : null });
+const toPoint = (x, y) => {
+  const yVal = isFiniteNumber(y) ? y : null;
+  const yAbs = yVal === null ? null : Math.abs(yVal);
+  return {
+    x,
+    y: yVal,
+    yPositive: yVal !== null && yVal > 0 ? yVal : null,
+    yAbsPositive: yAbs !== null && yAbs > 0 ? yAbs : null,
+  };
+};
 
 export const SS_CONF = {
   auto: {

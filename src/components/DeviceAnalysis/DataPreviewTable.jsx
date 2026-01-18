@@ -1,22 +1,43 @@
-import React, { useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+const PREVIEW_ROW_OVERSCAN = 12;
+const DEFAULT_PREVIEW_ROW_HEIGHT_PX = 44;
 
 const DataPreviewTable = ({ processedData }) => {
   const [activeFileId, setActiveFileId] = useState(
     processedData?.[0]?.fileId ?? null,
   );
+  const previewScrollRef = useRef(null);
+  const previewScrollTopRef = useRef(0);
+  const previewScrollRafRef = useRef(0);
+  const contentPaddingRef = useRef({ top: 0, bottom: 0 });
+  const measureRowRef = useRef(null);
+  const measuredRowHeightKeyRef = useRef(null);
+
+  const fileById = useMemo(() => {
+    const map = new Map();
+    for (const file of processedData ?? []) {
+      if (file?.fileId) map.set(file.fileId, file);
+    }
+    return map;
+  }, [processedData]);
 
   const effectiveActiveFileId = useMemo(() => {
     if (!processedData?.length) return null;
-    if (activeFileId && processedData.some((f) => f.fileId === activeFileId)) {
-      return activeFileId;
-    }
-    return processedData[0].fileId;
-  }, [activeFileId, processedData]);
+    if (activeFileId && fileById.has(activeFileId)) return activeFileId;
+    return processedData[0]?.fileId ?? null;
+  }, [activeFileId, fileById, processedData]);
 
   const activeFile = useMemo(
-    () =>
-      processedData?.find((f) => f.fileId === effectiveActiveFileId) ?? null,
-    [effectiveActiveFileId, processedData],
+    () => (effectiveActiveFileId ? fileById.get(effectiveActiveFileId) : null),
+    [effectiveActiveFileId, fileById],
   );
 
   const xRangeLabel = useMemo(() => {
@@ -44,6 +65,107 @@ const DataPreviewTable = ({ processedData }) => {
       activeFile?.series?.find((s) => s.id === effectiveActiveSeriesId) ?? null,
     [activeFile, effectiveActiveSeriesId],
   );
+
+  const [previewRowHeightPx, setPreviewRowHeightPx] = useState(
+    DEFAULT_PREVIEW_ROW_HEIGHT_PX,
+  );
+  const [previewViewportHeight, setPreviewViewportHeight] = useState(0);
+  const [previewStartRow, setPreviewStartRow] = useState(0);
+
+  const updatePreviewViewport = useCallback(() => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+
+    const computed = window.getComputedStyle(el);
+    const paddingTop = Number.parseFloat(computed.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(computed.paddingBottom) || 0;
+    contentPaddingRef.current = { top: paddingTop, bottom: paddingBottom };
+
+    const innerHeight = (el.clientHeight || 0) - paddingTop - paddingBottom;
+    setPreviewViewportHeight((prev) =>
+      prev === innerHeight ? prev : Math.max(0, innerHeight),
+    );
+  }, []);
+
+  const handlePreviewScroll = useCallback(() => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+
+    previewScrollTopRef.current = el.scrollTop || 0;
+    if (previewScrollRafRef.current) return;
+
+    previewScrollRafRef.current = requestAnimationFrame(() => {
+      previewScrollRafRef.current = 0;
+      const paddingTop = contentPaddingRef.current.top || 0;
+      const effectiveScrollTop = Math.max(0, previewScrollTopRef.current - paddingTop);
+      const rowIndex = Math.floor(effectiveScrollTop / previewRowHeightPx);
+      const nextStart = Math.max(0, rowIndex - PREVIEW_ROW_OVERSCAN);
+      setPreviewStartRow((prev) => (prev === nextStart ? prev : nextStart));
+    });
+  }, [previewRowHeightPx]);
+
+  useEffect(() => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+
+    const onScroll = () => handlePreviewScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [handlePreviewScroll]);
+
+  useEffect(() => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+
+    if (typeof ResizeObserver === "undefined") {
+      const rafId = requestAnimationFrame(() => updatePreviewViewport());
+      window.addEventListener("resize", updatePreviewViewport);
+      return () => {
+        cancelAnimationFrame(rafId);
+        window.removeEventListener("resize", updatePreviewViewport);
+      };
+    }
+
+    const ro = new ResizeObserver(() => updatePreviewViewport());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updatePreviewViewport]);
+
+  useEffect(() => {
+    return () => {
+      if (previewScrollRafRef.current) {
+        cancelAnimationFrame(previewScrollRafRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+
+    previewScrollTopRef.current = 0;
+    el.scrollTop = 0;
+
+    const rafId = requestAnimationFrame(() => setPreviewStartRow(0));
+    return () => cancelAnimationFrame(rafId);
+  }, [effectiveActiveFileId, effectiveActiveSeriesId]);
+
+  const rowHeightMeasureKey = `${effectiveActiveFileId ?? ""}::${effectiveActiveSeriesId ?? ""}`;
+  const canMeasureRowHeight = Boolean(activeSeries?.data?.length);
+
+  useLayoutEffect(() => {
+    if (!canMeasureRowHeight) return;
+    if (measuredRowHeightKeyRef.current === rowHeightMeasureKey) return;
+    const el = measureRowRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const next = Math.round(rect.height);
+    if (!Number.isFinite(next) || next <= 0) return;
+
+    measuredRowHeightKeyRef.current = rowHeightMeasureKey;
+    setPreviewRowHeightPx((prev) => (prev === next ? prev : next));
+  }, [canMeasureRowHeight, rowHeightMeasureKey]);
 
   if (!processedData || processedData.length === 0) {
     return (
@@ -103,7 +225,10 @@ const DataPreviewTable = ({ processedData }) => {
         </select>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+      <div
+        ref={previewScrollRef}
+        className="flex-1 overflow-auto p-4 custom-scrollbar"
+      >
         {activeSeries ? (
           <table className="w-full text-sm text-left border-collapse">
             <thead className="sticky top-0 bg-bg-surface box-shadow-sm z-10 transition-shadow duration-300">
@@ -120,19 +245,81 @@ const DataPreviewTable = ({ processedData }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {activeSeries.data.map((point, idx) => (
-                <tr key={idx} className="hover:bg-bg-page/50 transition-colors">
-                  <td className="p-3 text-text-secondary font-mono text-xs border-r border-border/50">
-                    {idx + 1}
-                  </td>
-                  <td className="p-3 text-text-primary font-mono whitespace-nowrap">
-                    {point.x}
-                  </td>
-                  <td className="p-3 text-text-primary font-mono whitespace-nowrap">
-                    {point.y}
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                const data = Array.isArray(activeSeries?.data)
+                  ? activeSeries.data
+                  : [];
+                const totalRows = data.length;
+                if (!totalRows) return null;
+
+                const visibleCount = Math.max(
+                  1,
+                  Math.ceil(
+                    (previewViewportHeight || 300) /
+                      (previewRowHeightPx || DEFAULT_PREVIEW_ROW_HEIGHT_PX),
+                  ),
+                );
+                const startRow = Math.max(
+                  0,
+                  Math.min(totalRows - 1, previewStartRow),
+                );
+                const endRow = Math.max(
+                  startRow + 1,
+                  Math.min(totalRows, startRow + visibleCount + PREVIEW_ROW_OVERSCAN * 2),
+                );
+
+                const topSpacerHeight =
+                  startRow * (previewRowHeightPx || DEFAULT_PREVIEW_ROW_HEIGHT_PX);
+                const bottomSpacerHeight =
+                  (totalRows - endRow) *
+                  (previewRowHeightPx || DEFAULT_PREVIEW_ROW_HEIGHT_PX);
+
+                const rows = [];
+                for (let rowIndex = startRow; rowIndex < endRow; rowIndex++) {
+                  const point = data[rowIndex] ?? { x: "", y: "" };
+                  rows.push(
+                    <tr
+                      key={rowIndex}
+                      ref={rowIndex === startRow ? measureRowRef : undefined}
+                      className="hover:bg-bg-page/50 transition-colors"
+                    >
+                      <td className="p-3 text-text-secondary font-mono text-xs border-r border-border/50">
+                        {rowIndex + 1}
+                      </td>
+                      <td className="p-3 text-text-primary font-mono whitespace-nowrap">
+                        {point.x}
+                      </td>
+                      <td className="p-3 text-text-primary font-mono whitespace-nowrap">
+                        {point.y}
+                      </td>
+                    </tr>,
+                  );
+                }
+
+                return (
+                  <>
+                    {topSpacerHeight > 0 && (
+                      <tr aria-hidden="true">
+                        <td
+                          colSpan={3}
+                          className="p-0 border-0"
+                          style={{ height: topSpacerHeight }}
+                        />
+                      </tr>
+                    )}
+                    {rows}
+                    {bottomSpacerHeight > 0 && (
+                      <tr aria-hidden="true">
+                        <td
+                          colSpan={3}
+                          className="p-0 border-0"
+                          style={{ height: bottomSpacerHeight }}
+                        />
+                      </tr>
+                    )}
+                  </>
+                );
+              })()}
             </tbody>
           </table>
         ) : (
@@ -150,4 +337,4 @@ const DataPreviewTable = ({ processedData }) => {
   );
 };
 
-export default DataPreviewTable;
+export default React.memo(DataPreviewTable);

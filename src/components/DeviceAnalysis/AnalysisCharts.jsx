@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CartesianGrid,
   Legend,
@@ -30,17 +36,7 @@ import Button from "../ui/Button";
 import ToggleButton from "../ui/ToggleButton";
 import Card from "../ui/Card";
 import Toast from "../ui/Toast";
-
-const COLORS = [
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff7300",
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-];
+import { COLORS } from "./chartColors";
 
 const useInViewOnce = (options = {}) => {
   const ref = useRef(null);
@@ -78,7 +74,17 @@ const buildPoints = (xArr, yArr) => {
   if (n <= 0) return [];
   const out = new Array(n);
   for (let i = 0; i < n; i++) {
-    out[i] = { x: xArr[i], y: yArr[i] };
+    const xRaw = xArr[i];
+    const yRaw = yArr[i];
+    const x = Number.isFinite(xRaw) ? xRaw : null;
+    const y = Number.isFinite(yRaw) ? yRaw : null;
+    const yAbs = y === null ? null : Math.abs(y);
+    out[i] = {
+      x,
+      y,
+      yPositive: y !== null && y > 0 ? y : null,
+      yAbsPositive: yAbs !== null && yAbs > 0 ? yAbs : null,
+    };
   }
   return out;
 };
@@ -343,16 +349,18 @@ const padLogDomain = (min, max) => {
   return [safeLo / 1.1, hi * 1.1];
 };
 
-const computeMinMax = (seriesList) => {
+const computeMinMax = (seriesList, { yKey = "y" } = {}) => {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
 
+  const resolvedYKey = typeof yKey === "string" && yKey ? yKey : "y";
+
   for (const series of seriesList ?? []) {
     for (const point of series?.data ?? []) {
       const x = point?.x;
-      const y = point?.y;
+      const y = point?.[resolvedYKey];
       if (typeof x === "number" && Number.isFinite(x)) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
@@ -478,7 +486,6 @@ const FileCard = React.memo(function FileCard({
                 {sampledPoints ? ` · points: ${sampledPoints}` : ""}
               </div>
               {file.curveType && <div>Type: {file.curveType}</div>}
-
             </div>
           </div>
           {isActive && (
@@ -640,6 +647,378 @@ const OverviewGrid = React.memo(function OverviewGrid({
   );
 });
 
+const CalculatedParametersRow = React.memo(function CalculatedParametersRow({
+  row,
+  buildSsTooltip,
+}) {
+  if (!row) return null;
+
+  return (
+    <tr className="hover:bg-bg-page/30">
+      <td className="p-2 text-text-primary font-medium whitespace-nowrap">
+        {row.name}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+        {formatNumber(row.ion)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+        {formatNumber(row.xAtIon)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+        {formatNumber(row.ioff)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+        {formatNumber(row.xAtIoff)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+        {formatNumber(row.ionIoff, { digits: 3 })}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+        {formatNumber(row.gmMaxAbs)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+        {formatNumber(row.xAtGmMaxAbs)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${
+            row.ssConfidence === "high"
+              ? "bg-green-500/10 text-green-500 border-green-500/20"
+              : row.ssConfidence === "low"
+                ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                : row.ssConfidence === "fail"
+                  ? "bg-red-500/10 text-red-500 border-red-500/20"
+                  : "bg-bg-page text-text-primary border-border"
+          }`}
+          title={buildSsTooltip ? buildSsTooltip(row) : ""}
+        >
+          {row.ss !== null
+            ? formatNumber(row.ss, { digits: 2 })
+            : row.ssConfidence === "fail"
+              ? "Fail"
+              : "—"}
+        </span>
+      </td>
+      <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+        {formatNumber(row.xAtSs)}
+      </td>
+      <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
+        {formatNumber(row.jon)}
+      </td>
+    </tr>
+  );
+});
+
+CalculatedParametersRow.displayName = "CalculatedParametersRow";
+
+const MainPlotChart = React.memo(function MainPlotChart({
+  plotType,
+  activeFile,
+  seriesList,
+  axis,
+  xDomain,
+  xTicks,
+  xTickDigits,
+  xLabelInterval,
+  yScaleMode,
+  yTicksMode,
+  plotYFactor,
+  plotYUnitLabel,
+  focusedSeriesId,
+  focusedFitLine,
+  focusedSeriesColor,
+  focusedSsOverlay,
+  ssOverlayStyle,
+  onMouseDown,
+  onMouseMove,
+  onMouseUp,
+}) {
+  const plotYKey = useMemo(() => {
+    if (yScaleMode === "logAbs") return "yAbsPositive";
+    if (yScaleMode === "log") return "yPositive";
+    return "y";
+  }, [yScaleMode]);
+
+  const autoMinMax = useMemo(
+    () => computeMinMax(seriesList, { yKey: plotYKey }),
+    [plotYKey, seriesList],
+  );
+
+  const autoMinY = autoMinMax?.minY ?? null;
+  const autoMaxY = autoMinMax?.maxY ?? null;
+
+  const effectiveYScale = useMemo(() => {
+    if (yScaleMode === "linear") return "linear";
+    if (autoMinY === null || autoMaxY === null) return "linear";
+    if (autoMaxY <= 0) return "linear";
+    return yScaleMode; // 'log' | 'logAbs'
+  }, [autoMaxY, autoMinY, yScaleMode]);
+
+  const yDomain = useMemo(() => {
+    const auto =
+      autoMinMax.minY === null || autoMinMax.maxY === null
+        ? effectiveYScale === "linear"
+          ? [0, 1]
+          : [1e-3, 1]
+        : effectiveYScale === "linear"
+          ? padLinearDomain(autoMinMax.minY, autoMinMax.maxY)
+          : padLogDomain(autoMinMax.minY, autoMinMax.maxY);
+
+    const minUserRaw = parseOptionalNumber(axis?.yMin);
+    const maxUserRaw = parseOptionalNumber(axis?.yMax);
+    const minUser = minUserRaw !== null ? minUserRaw / plotYFactor : null;
+    const maxUser = maxUserRaw !== null ? maxUserRaw / plotYFactor : null;
+
+    let min = minUser ?? auto[0];
+    let max = maxUser ?? auto[1];
+
+    if (effectiveYScale !== "linear") {
+      if (min <= 0) min = auto[0];
+      if (max <= 0) max = auto[1];
+      if (min <= 0 || max <= 0) return auto;
+      return padLogDomain(min, max);
+    }
+
+    return padLinearDomain(min, max);
+  }, [
+    autoMinMax.maxY,
+    autoMinMax.minY,
+    axis?.yMax,
+    axis?.yMin,
+    effectiveYScale,
+    plotYFactor,
+  ]);
+
+  const yTicks = useMemo(() => {
+    const mode = String(yTicksMode ?? "nice");
+    if (mode === "auto") {
+      if (effectiveYScale !== "linear") {
+        const min = Number(yDomain?.[0]);
+        const max = Number(yDomain?.[1]);
+        if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+        const lo = Math.min(min, max);
+        const hi = Math.max(min, max);
+        if (!(hi > 0)) return null;
+        const safeLo = lo > 0 ? lo : hi / 1000;
+        const expMin = Math.floor(Math.log10(safeLo));
+        const expMax = Math.ceil(Math.log10(hi));
+        const decades = Math.max(1, expMax - expMin);
+        const decadeStep = Math.max(1, Math.ceil(decades / 6));
+        return buildLogTicks(yDomain[0], yDomain[1], decadeStep);
+      }
+      return buildOriginAutoTicks(yDomain[0], yDomain[1], 6);
+    }
+
+    if (effectiveYScale !== "linear") {
+      if (mode !== "decades") return null;
+      return buildLogTicks(yDomain[0], yDomain[1], axis?.yDecadeStep);
+    }
+
+    if (mode === "step") {
+      const stepRaw = parseOptionalNumber(axis?.yStep);
+      const step = stepRaw !== null ? stepRaw / plotYFactor : null;
+      return step ? buildStepTicks(yDomain[0], yDomain[1], step) : null;
+    }
+    const count = Math.max(2, Math.floor(Number(axis?.yTickCount) || 6));
+    return buildNiceTicks(yDomain[0], yDomain[1], count, {
+      preferTightRange: false,
+    });
+  }, [
+    axis?.yDecadeStep,
+    axis?.yStep,
+    axis?.yTickCount,
+    effectiveYScale,
+    plotYFactor,
+    yDomain,
+    yTicksMode,
+  ]);
+
+  const yTickDigits = useMemo(() => {
+    if (effectiveYScale !== "linear") return 4;
+    const scaledTicks = Array.isArray(yTicks)
+      ? yTicks.map((v) => v * plotYFactor)
+      : null;
+    return inferTickDigitsFromTicks(scaledTicks);
+  }, [effectiveYScale, plotYFactor, yTicks]);
+
+  const yLabelInterval = useMemo(
+    () => (effectiveYScale === "linear" ? computeLabelInterval(yTicks, 7) : 0),
+    [effectiveYScale, yTicks],
+  );
+
+  const isSsPlot = plotType === "ss";
+
+  return (
+    <ResponsiveContainer width="100%" height="100%" className="!outline-none">
+      <LineChart
+        data={[]}
+        margin={{ top: 5, right: 15, left: 45, bottom: 28 }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.2} />
+        <XAxis
+          dataKey="x"
+          type="number"
+          domain={xTicks ? [xTicks[0], xTicks[xTicks.length - 1]] : xDomain}
+          ticks={xTicks ?? undefined}
+          interval={xLabelInterval}
+          label={
+            activeFile?.xLabel
+              ? {
+                  value: activeFile.xLabel,
+                  position: "insideBottom",
+                  offset: -15,
+                  fill: "currentColor",
+                  opacity: 0.9,
+                  fontSize: 16,
+                  fontWeight: 500,
+                }
+              : undefined
+          }
+          tickFormatter={(v) => formatNumber(v, { digits: xTickDigits })}
+          stroke="currentColor"
+          className="text-text-secondary text-xs"
+          tick={{ fill: "currentColor", opacity: 0.6 }}
+          allowDataOverflow
+        />
+        <YAxis
+          label={
+            activeFile?.yLabel
+              ? {
+                  value: activeFile.yLabel,
+                  angle: -90,
+                  position: "insideLeft",
+                  offset: -15,
+                  style: { textAnchor: "middle" },
+                  fill: "currentColor",
+                  opacity: 0.9,
+                  fontSize: 16,
+                  fontWeight: 500,
+                }
+              : undefined
+          }
+          type="number"
+          scale={effectiveYScale === "linear" ? "linear" : "log"}
+          domain={yTicks ? [yTicks[0], yTicks[yTicks.length - 1]] : yDomain}
+          ticks={yTicks ?? undefined}
+          interval={yLabelInterval}
+          tickFormatter={(v) => {
+            const scaled = v * plotYFactor;
+            if (effectiveYScale !== "linear") {
+              if (!Number.isFinite(scaled) || scaled === 0) return "0";
+              const exp = Math.floor(Math.log10(Math.abs(scaled)));
+              return `1e${exp}`;
+            }
+            return formatNumber(scaled, { digits: yTickDigits });
+          }}
+          stroke="currentColor"
+          className="text-text-secondary text-xs"
+          tick={{ fill: "currentColor", opacity: 0.6 }}
+          allowDataOverflow
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#1e1e1e",
+            borderColor: "#333",
+            color: "#fff",
+          }}
+          itemStyle={{ color: "#ccc" }}
+          labelFormatter={(label) =>
+            `x=${formatNumber(label, { digits: xTickDigits })}`
+          }
+          formatter={(value, name) => {
+            const num =
+              typeof value === "number"
+                ? value
+                : value === null || value === undefined
+                  ? NaN
+                  : Number(value);
+            return [
+              `${formatNumber(num * plotYFactor, { digits: yTickDigits })} ${plotYUnitLabel}`,
+              name,
+            ];
+          }}
+        />
+
+        {isSsPlot && focusedSsOverlay ? (
+          <>
+            <ReferenceArea
+              x1={Math.min(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+              x2={Math.max(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+              fill={ssOverlayStyle.fill}
+              fillOpacity={ssOverlayStyle.fillOpacity}
+              ifOverflow="hidden"
+            />
+            <ReferenceLine
+              x={Math.min(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+              stroke={ssOverlayStyle.stroke}
+              strokeOpacity={ssOverlayStyle.strokeOpacity}
+              strokeWidth={2}
+              ifOverflow="hidden"
+            />
+            <ReferenceLine
+              x={Math.max(focusedSsOverlay.x1, focusedSsOverlay.x2)}
+              stroke={ssOverlayStyle.stroke}
+              strokeOpacity={ssOverlayStyle.strokeOpacity}
+              strokeWidth={2}
+              ifOverflow="hidden"
+            />
+          </>
+        ) : null}
+
+        <Legend
+          layout="vertical"
+          verticalAlign="middle"
+          align="right"
+          width={120}
+          wrapperStyle={{ right: 0, top: 0 }}
+        />
+
+        {isSsPlot && focusedFitLine ? (
+          <Line
+            data={focusedFitLine}
+            dataKey="y"
+            name="Fit"
+            stroke={focusedSeriesColor}
+            dot={false}
+            isAnimationActive={false}
+            strokeWidth={2}
+            strokeDasharray="6 4"
+            strokeOpacity={0.7}
+          />
+        ) : null}
+
+        {seriesList.map((series, idx) => (
+          <Line
+            key={series.id}
+            data={series.data}
+            dataKey={plotYKey}
+            name={series.name}
+            stroke={COLORS[idx % COLORS.length]}
+            dot={false}
+            isAnimationActive={false}
+            strokeWidth={
+              isSsPlot && focusedSeriesId && series.id === focusedSeriesId
+                ? 2.5
+                : 2
+            }
+            strokeOpacity={
+              isSsPlot && focusedSeriesId && series.id !== focusedSeriesId
+                ? 0.35
+                : 1
+            }
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
+
+MainPlotChart.displayName = "MainPlotChart";
+
 const AnalysisCharts = ({
   processedData,
   processingStatus,
@@ -661,7 +1040,6 @@ const AnalysisCharts = ({
   const [focusedSeriesId, setFocusedSeriesId] = useState(null);
   const [yUnit, setYUnit] = useState("A"); // 'A' | 'uA' | 'nA'
   const userChangedYUnitRef = useRef(false);
-  const ssAxisRestoreRef = useRef(null);
   const [gmMode, setGmMode] = useState("x"); // 'x' | 'legend'
   const [areaInput, setAreaInput] = useState("");
   const [showAxisControls, setShowAxisControls] = useState(false);
@@ -692,6 +1070,35 @@ const AnalysisCharts = ({
     type: "success",
   });
   const toastContainerRef = useRef(null);
+
+  // Cache expensive per-file computations (points, gm, SS fits, metrics) so switching
+  // files / modes doesn't re-run heavy math on every render.
+  const fileAnalysisCacheRef = useRef(new Map());
+  const cachePrefetchJobIdRef = useRef(0);
+  const cachePrefetchHandleRef = useRef(null);
+
+  const getFileCache = React.useCallback((fileId) => {
+    if (!fileId) return null;
+    const store = fileAnalysisCacheRef.current;
+    let entry = store.get(fileId);
+    if (!entry) {
+      entry = {
+        pointsBySeriesId: new Map(),
+        gmByMode: { x: new Map(), legend: new Map() },
+        gmLegendComputed: false,
+        ssDiagnosticsBySeriesId: new Map(),
+        ssAutoBySeriesId: new Map(),
+        baseMetricsBySeriesId: new Map(),
+        gmMetricsByMode: { x: new Map(), legend: new Map() },
+        ssManualFitBySeriesId: new Map(), // seriesId -> { key, result }
+        ssIdWindowFitByKey: new Map(), // windowKey -> Map(seriesId -> result)
+        jByAreaKey: new Map(), // areaKey -> Map(seriesId -> points[])
+        minMaxByKey: new Map(), // key -> { minX, maxX, minY, maxY }
+      };
+      store.set(fileId, entry);
+    }
+    return entry;
+  }, []);
 
   const showToast = React.useCallback((message, type = "info") => {
     setToast({ isVisible: true, message, type });
@@ -815,6 +1222,24 @@ const AnalysisCharts = ({
       processedData?.find((f) => f.fileId === effectiveActiveFileId) ?? null,
     [effectiveActiveFileId, processedData],
   );
+
+  useEffect(() => {
+    const store = fileAnalysisCacheRef.current;
+    if (!processedData?.length) {
+      store.clear();
+      return;
+    }
+
+    const liveIds = new Set(
+      processedData
+        .map((f) => (typeof f?.fileId === "string" ? f.fileId : null))
+        .filter(Boolean),
+    );
+
+    for (const key of Array.from(store.keys())) {
+      if (!liveIds.has(key)) store.delete(key);
+    }
+  }, [processedData]);
 
   const focusedSeries = useMemo(() => {
     if (!activeFile?.series?.length || !focusedSeriesId) return null;
@@ -1034,32 +1459,6 @@ How to use (manual fallback):
     }
   }, [activeFile?.fileId, effectivePlotType, focusedSeriesId, ssManualDraft, ssMethod]);
 
-  useEffect(() => {
-    if (effectivePlotType === "ss") {
-      if (!ssAxisRestoreRef.current) {
-        ssAxisRestoreRef.current = {
-          yScale: axis?.yScale ?? "linear",
-          yTicks: axis?.yTicks ?? "nice",
-        };
-      }
-      setAxis((prev) => {
-        if (prev.yScale === "logAbs" && prev.yTicks === "decades") return prev;
-        return { ...prev, yScale: "logAbs", yTicks: "decades" };
-      });
-      return;
-    }
-
-    if (ssAxisRestoreRef.current) {
-      const prev = ssAxisRestoreRef.current;
-      ssAxisRestoreRef.current = null;
-      setAxis((axisPrev) => ({
-        ...axisPrev,
-        yScale: prev?.yScale ?? axisPrev.yScale,
-        yTicks: prev?.yTicks ?? axisPrev.yTicks,
-      }));
-    }
-  }, [axis?.yScale, axis?.yTicks, effectivePlotType]);
-
   const gmUi = useMemo(() => {
     const xToken = normalizeVarToken(activeFile?.curveType);
     const legendToken = normalizeVarToken(activeFile?.legend?.varToken);
@@ -1165,26 +1564,38 @@ How to use (manual fallback):
   }, [currentUnitMeta.label, effectivePlotType, gmUi.denomUnit]);
 
   const pointsBySeriesId = useMemo(() => {
-    if (!activeFile?.series?.length) return new Map();
-    const map = new Map();
+    if (!activeFile?.fileId || !activeFile?.series?.length) return new Map();
+    const cache = getFileCache(activeFile.fileId);
+    if (!cache) return new Map();
+
+    const map = cache.pointsBySeriesId;
     for (const s of activeFile.series) {
+      if (map.has(s.id)) continue;
       const xArr = activeFile?.xGroups?.[s.groupIndex];
       map.set(s.id, buildPoints(xArr, s.y));
     }
     return map;
-  }, [activeFile]);
+  }, [activeFile, getFileCache]);
 
   const gmBySeriesId = useMemo(() => {
-    const map = new Map();
-    if (!activeFile?.series?.length) return map;
+    if (!activeFile?.fileId || !activeFile?.series?.length) return new Map();
+    const cache = getFileCache(activeFile.fileId);
+    if (!cache) return new Map();
 
     if (gmMode === "x") {
+      const map = cache.gmByMode.x;
       for (const series of activeFile.series) {
+        if (map.has(series.id)) continue;
         const points = pointsBySeriesId.get(series.id) ?? [];
         map.set(series.id, computeCentralDerivative(points));
       }
       return map;
     }
+
+    // gmMode === "legend"
+    const map = cache.gmByMode.legend;
+    if (cache.gmLegendComputed) return map;
+    cache.gmLegendComputed = true;
 
     const legendMode = activeFile?.legend?.mode ?? null;
     if (legendMode !== "yCol" && legendMode !== "group") return map;
@@ -1213,7 +1624,7 @@ How to use (manual fallback):
     }
 
     return map;
-  }, [activeFile, gmMode, pointsBySeriesId]);
+  }, [activeFile, getFileCache, gmMode, pointsBySeriesId]);
 
   const gmLegendStatus = useMemo(() => {
     if (gmMode !== "legend") return { ok: true, message: "" };
@@ -1248,9 +1659,16 @@ How to use (manual fallback):
   }, [activeFile, gmMode]);
 
   const analysisBySeriesId = useMemo(() => {
-    if (!activeFile?.series?.length) return new Map();
+    if (!activeFile?.fileId || !activeFile?.series?.length) return new Map();
 
     const map = new Map();
+    const cache = getFileCache(activeFile.fileId);
+    const ssDiagnosticsCache = cache?.ssDiagnosticsBySeriesId ?? new Map();
+    const ssAutoCache = cache?.ssAutoBySeriesId ?? new Map();
+    const baseMetricsCache = cache?.baseMetricsBySeriesId ?? new Map();
+    const gmModeKey = gmMode === "legend" ? "legend" : "x";
+    const gmMetricsCache = cache?.gmMetricsByMode?.[gmModeKey] ?? new Map();
+    const manualFitCache = cache?.ssManualFitBySeriesId ?? new Map();
     const manualBySeries =
       activeFile?.fileId && ssManualRanges?.[activeFile.fileId]
         ? ssManualRanges[activeFile.fileId]
@@ -1268,76 +1686,157 @@ How to use (manual fallback):
     const idWindowRatio =
       idLow && idHigh && idLow > 0 ? idHigh / idLow : null;
 
+    const idWindowKey =
+      idWindowOk && idLow !== null && idHigh !== null
+        ? `${normalizeFloat(idLow)}::${normalizeFloat(idHigh)}`
+        : "invalid";
+
+    const idWindowFitMap = (() => {
+      if (!cache) return null;
+      if (!idWindowOk) return null;
+      let m = cache.ssIdWindowFitByKey.get(idWindowKey);
+      if (!m) {
+        m = new Map();
+        cache.ssIdWindowFitByKey.set(idWindowKey, m);
+      }
+      return m;
+    })();
+
+    const areaKey =
+      area && Number.isFinite(area) && area > 0
+        ? String(normalizeFloat(area))
+        : null;
+    const jCacheBySeriesId = (() => {
+      if (!cache) return null;
+      if (!areaKey) return null;
+      let m = cache.jByAreaKey.get(areaKey);
+      if (!m) {
+        m = new Map();
+        cache.jByAreaKey.set(areaKey, m);
+      }
+      return m;
+    })();
+
     for (const series of activeFile.series) {
       const points = pointsBySeriesId.get(series.id) ?? [];
 
       const gm = gmBySeriesId.get(series.id) ?? [];
-      const ssDiagnostics = computeSubthresholdSwing(points);
-      const ssAuto = computeSubthresholdSwingFitAuto(points);
-      const j = area
-        ? points.map((p) => ({
+
+      let ssDiagnostics = ssDiagnosticsCache.get(series.id) ?? null;
+      if (!ssDiagnostics) {
+        ssDiagnostics = computeSubthresholdSwing(points);
+        if (cache) ssDiagnosticsCache.set(series.id, ssDiagnostics);
+      }
+
+      let ssAuto = ssAutoCache.get(series.id) ?? null;
+      if (!ssAuto) {
+        ssAuto = computeSubthresholdSwingFitAuto(points);
+        if (cache) ssAutoCache.set(series.id, ssAuto);
+      }
+
+      const j = (() => {
+        if (!jCacheBySeriesId) return null;
+        const existing = jCacheBySeriesId.get(series.id) ?? null;
+        if (existing) return existing;
+        const arr = points.map((p) => ({
           x: p?.x ?? null,
           y:
             typeof p?.y === "number" && Number.isFinite(p.y)
               ? Math.abs(p.y) / area
               : null,
-        }))
-        : null;
+          yPositive:
+            typeof p?.y === "number" && Number.isFinite(p.y) && p.y !== 0
+              ? Math.abs(p.y) / area
+              : null,
+          yAbsPositive:
+            typeof p?.y === "number" && Number.isFinite(p.y) && p.y !== 0
+              ? Math.abs(p.y) / area
+              : null,
+        }));
+        jCacheBySeriesId.set(series.id, arr);
+        return arr;
+      })();
 
-      // Scalar metrics (computed from |I| to support p/n-type)
-      let ion = -Infinity;
-      let xAtIon = null;
-      let ioff = Infinity;
-      let xAtIoff = null;
+      let base = baseMetricsCache.get(series.id) ?? null;
+      if (!base) {
+        // Scalar metrics (computed from |I| to support p/n-type)
+        let ion = -Infinity;
+        let xAtIon = null;
+        let ioff = Infinity;
+        let xAtIoff = null;
 
-      for (const p of points) {
-        const x = p?.x;
-        const y = p?.y;
-        if (typeof x !== "number" || !Number.isFinite(x)) continue;
-        if (typeof y !== "number" || !Number.isFinite(y)) continue;
+        for (const p of points) {
+          const x = p?.x;
+          const y = p?.y;
+          if (typeof x !== "number" || !Number.isFinite(x)) continue;
+          if (typeof y !== "number" || !Number.isFinite(y)) continue;
 
-        const absI = Math.abs(y);
-        if (absI > ion) {
-          ion = absI;
-          xAtIon = x;
+          const absI = Math.abs(y);
+          if (absI > ion) {
+            ion = absI;
+            xAtIon = x;
+          }
+          if (absI > 0 && absI < ioff) {
+            ioff = absI;
+            xAtIoff = x;
+          }
         }
-        if (absI > 0 && absI < ioff) {
-          ioff = absI;
-          xAtIoff = x;
+
+        let legacySsMin = Infinity;
+        let legacyXAtSsMin = null;
+        for (const p of ssDiagnostics ?? []) {
+          const x = p?.x;
+          const y = p?.y;
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          if (y > 0 && y < legacySsMin) {
+            legacySsMin = y;
+            legacyXAtSsMin = x;
+          }
         }
+
+        base = {
+          ion: Number.isFinite(ion) ? ion : null,
+          xAtIon,
+          ioff: Number.isFinite(ioff) ? ioff : null,
+          xAtIoff,
+          legacySsMin: Number.isFinite(legacySsMin) ? legacySsMin : null,
+          legacyXAtSsMin,
+        };
+        if (cache) baseMetricsCache.set(series.id, base);
       }
 
-      const ionFinite = Number.isFinite(ion) ? ion : null;
-      const ioffFinite = Number.isFinite(ioff) ? ioff : null;
+      const ionFinite = base.ion;
+      const ioffFinite = base.ioff;
+      const xAtIon = base.xAtIon ?? null;
+      const xAtIoff = base.xAtIoff ?? null;
+      const legacySsMinFinite = base.legacySsMin;
+      const legacyXAtSsMin = base.legacyXAtSsMin ?? null;
 
-      let gmMaxAbs = -Infinity;
-      let xAtGmMaxAbs = null;
-      for (const p of gm) {
-        const x = p?.x;
-        const y = p?.y;
-        if (typeof x !== "number" || !Number.isFinite(x)) continue;
-        if (typeof y !== "number" || !Number.isFinite(y)) continue;
-        const absGm = Math.abs(y);
-        if (absGm > gmMaxAbs) {
-          gmMaxAbs = absGm;
-          xAtGmMaxAbs = x;
+      let gmMetric = gmMetricsCache.get(series.id) ?? null;
+      if (!gmMetric) {
+        let gmMaxAbs = -Infinity;
+        let xAtGmMaxAbs = null;
+        for (const p of gm) {
+          const x = p?.x;
+          const y = p?.y;
+          if (typeof x !== "number" || !Number.isFinite(x)) continue;
+          if (typeof y !== "number" || !Number.isFinite(y)) continue;
+          const absGm = Math.abs(y);
+          if (absGm > gmMaxAbs) {
+            gmMaxAbs = absGm;
+            xAtGmMaxAbs = x;
+          }
         }
+
+        gmMetric = {
+          gmMaxAbs: Number.isFinite(gmMaxAbs) ? gmMaxAbs : null,
+          xAtGmMaxAbs,
+        };
+        if (cache) gmMetricsCache.set(series.id, gmMetric);
       }
 
-      const gmMaxAbsFinite = Number.isFinite(gmMaxAbs) ? gmMaxAbs : null;
-
-      let legacySsMin = Infinity;
-      let legacyXAtSsMin = null;
-      for (const p of ssDiagnostics) {
-        const x = p?.x;
-        const y = p?.y;
-        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-        if (y > 0 && y < legacySsMin) {
-          legacySsMin = y;
-          legacyXAtSsMin = x;
-        }
-      }
-      const legacySsMinFinite = Number.isFinite(legacySsMin) ? legacySsMin : null;
+      const gmMaxAbsFinite = gmMetric.gmMaxAbs;
+      const xAtGmMaxAbs = gmMetric.xAtGmMaxAbs ?? null;
 
       const strictFit = ssAuto?.strict ?? { ok: false, reason: "common.invalid_points" };
       const suggestedFit = ssAuto?.suggested ?? {
@@ -1375,11 +1874,16 @@ How to use (manual fallback):
         }
 
         if (ssMethod === "idWindow") {
+          if (idWindowOk && idWindowFitMap) {
+            const cached = idWindowFitMap.get(series.id);
+            if (cached) return cached;
+          }
+
           const fit = idWindowOk
             ? computeSubthresholdSwingFitInIdWindow(points, idLow, idHigh)
             : { ok: false, reason: "idw.invalid_input" };
           const cls = classifySsFit("idWindow", fit, { idWindowRatio });
-          return {
+          const result = {
             method: "idWindow",
             confidence: cls.ss_confidence,
             reason: cls.ss_reason,
@@ -1387,14 +1891,32 @@ How to use (manual fallback):
             xAt:
               fit?.x1 != null && fit?.x2 != null ? (fit.x1 + fit.x2) * 0.5 : null,
           };
+          if (idWindowOk && idWindowFitMap) idWindowFitMap.set(series.id, result);
+          return result;
         }
 
         if (ssMethod === "manual") {
           const range = storedManual ?? initRange;
-          const fit = range
-            ? computeSubthresholdSwingFitInRange(points, range.x1, range.x2)
-            : { ok: false, reason: "manual.range_outside_domain" };
-          const cls = classifySsFit("manual", fit);
+          const lo = range ? Math.min(range.x1, range.x2) : null;
+          const hi = range ? Math.max(range.x1, range.x2) : null;
+          const rangeKey =
+            range && Number.isFinite(lo) && Number.isFinite(hi)
+              ? `${normalizeFloat(lo)}::${normalizeFloat(hi)}`
+              : "none";
+
+          let cached = manualFitCache.get(series.id) ?? null;
+          let fit;
+          let cls;
+          if (cached && cached.key === rangeKey) {
+            fit = cached.fit;
+            cls = cached.cls;
+          } else {
+            fit = range
+              ? computeSubthresholdSwingFitInRange(points, lo, hi)
+              : { ok: false, reason: "manual.range_outside_domain" };
+            cls = classifySsFit("manual", fit);
+            if (cache) manualFitCache.set(series.id, { key: rangeKey, fit, cls });
+          }
           return {
             method: "manual",
             confidence: cls.ss_confidence,
@@ -1471,12 +1993,170 @@ How to use (manual fallback):
     activeFile,
     area,
     gmBySeriesId,
+    gmMode,
+    getFileCache,
     pointsBySeriesId,
     ssIdWindow?.high,
     ssIdWindow?.low,
     ssManualRanges,
     ssMethod,
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    cachePrefetchJobIdRef.current += 1;
+    const jobId = cachePrefetchJobIdRef.current;
+
+    const cancelScheduled = () => {
+      const handle = cachePrefetchHandleRef.current;
+      if (!handle) return;
+      if (
+        handle.type === "idle" &&
+        typeof window.cancelIdleCallback === "function"
+      ) {
+        window.cancelIdleCallback(handle.id);
+      } else if (handle.type === "timeout") {
+        clearTimeout(handle.id);
+      }
+      cachePrefetchHandleRef.current = null;
+    };
+
+    cancelScheduled();
+
+    if (!processedData?.length) return cancelScheduled;
+
+    const candidates = processedData.filter(
+      (f) =>
+        typeof f?.fileId === "string" &&
+        Array.isArray(f?.series) &&
+        f.series.length > 0,
+    );
+    if (!candidates.length) return cancelScheduled;
+
+    const queue = candidates.slice();
+    if (effectiveActiveFileId) {
+      const idx = queue.findIndex((f) => f.fileId === effectiveActiveFileId);
+      if (idx > 0) {
+        const [active] = queue.splice(idx, 1);
+        queue.unshift(active);
+      }
+    }
+
+    const precomputeFile = (file) => {
+      const fileId = file?.fileId;
+      if (!fileId) return;
+      const cache = getFileCache(fileId);
+      if (!cache) return;
+
+      for (const s of file?.series ?? []) {
+        if (!s?.id) continue;
+        if (cache.pointsBySeriesId.has(s.id)) continue;
+        const xArr = file?.xGroups?.[s.groupIndex];
+        cache.pointsBySeriesId.set(s.id, buildPoints(xArr, s.y));
+      }
+
+      // Precompute gm(x) + SS auto + base metrics so switching plots feels instant.
+      for (const s of file?.series ?? []) {
+        if (!s?.id) continue;
+        const points = cache.pointsBySeriesId.get(s.id) ?? [];
+
+        if (!cache.gmByMode.x.has(s.id)) {
+          cache.gmByMode.x.set(s.id, computeCentralDerivative(points));
+        }
+
+        if (!cache.ssDiagnosticsBySeriesId.has(s.id)) {
+          cache.ssDiagnosticsBySeriesId.set(s.id, computeSubthresholdSwing(points));
+        }
+
+        if (!cache.ssAutoBySeriesId.has(s.id)) {
+          cache.ssAutoBySeriesId.set(s.id, computeSubthresholdSwingFitAuto(points));
+        }
+
+        if (!cache.baseMetricsBySeriesId.has(s.id)) {
+          let ion = -Infinity;
+          let xAtIon = null;
+          let ioff = Infinity;
+          let xAtIoff = null;
+
+          for (const p of points) {
+            const x = p?.x;
+            const y = p?.y;
+            if (typeof x !== "number" || !Number.isFinite(x)) continue;
+            if (typeof y !== "number" || !Number.isFinite(y)) continue;
+
+            const absI = Math.abs(y);
+            if (absI > ion) {
+              ion = absI;
+              xAtIon = x;
+            }
+            if (absI > 0 && absI < ioff) {
+              ioff = absI;
+              xAtIoff = x;
+            }
+          }
+
+          const ssDiagnostics = cache.ssDiagnosticsBySeriesId.get(s.id) ?? [];
+          let legacySsMin = Infinity;
+          let legacyXAtSsMin = null;
+          for (const p of ssDiagnostics) {
+            const x = p?.x;
+            const y = p?.y;
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            if (y > 0 && y < legacySsMin) {
+              legacySsMin = y;
+              legacyXAtSsMin = x;
+            }
+          }
+
+          cache.baseMetricsBySeriesId.set(s.id, {
+            ion: Number.isFinite(ion) ? ion : null,
+            xAtIon,
+            ioff: Number.isFinite(ioff) ? ioff : null,
+            xAtIoff,
+            legacySsMin: Number.isFinite(legacySsMin) ? legacySsMin : null,
+            legacyXAtSsMin,
+          });
+        }
+      }
+    };
+
+    const run = () => {
+      if (cachePrefetchJobIdRef.current !== jobId) return;
+
+      // One file per slice keeps interactivity smooth even with many series/files.
+      const next = queue.shift();
+      if (next) precomputeFile(next);
+
+      if (!queue.length) {
+        cachePrefetchHandleRef.current = null;
+        return;
+      }
+
+      schedule();
+    };
+
+    const schedule = () => {
+      if (cachePrefetchJobIdRef.current !== jobId) return;
+      if (!queue.length) return;
+
+      if (typeof window.requestIdleCallback === "function") {
+        const id = window.requestIdleCallback(run, { timeout: 300 });
+        cachePrefetchHandleRef.current = { type: "idle", id };
+        return;
+      }
+
+      const id = setTimeout(
+        () => run({ didTimeout: true, timeRemaining: () => 0 }),
+        0,
+      );
+      cachePrefetchHandleRef.current = { type: "timeout", id };
+    };
+
+    schedule();
+
+    return cancelScheduled;
+  }, [effectiveActiveFileId, getFileCache, processedData]);
 
   useEffect(() => {
     if (effectivePlotType !== "ss") return;
@@ -1521,47 +2201,29 @@ How to use (manual fallback):
     ssMethod,
   ]);
 
-  const plotSeries = useMemo(() => {
-    if (!activeFile?.series?.length) return [];
+  const plotSeriesByType = useMemo(() => {
+    if (!activeFile?.series?.length) {
+      return { iv: [], gm: [], ss: [], j: [] };
+    }
 
-    return activeFile.series.map((series) => {
-      const baseData = pointsBySeriesId.get(series.id) ?? [];
-      const analysis = analysisBySeriesId.get(series.id);
-      if (effectivePlotType === "gm") {
-        return { ...series, data: analysis?.gm ?? [] };
-      }
-      if (effectivePlotType === "ss") {
-        // SS tab main plot is I-V in log(|I|); SS(x) stays as diagnostics.
-        return { ...series, data: baseData };
-      }
-      if (effectivePlotType === "j") {
-        return { ...series, data: analysis?.j ?? [] };
-      }
-      return { ...series, data: baseData }; // 'iv'
-    });
-  }, [activeFile, analysisBySeriesId, effectivePlotType, pointsBySeriesId]);
-
-  const yScaleMode = String(axis?.yScale ?? "linear");
-
-  const displayPlotSeries = useMemo(() => {
-    const mode = yScaleMode;
-    if (mode === "linear") return plotSeries;
-
-    const toY = (raw) => {
-      if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
-      if (mode === "logAbs") {
-        const v = Math.abs(raw);
-        return v > 0 ? v : null;
-      }
-      // 'log' expects positive values only
-      return raw > 0 ? raw : null;
-    };
-
-    return plotSeries.map((s) => ({
-      ...s,
-      data: (s?.data ?? []).map((p) => ({ x: p?.x ?? null, y: toY(p?.y) })),
+    const base = activeFile.series.map((series) => ({
+      ...series,
+      data: pointsBySeriesId.get(series.id) ?? [],
     }));
-  }, [plotSeries, yScaleMode]);
+
+    return {
+      iv: base,
+      ss: base,
+      gm: activeFile.series.map((series) => ({
+        ...series,
+        data: analysisBySeriesId.get(series.id)?.gm ?? [],
+      })),
+      j: activeFile.series.map((series) => ({
+        ...series,
+        data: analysisBySeriesId.get(series.id)?.j ?? [],
+      })),
+    };
+  }, [activeFile, analysisBySeriesId, pointsBySeriesId]);
 
   const focusedAnalysis = useMemo(() => {
     if (!focusedSeriesId) return null;
@@ -1569,7 +2231,6 @@ How to use (manual fallback):
   }, [analysisBySeriesId, focusedSeriesId]);
 
   const focusedSsOverlay = useMemo(() => {
-    if (effectivePlotType !== "ss") return null;
     if (!focusedSeriesId) return null;
 
     const analysis = focusedAnalysis;
@@ -1622,7 +2283,6 @@ How to use (manual fallback):
     return null;
   }, [
     activeFile?.fileId,
-    effectivePlotType,
     focusedAnalysis,
     focusedSeriesId,
     ssManualDraft,
@@ -1631,7 +2291,6 @@ How to use (manual fallback):
   ]);
 
   const focusedFitLine = useMemo(() => {
-    if (effectivePlotType !== "ss") return null;
     if (!ssShowFitLine) return null;
     if (!focusedSeriesId) return null;
 
@@ -1654,7 +2313,6 @@ How to use (manual fallback):
       { x: x2, y: y2 },
     ];
   }, [
-    effectivePlotType,
     focusedAnalysis?.ssSelected,
     focusedSeriesId,
     ssShowFitLine,
@@ -1678,10 +2336,12 @@ How to use (manual fallback):
   }, [focusedSsOverlay?.kind]);
 
   const focusedSeriesColor = useMemo(() => {
-    const idx = displayPlotSeries.findIndex((s) => s?.id === focusedSeriesId);
+    const idx = (plotSeriesByType?.iv ?? []).findIndex(
+      (s) => s?.id === focusedSeriesId,
+    );
     if (idx < 0) return COLORS[0];
     return COLORS[idx % COLORS.length];
-  }, [displayPlotSeries, focusedSeriesId]);
+  }, [focusedSeriesId, plotSeriesByType?.iv]);
 
   const ssSummary = useMemo(() => {
     if (effectivePlotType !== "ss") return null;
@@ -1727,10 +2387,56 @@ How to use (manual fallback):
     };
   }, [effectivePlotType, focusedAnalysis, focusedSeriesId, ssMethod]);
 
-  const autoMinMax = useMemo(
-    () => computeMinMax(displayPlotSeries),
-    [displayPlotSeries],
+  const yScaleMode = useMemo(() => {
+    const mode = String(axis?.yScale ?? "linear");
+    if (mode === "logAbs") return "logAbs";
+    if (mode === "log") return "log";
+    return "linear";
+  }, [axis?.yScale]);
+
+  const overviewYScaleType = useMemo(
+    () => (yScaleMode === "linear" ? "linear" : "log"),
+    [yScaleMode],
   );
+
+  const plotYKey = useMemo(() => {
+    if (yScaleMode === "logAbs") return "yAbsPositive";
+    if (yScaleMode === "log") return "yPositive";
+    return "y";
+  }, [yScaleMode]);
+
+  const displayPlotSeries = useMemo(() => {
+    const byType = plotSeriesByType ?? { iv: [], gm: [], ss: [], j: [] };
+    if (effectivePlotType === "gm") return byType.gm ?? [];
+    if (effectivePlotType === "j") return byType.j ?? [];
+    if (effectivePlotType === "ss") return byType.ss ?? byType.iv ?? [];
+    return byType.iv ?? [];
+  }, [effectivePlotType, plotSeriesByType]);
+
+  const autoMinMax = useMemo(() => {
+    const fileId = activeFile?.fileId ?? null;
+    const cache = fileId ? getFileCache(fileId) : null;
+
+    const areaKeyForMinMax =
+      area && Number.isFinite(area) && area > 0 ? String(normalizeFloat(area)) : "";
+    const minMaxKey = `${effectivePlotType}::${gmMode}::${plotYKey}::${areaKeyForMinMax}`;
+
+    if (cache?.minMaxByKey?.has(minMaxKey)) {
+      return cache.minMaxByKey.get(minMaxKey);
+    }
+
+    const computed = computeMinMax(displayPlotSeries, { yKey: plotYKey });
+    if (cache?.minMaxByKey) cache.minMaxByKey.set(minMaxKey, computed);
+    return computed;
+  }, [
+    activeFile?.fileId,
+    area,
+    displayPlotSeries,
+    effectivePlotType,
+    getFileCache,
+    gmMode,
+    plotYKey,
+  ]);
 
   const autoMinY = autoMinMax?.minY ?? null;
   const autoMaxY = autoMinMax?.maxY ?? null;
@@ -1975,7 +2681,6 @@ How to use (manual fallback):
 
   const handleSsMouseDown = React.useCallback(
     (e) => {
-      if (effectivePlotType !== "ss") return;
       if (ssMethod !== "manual") return;
       const fileId = activeFile?.fileId ?? null;
       const seriesId = focusedSeriesId ?? null;
@@ -2036,7 +2741,6 @@ How to use (manual fallback):
     },
     [
       activeFile?.fileId,
-      effectivePlotType,
       focusedSeriesId,
       snapXToSeries,
       ssManualDraft,
@@ -2124,7 +2828,9 @@ How to use (manual fallback):
   const handleSelectFile = React.useCallback(
     (fileId) => {
       if (!fileId) return;
-      preserveScrollPosition(() => setActiveFileId(fileId));
+      preserveScrollPosition(() =>
+        startTransition(() => setActiveFileId(fileId)),
+      );
     },
     [setActiveFileId],
   );
@@ -2162,10 +2868,11 @@ How to use (manual fallback):
       <OverviewGrid
         processedData={processedData}
         processingStatus={processingStatus}
+        activeFileId={effectiveActiveFileId}
         onSelectFile={handleSelectFile}
         yUnitFactor={currentUnitMeta.factor}
         yUnitLabel={currentUnitMeta.label}
-        yScale={effectiveYScale}
+        yScale={overviewYScaleType}
       />
 
       <Card variant="panel">
@@ -2189,34 +2896,36 @@ How to use (manual fallback):
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="bg-bg-page border border-border rounded-lg p-1 inline-flex">
-              <button
-                type="button"
-                onClick={() => setPlotType("iv")}
-                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "iv"
-                  ? "bg-accent text-white shadow"
-                  : "text-text-secondary hover:text-text-primary"
-                  }`}
-              >
-                I-V
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlotType("gm")}
-                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "gm"
-                  ? "bg-accent text-white shadow"
-                  : "text-text-secondary hover:text-text-primary"
-                  }`}
-              >
-                gm
-              </button>
-              <button
-                type="button"
-                onClick={() => ssApplicable && setPlotType("ss")}
-                disabled={!ssApplicable}
-                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "ss"
-                  ? "bg-accent text-white shadow"
-                  : "text-text-secondary hover:text-text-primary"
-                  } ${!ssApplicable ? "opacity-50 cursor-not-allowed" : ""}`}
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => setPlotType("iv"))}
+                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "iv"
+                    ? "bg-accent text-white shadow"
+                    : "text-text-secondary hover:text-text-primary"
+                    }`}
+                >
+                  I-V
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => setPlotType("gm"))}
+                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "gm"
+                    ? "bg-accent text-white shadow"
+                    : "text-text-secondary hover:text-text-primary"
+                    }`}
+                >
+                  gm
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    ssApplicable && startTransition(() => setPlotType("ss"))
+                  }
+                  disabled={!ssApplicable}
+                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "ss"
+                    ? "bg-accent text-white shadow"
+                    : "text-text-secondary hover:text-text-primary"
+                    } ${!ssApplicable ? "opacity-50 cursor-not-allowed" : ""}`}
                 title={
                   !ssApplicable
                     ? "SS is defined for transfer (Vg) curves. This file does not look like a Vg sweep."
@@ -2225,18 +2934,18 @@ How to use (manual fallback):
               >
                 SS
               </button>
-              <button
-                type="button"
-                onClick={() => setPlotType("j")}
-                disabled={!area}
-                className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "j"
-                  ? "bg-accent text-white shadow"
-                  : "text-text-secondary hover:text-text-primary"
-                  } ${!area ? "opacity-50 cursor-not-allowed" : ""}`}
-                title={!area ? "Set a positive Area to enable J plot" : ""}
-              >
-                J
-              </button>
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => setPlotType("j"))}
+                  disabled={!area}
+                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "j"
+                    ? "bg-accent text-white shadow"
+                    : "text-text-secondary hover:text-text-primary"
+                    } ${!area ? "opacity-50 cursor-not-allowed" : ""}`}
+                  title={!area ? "Set a positive Area to enable J plot" : ""}
+                >
+                  J
+                </button>
             </div>
 
 
@@ -3028,7 +3737,7 @@ How to use (manual fallback):
                     <Line
                       key={series.id}
                       data={series.data}
-                      dataKey="y"
+                      dataKey={plotYKey}
                       name={series.name}
                       stroke={COLORS[idx % COLORS.length]}
                       dot={false}
@@ -3225,57 +3934,11 @@ How to use (manual fallback):
               </thead>
               <tbody className="divide-y divide-border">
                 {metricsRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-bg-page/30">
-                    <td className="p-2 text-text-primary font-medium whitespace-nowrap">
-                      {row.name}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                      {formatNumber(row.ion)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                      {formatNumber(row.xAtIon)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                      {formatNumber(row.ioff)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                      {formatNumber(row.xAtIoff)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                      {formatNumber(row.ionIoff, { digits: 3 })}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                      {formatNumber(row.gmMaxAbs)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                      {formatNumber(row.xAtGmMaxAbs)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${row.ssConfidence === "high"
-                          ? "bg-green-500/10 text-green-500 border-green-500/20"
-                          : row.ssConfidence === "low"
-                            ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                            : row.ssConfidence === "fail"
-                              ? "bg-red-500/10 text-red-500 border-red-500/20"
-                              : "bg-bg-page text-text-primary border-border"
-                          }`}
-                        title={buildSsTooltip(row)}
-                      >
-                        {row.ss !== null
-                          ? formatNumber(row.ss, { digits: 2 })
-                          : row.ssConfidence === "fail"
-                            ? "Fail"
-                            : "—"}
-                      </span>
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-secondary whitespace-nowrap">
-                      {formatNumber(row.xAtSs)}
-                    </td>
-                    <td className="p-2 font-mono text-xs text-text-primary whitespace-nowrap">
-                      {formatNumber(row.jon)}
-                    </td>
-                  </tr>
+                  <CalculatedParametersRow
+                    key={row.id}
+                    row={row}
+                    buildSsTooltip={buildSsTooltip}
+                  />
                 ))}
               </tbody>
             </table>
@@ -3294,4 +3957,4 @@ How to use (manual fallback):
   );
 };
 
-export default AnalysisCharts;
+export default React.memo(AnalysisCharts);
