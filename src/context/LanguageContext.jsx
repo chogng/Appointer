@@ -3,6 +3,10 @@ import { LanguageContext } from './language-context';
 
 const translations = {
   en: {
+    journal_links: 'Journal links',
+    literature_status_ready: 'Ready',
+    literature_seed_title_placeholder: 'Title (optional)',
+    literature_max_results_invalid: 'Max results must be a number.',
     settings: 'Settings',
     appearance: 'Appearance',
     language: 'Language',
@@ -414,6 +418,10 @@ const translations = {
       'Y Data Step cell {cell} must contain a positive number.',
   },
   zh: {
+    journal_links: '期刊链接',
+    literature_status_ready: '就绪',
+    literature_seed_title_placeholder: '标题（可选）',
+    literature_max_results_invalid: '最大返回条数必须是数字。',
     settings: '设置',
     appearance: '外观',
     language: '语言',

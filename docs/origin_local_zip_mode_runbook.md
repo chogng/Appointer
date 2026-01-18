@@ -148,7 +148,7 @@ OriginBridge 在执行 OGS 前会：
 ### Appointer（导出 ZIP）
 
 - `src/pages/DeviceAnalysis.jsx`: `handleExportOrigin`
-- `src/components/DeviceAnalysis/AnalysisCharts.jsx`: `buildOriginPackageForFocusedSeries` / `handleDownloadOriginPackage`
+- `src/features/device-analysis/components/AnalysisCharts.jsx`: `buildOriginPackageForFocusedSeries` / `handleDownloadOriginPackage`
 
 ### OriginBridge（本地 ZIP 模式）
 

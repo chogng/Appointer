@@ -30,12 +30,12 @@ import {
   computeLegendDerivativeSeries,
   formatNumber,
 } from "./analysisMath";
-import { apiService } from "../../services/apiService";
-import Dropdown from "../ui/Dropdown";
-import Button from "../ui/Button";
-import Tabs from "../ui/Tabs";
-import Card from "../ui/Card";
-import Toast from "../ui/Toast";
+import { apiService } from "../../../services/apiService";
+import Dropdown from "../../../components/ui/Dropdown";
+import Button from "../../../components/ui/Button";
+import Tabs from "../../../components/ui/Tabs";
+import Card from "../../../components/ui/Card";
+import Toast from "../../../components/ui/Toast";
 import { COLORS } from "./chartColors";
 
 const useInViewOnce = (options = {}) => {

@@ -18,11 +18,11 @@ import {
   Square,
   Check,
 } from "lucide-react";
-import { apiService } from "../../services/apiService";
-import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../hooks/useLanguage";
-import Toast from "../ui/Toast";
-import Tabs from "../ui/Tabs";
+import { apiService } from "../../../services/apiService";
+import { useAuth } from "../../../hooks/useAuth";
+import { useLanguage } from "../../../hooks/useLanguage";
+import Toast from "../../../components/ui/Toast";
+import Tabs from "../../../components/ui/Tabs";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,

@@ -84,10 +84,10 @@ Tie behavior:
 
 ## 6) Implementation Pointers / 代码定位
 
-- Metric computation: [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)
+- Metric computation: [`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)
   - `Ion/Ioff` scan over points (see “Scalar metrics” block)
   - `ionIoff` ratio computed in `metrics`
-- Table rendering: [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx) (Calculated Parameters table)
+- Table rendering: [`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx) (Calculated Parameters table)
 
 ---
 

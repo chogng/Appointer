@@ -49,8 +49,8 @@ npm run dev
 
 - `npm run lint`：5 个 warning
   - `server/src/db/mysql-adapter.js`：Unused eslint-disable directive（`no-constant-condition`）
-  - `src/components/DeviceAnalysis/TemplateManager.jsx`：missing dependency `handlePreviewScroll`（`react-hooks/exhaustive-deps`）
-  - `src/components/DeviceAnalysis/TemplateManager.jsx`：setState in effect（`react-hooks/set-state-in-effect`）
+  - `src/features/device-analysis/components/TemplateManager.jsx`：missing dependency `handlePreviewScroll`（`react-hooks/exhaustive-deps`）
+  - `src/features/device-analysis/components/TemplateManager.jsx`：setState in effect（`react-hooks/set-state-in-effect`）
   - `src/pages/DeviceAnalysis.jsx`：setState in effect（`react-hooks/set-state-in-effect`）
   - `src/pages/LiteratureResearch.jsx`：ref cleanup 警告（`react-hooks/exhaustive-deps`）
 - `npm run build`：成功，但提示 chunk > 500k 的优化建议（可按“第 8 节”拆包）
@@ -329,7 +329,7 @@ NODE_ENV=production JWT_SECRET="a-strong-secret" node server/server.js
 
 #### 观察
 
-例如 `src/components/DeviceAnalysis/TemplateManager.jsx`：
+例如 `src/features/device-analysis/components/TemplateManager.jsx`：
 
 - effect 中调用了 `handlePreviewScroll`，但依赖数组未包含它
 - 依赖数组包含了 effect 内未使用的函数（会引发 lint warning）

@@ -1,4 +1,4 @@
-import { validateTemplateForApply } from "../components/DeviceAnalysis/templateValidation";
+import { validateTemplateForApply } from "./components/templateValidation";
 
 const CELL_REF_RE = /^([A-Z]+)(\d+)$/;
 

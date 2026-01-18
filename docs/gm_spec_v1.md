@@ -79,7 +79,7 @@ Let the measured quantity be current `I`. Curves are organized as:
     - `legendValue: number|null` parsed from legend labels (for Mode B)
 
 **Chart layer**
-- [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx) builds point lists per series:
+- [`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx) builds point lists per series:
   - `buildPoints(xArr, yArr) -> [{x, y}]`
   - `pointsBySeriesId: Map<seriesId, points[]>`
 - gm is computed in a memoized map:
@@ -112,7 +112,7 @@ i=N-1:   (I_{N-1} - I_{N-2}) / (x_{N-1} - x_{N-2})
    - Else output `{x_i, y: dI/dX}`.
 
 **Implementation**
-- [`src/components/DeviceAnalysis/analysisMath.js`](../src/components/DeviceAnalysis/analysisMath.js): `computeCentralDerivative(points)`
+- [`src/features/device-analysis/components/analysisMath.js`](../src/features/device-analysis/components/analysisMath.js): `computeCentralDerivative(points)`
 
 ---
 
@@ -122,7 +122,7 @@ Mode B computes `∂I/∂p |X` where `p` is `legendValue`.
 
 ### 6.1 Bucketing / 分桶（确保同类曲线相互求导）
 
-[`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx) groups curves into buckets so only comparable curves are differentiated:
+[`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx) groups curves into buckets so only comparable curves are differentiated:
 - Legend mode = `yCol` → bucket by `groupIndex` (same X sweep group)
 - Legend mode = `group` → bucket by `yCol` (same Y column)
 
@@ -163,8 +163,8 @@ Neighbor curve current is evaluated at `xTarget` via monotonic linear interpolat
 - Returns `null` if `xTarget` is outside the curve’s X range or if data is invalid.
 
 Implementation:
-- [`src/components/DeviceAnalysis/analysisMath.js`](../src/components/DeviceAnalysis/analysisMath.js): `interpolateMonotonicLinear(xArr, yArr, xTarget)`
-- [`src/components/DeviceAnalysis/analysisMath.js`](../src/components/DeviceAnalysis/analysisMath.js): `computeLegendDerivativeSeries(curves)`
+- [`src/features/device-analysis/components/analysisMath.js`](../src/features/device-analysis/components/analysisMath.js): `interpolateMonotonicLinear(xArr, yArr, xTarget)`
+- [`src/features/device-analysis/components/analysisMath.js`](../src/features/device-analysis/components/analysisMath.js): `computeLegendDerivativeSeries(curves)`
 
 ---
 
@@ -210,11 +210,11 @@ Implementation:
 
 ## 9) Implementation Pointers / 代码定位
 
-- [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)
+- [`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)
   - `gmMode` selector + plot label
   - `gmBySeriesId` computation (Mode A/Mode B switch)
   - `gmLegendStatus` (precondition checks for Mode B)
-- [`src/components/DeviceAnalysis/analysisMath.js`](../src/components/DeviceAnalysis/analysisMath.js)
+- [`src/features/device-analysis/components/analysisMath.js`](../src/features/device-analysis/components/analysisMath.js)
   - `computeCentralDerivative(points)` (Mode A)
   - `computeLegendDerivativeSeries(curves)` + `interpolateMonotonicLinear(...)` (Mode B)
 - [`src/workers/deviceAnalysis.worker.js`](../src/workers/deviceAnalysis.worker.js)
