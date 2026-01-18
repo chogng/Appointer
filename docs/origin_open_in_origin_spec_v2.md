@@ -185,7 +185,7 @@ See also:
 - 上传失败 toast：提示 OB 可能超时，并提示 fallback：`Export for Origin`
 
 **代码定位（现状 v1）**
-- Web：`src/components/DeviceAnalysis/AnalysisCharts.jsx`
+- Web：`src/features/device-analysis/components/AnalysisCharts.jsx`
   - `handleOpenInOrigin`
   - `createOriginJob`
   - （v1 prefetch）选曲线时 `useEffect` 生成 `originJob`

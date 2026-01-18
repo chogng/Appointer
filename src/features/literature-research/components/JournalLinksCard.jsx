@@ -1,0 +1,353 @@
+import React from "react";
+import {
+  Check,
+  FlaskConical,
+  Leaf,
+  Link as LinkIcon,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { useLanguage } from "../../../hooks/useLanguage";
+import Tabs from "../../../components/ui/Tabs";
+import DatePicker from "../../../components/ui/DatePicker";
+import Input from "../../../components/ui/Input";
+import Card from "../../../components/ui/Card";
+
+const JournalLinksCard = ({
+  sourceType,
+  onSourceChange,
+  startDate,
+  onStartDateChange,
+  endDate,
+  onEndDateChange,
+  maxResults,
+  onMaxResultsInputChange,
+  onSettingsInputFocus,
+  onSettingsInputBlur,
+  onAddSeedUrl,
+  onSearch,
+  status,
+  fetchProgress,
+  fetchSeedUrlCounts,
+  seedUrls,
+  seedUrlTitles,
+  seedUrlSelected,
+  onToggleSeedUrlSelectedAt,
+  onSeedUrlChangeAt,
+  onSeedUrlTitleChangeAt,
+  onRemoveSeedUrlAt,
+  seedUrlTitleBySeedUrl,
+  resolveSeedUrlLabel,
+}) => {
+  const { t } = useLanguage();
+
+  return (
+    <section aria-label={t("journal_links")}>
+      <h2 className="section_title">{t("journal_links")}</h2>
+      <Card
+        as="section"
+        dta={{ page: "lr", slot: "journal-panel", comp: "card" }}
+        aria-label={t("journal_links")}
+      >
+        <div className="toolbar_group">
+          <Tabs
+            dta={{ page: "lr", slot: "journal", comp: "tabs" }}
+            value={sourceType}
+            onChange={onSourceChange}
+            groupLabel="Journal view"
+            options={[
+              { value: "nature", label: "Nature", icon: Leaf },
+              { value: "science", label: "Science", icon: FlaskConical },
+            ]}
+          />
+
+          <div className="ui-filter_warp" aria-label="date filter warp">
+            <div className="date_btn_warp flex-none" data-ui="literature-start-date">
+              <label className="date_btn_label" data-ui="literature-start-date-label">
+                {t("literature_start_date")}
+              </label>
+              <DatePicker
+                dataUi="literature-start-date"
+                value={startDate}
+                onChange={onStartDateChange}
+                placeholder={t("literature_start_date")}
+                cta="Literature research"
+                ctaPosition="date filter warp"
+                ctaCopy="start date"
+                className="min-w-0"
+                textClassName="hidden sm:block"
+                aria-label="start date"
+              />
+            </div>
+
+            <div className="date_btn_warp flex-none" data-ui="literature-end-date">
+              <label className="date_btn_label" data-ui="literature-end-date-label">
+                {t("literature_end_date")}
+              </label>
+              <DatePicker
+                dataUi="literature-end-date"
+                value={endDate}
+                onChange={onEndDateChange}
+                placeholder={t("literature_end_date")}
+                className="min-w-0"
+                textClassName="hidden sm:block"
+                aria-label="end date"
+              />
+            </div>
+
+            <Input
+              dataUi="literature-max-results"
+              label={t("literature_max_results")}
+              labelPlacement="inline"
+              className="shrink-0"
+              type="text"
+              id="literature-max-results"
+              name="maxResults"
+              value={String(maxResults ?? "")}
+              onChange={onMaxResultsInputChange}
+              onFocus={onSettingsInputFocus}
+              onBlur={onSettingsInputBlur}
+              inputClassName="w-24"
+              cta="Literature research"
+              ctaPosition="date filter warp"
+              ctaCopy="max results"
+              aria-label="max results input"
+              inputMode="numeric"
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+              autoComplete="new-password"
+              aria-autocomplete="none"
+              data-form-type="other"
+              data-lpignore="true"
+            />
+          </div>
+
+          <div className="ui-button_warp">
+            <div className="ui-button_row">
+              <button
+                data-ui="literature-add-url-btn"
+                data-style="ghost"
+                data-icon="with"
+                data-cta="Literature research"
+                data-cta-position="toolbar"
+                data-cta-copy="add url"
+                type="button"
+                onClick={onAddSeedUrl}
+                className="click_btn click_btn--md click_btn--fx click_btn--ghost"
+                aria-label="add url"
+              >
+                <span className="click_btn_content">
+                  <Plus size={16} />
+                  {t("literature_add_url")}
+                </span>
+              </button>
+
+              <button
+                data-ui="literature-fetch-btn"
+                data-style={status.state === "loading" ? "disabled" : "primary"}
+                data-icon="with"
+                data-cta="Literature research"
+                data-cta-position="toolbar"
+                data-cta-copy="fetch"
+                type="button"
+                onClick={onSearch}
+                disabled={status.state === "loading"}
+                className={`click_btn click_btn--md click_btn--fx ${
+                  status.state === "loading" ? "click_btn--disabled" : "click_btn--primary"
+                }`}
+                aria-label="fetch"
+              >
+                <span className="click_btn_content">
+                  <Search size={16} />
+                  {status.state === "loading" ? t("literature_fetching") : t("literature_fetch")}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-semibold text-text-primary">
+                {t("literature_seed_urls")}
+              </label>
+              <span
+                className="text-xs text-text-secondary whitespace-nowrap"
+                data-ui="literature-seed-url-fetch-count"
+              >
+                (Nature {fetchSeedUrlCounts.nature} / Science {fetchSeedUrlCounts.science})
+              </span>
+            </div>
+
+            <div className="mt-3 space-y-2" data-ui="literature-seed-url-list">
+              {seedUrls.map((value, index) => (
+                <div
+                  key={`${index}`}
+                  className="flex items-center gap-2 group"
+                  data-ui="literature-seed-url-row"
+                  data-seed-index={index}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onToggleSeedUrlSelectedAt(index, seedUrlSelected[index] === false)
+                    }
+                    className="click_btn click_btn--md click_btn--icon-md-tight click_btn--fx click_btn--ghost click_btn--fx-muted bg-bg-page"
+                    title={seedUrlSelected[index] !== false ? "Include (Enabled)" : "Exclude (Disabled)"}
+                    aria-label={`Include seed url ${index + 1}`}
+                    aria-pressed={seedUrlSelected[index] !== false}
+                    data-ui="literature-seed-url-select"
+                    data-seed-index={index}
+                  >
+                    <span className="click_btn_content">
+                      <Check size={16} className="ui-seed-url-check" />
+                    </span>
+                  </button>
+
+                  <Input
+                    dataUi="literature-seed-url"
+                    size="md"
+                    value={value}
+                    onChange={(nextValue) => onSeedUrlChangeAt(index, nextValue)}
+                    onFocus={onSettingsInputFocus}
+                    onBlur={onSettingsInputBlur}
+                    inputClassName="rounded-lg"
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    placeholder={
+                      sourceType === "science" ? "https://www.science.org" : "https://www.nature.com"
+                    }
+                    leftIcon={LinkIcon}
+                    className="flex-1"
+                    aria-label={`${t("literature_seed_urls")} ${index + 1}`}
+                    data-seed-index={index}
+                  />
+
+                  <Input
+                    dataUi="literature-seed-url-title"
+                    size="md"
+                    value={seedUrlTitles[index] ?? ""}
+                    onChange={(nextValue) => onSeedUrlTitleChangeAt(index, nextValue)}
+                    onFocus={onSettingsInputFocus}
+                    onBlur={onSettingsInputBlur}
+                    inputClassName="rounded-lg"
+                    placeholder={t("literature_seed_title_placeholder")}
+                    className="w-44 shrink-0"
+                    aria-label={`Seed title ${index + 1}`}
+                    data-seed-index={index}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => onRemoveSeedUrlAt(index)}
+                    title={t("literature_remove_url")}
+                    aria-label={t("literature_remove_url")}
+                    data-style="ghost"
+                    data-icon="with"
+                    data-cta="Literature research"
+                    data-cta-position="seed urls"
+                    data-cta-copy="remove url"
+                    data-ui="literature-seed-url-remove-btn"
+                    data-seed-index={index}
+                    className="click_btn click_btn--md click_btn--icon-md-tight click_btn--fx click_btn--fx-muted click_btn--danger"
+                  >
+                    <span className="click_btn_content">
+                      <Trash2 size={16} />
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3" data-ui="literature-fetch-progress-warp">
+          <div data-ui="literature-fetch-progress">
+            <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-terracotta to-orange-400 transition-[width] duration-500 ease-out shadow-[0_0_8px_rgba(217,119,87,0.4)]"
+                style={{
+                  width: `${fetchProgress.total > 0
+                    ? Math.round((fetchProgress.completed / fetchProgress.total) * 100)
+                    : 0}%`,
+                }}
+              />
+            </div>
+
+            <div className="mt-2.5 flex items-center justify-between gap-3 text-[11px] font-medium text-text-secondary select-none">
+              <span className="shrink-0 flex items-center gap-2">
+                <span className={status.state === "loading" ? "text-terracotta" : "opacity-80"}>
+                  {status.state === "loading"
+                    ? t("literature_fetching")
+                    : t("literature_status_ready")}
+                </span>
+                {status.state === "loading" && (
+                  <span className="bg-terracotta/10 text-terracotta px-1.5 py-0.5 rounded text-[10px] font-mono">
+                    {Math.min(fetchProgress.completed + 1, fetchProgress.total)}/{fetchProgress.total}
+                  </span>
+                )}
+              </span>
+
+              <span
+                className="truncate opacity-60 font-mono text-[10px]"
+                title={fetchProgress.activeSeedUrl}
+                data-ui="literature-fetch-progress-active-url"
+              >
+                {(() => {
+                  const url = fetchProgress.activeSeedUrl;
+                  if (!url) return "";
+                  const custom = seedUrlTitleBySeedUrl.get(url);
+                  return custom || resolveSeedUrlLabel(url);
+                })()}
+              </span>
+            </div>
+          </div>
+
+          {fetchProgress.errors.length > 0 && (
+            <div
+              className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500"
+              data-ui="literature-fetch-progress-errors"
+            >
+              <div className="font-semibold">{"部分入口抓取失败："}</div>
+              <div className="mt-2 space-y-2">
+                {fetchProgress.errors.slice(0, 3).map((err) => (
+                  <div
+                    key={err.seedUrl}
+                    className="flex flex-col gap-0.5"
+                    data-ui="literature-fetch-progress-error-row"
+                  >
+                    <span className="block truncate" title={err.seedUrl}>
+                      {seedUrlTitleBySeedUrl.get(err.seedUrl) ||
+                        resolveSeedUrlLabel(err.seedUrl) ||
+                        err.seedUrl}
+                    </span>
+                    <span className="block text-red-500/80 truncate" title={err.message}>
+                      {err.message}
+                    </span>
+                  </div>
+                ))}
+                {fetchProgress.errors.length > 3 && (
+                  <div className="text-red-500/80">
+                    还有 {fetchProgress.errors.length - 3} 个入口失败
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {status.state === "error" && (
+          <div className="mt-5 bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-500">
+            {status.message}
+          </div>
+        )}
+      </Card>
+    </section>
+  );
+};
+
+export default JournalLinksCard;

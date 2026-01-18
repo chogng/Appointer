@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { createPortal } from "react-dom";
-import { cx } from "../../utils/cx";
+import { cx } from "../../../utils/cx";
 import styles from "./CsvImporter.module.css";
 
 /*

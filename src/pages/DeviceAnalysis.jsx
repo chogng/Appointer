@@ -18,18 +18,18 @@ import {
 } from "lucide-react";
 import Papa from "papaparse";
 import JSZip from "jszip";
-import CsvImporter from "../components/DeviceAnalysis/CsvImporter";
-import TemplateManager from "../components/DeviceAnalysis/TemplateManager";
-import DataPreviewTable from "../components/DeviceAnalysis/DataPreviewTable";
-import AnalysisCharts from "../components/DeviceAnalysis/AnalysisCharts";
+import CsvImporter from "../features/device-analysis/components/CsvImporter";
+import TemplateManager from "../features/device-analysis/components/TemplateManager";
+import DataPreviewTable from "../features/device-analysis/components/DataPreviewTable";
+import AnalysisCharts from "../features/device-analysis/components/AnalysisCharts";
 import {
   classifySsFit,
   computeSubthresholdSwing,
   computeSubthresholdSwingFitAuto,
   computeSubthresholdSwingFitInIdWindow,
   computeSubthresholdSwingFitInRange,
-} from "../components/DeviceAnalysis/analysisMath";
-import { prepareDeviceAnalysisExtraction } from "./deviceAnalysisExtractionValidation";
+} from "../features/device-analysis/components/analysisMath";
+import { prepareDeviceAnalysisExtraction } from "../features/device-analysis/deviceAnalysisExtractionValidation";
 import { useLanguage } from "../hooks/useLanguage";
 import { useDeviceAnalysisSession } from "../hooks/useDeviceAnalysisSession";
 import { apiService } from "../services/apiService";

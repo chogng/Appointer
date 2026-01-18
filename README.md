@@ -116,7 +116,7 @@ Device Analysis 的核心是：把「CSV 解析/采样/分组/图例生成」这
 - Worker 实现：`src/workers/deviceAnalysis.worker.js`
   - 解析 CSV，生成 X/Y 数据、分组（points/group）、legend labels
   - 输出 `xLabel`（来自 Var1）、series `name`（可拼接 Var2 前缀）
-- 展示组件：`src/components/DeviceAnalysis/AnalysisCharts.jsx`、`src/components/DeviceAnalysis/DataPreviewTable.jsx` 等
+- 展示组件：`src/features/device-analysis/components/AnalysisCharts.jsx`、`src/features/device-analysis/components/DataPreviewTable.jsx` 等
 
 ### 5）后端模块关系（Express）
 
@@ -355,7 +355,7 @@ erDiagram
 - 权限/用户管理：`src/pages/Users.jsx`；后端 `/api/users*`
 - 库存与申请审批：`src/pages/Inventory.jsx`、`src/pages/Messages.jsx`；后端 `/api/inventory*`、`/api/requests*`
 - 实时同步：`src/services/socketService.js`、`src/hooks/useRealtimeSync.js`、`server/server.js` 的 `broadcast()`
-- Device Analysis：`src/pages/DeviceAnalysis.jsx`、`src/workers/deviceAnalysis.worker.js`、`src/components/DeviceAnalysis/*`
+- Device Analysis：`src/pages/DeviceAnalysis.jsx`、`src/workers/deviceAnalysis.worker.js`、`src/features/device-analysis/components/*`
   - Var1 → `xLabel`（横坐标标题），Var2 → series legend 前缀（如 `Vg=0.5`）
 - Literature Research：`src/pages/LiteratureResearch.jsx`；后端 `server/src/literatureService.js` + `/api/literature/*`
 

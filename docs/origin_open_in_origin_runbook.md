@@ -35,14 +35,14 @@
      - `*.csv`：当前曲线的 `x1,y1` 两列数据（单曲线）
      - `*.ogs`：LabTalk 脚本（用于手动 fallback）
      - `README_ORIGIN.txt`
-   - 代码位置：[`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)（`buildOriginPackageForFocusedSeries`）
+   - 代码位置：[`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)（`buildOriginPackageForFocusedSeries`）
 
 2) **向后端创建 job**
    - `POST /api/device-analysis/origin/jobs`
    - 请求体：zip 二进制（`Content-Type: application/zip`）
    - 认证：走登录态 cookie（`credentials: "include"`）
    - 返回：`{ jobId, token, expiresAt }`
-   - 代码位置：[`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)（`createOriginJob`）
+   - 代码位置：[`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)（`createOriginJob`）
 
 3) **拼接 deeplink（缓存到前端状态）**
    - 格式：
@@ -50,7 +50,7 @@
    - 其中：
      - `apiBase`：OriginBridge 需要访问的后端 API Base（必须是可被本机直接访问的真实地址）
      - `jobId/token`：短期一次性凭证
-   - 代码位置：[`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)（`originBridgeScheme` / `originJob`）
+   - 代码位置：[`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)（`originBridgeScheme` / `originJob`）
 
 > 设计原因：浏览器对 “外部协议唤起” 有用户手势限制，因此 **deeplink 的跳转必须在点击事件里同步发生**；job 预先生成是为了保证点击时不需要 `await`。
 
@@ -59,7 +59,7 @@
 4) **用户点击 “Open in Origin”**
    - 前端直接同步执行：`window.location.href = originJob.url`
    - 同时用 toast 提示：`Requested OriginBridge to open Origin...`
-   - 代码位置：[`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)（`handleOpenInOrigin`）
+   - 代码位置：[`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)（`handleOpenInOrigin`）
 
 ### 2.3 Windows：协议分发（从浏览器 -> OriginBridge）
 
@@ -194,7 +194,7 @@
 
 ### Appointer（Web）
 
-- [`src/components/DeviceAnalysis/AnalysisCharts.jsx`](../src/components/DeviceAnalysis/AnalysisCharts.jsx)
+- [`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)
   - `buildOriginPackageForFocusedSeries`
   - `createOriginJob`
   - `handleOpenInOrigin`
