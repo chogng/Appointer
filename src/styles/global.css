@@ -34,20 +34,20 @@ body {
 @layer components {
 
   /* Card */
-  .ui-card {
-    @apply bg-bg-surface border border-border rounded-2xl;
+  .card {
+    @apply bg-bg-surface border border-border rounded-2xl p-6 shadow-sm;
   }
 
-  .ui-card--default {
-    @apply p-6 shadow-sm;
+  .card--panel {
+    @apply p-4 shadow-none;
   }
 
-  .ui-card--panel {
-    @apply p-4;
-  }
-
-  .ui-card--flat {
+  .card--flat {
     @apply border-transparent;
+  }
+
+  .card--glass {
+    @apply glass;
   }
 
   /* Section */
@@ -59,12 +59,24 @@ body {
     @apply gap-3;
   }
 
-  .ui-section_title {
-    @apply text-lg font-semibold text-text-primary;
+  .section_title {
+    @apply text-lg font-semibold text-text-primary mb-2 pl-2;
   }
 
-  .ui-section_title--spaced {
-    @apply mb-4;
+  .page_title {
+    @apply text-3xl font-serif font-medium text-text-primary mb-2;
+  }
+
+  .page_subtitle {
+    @apply text-text-secondary;
+  }
+
+  .page_head {
+    @apply mb-6;
+  }
+
+  .page_content {
+    @apply flex flex-col gap-6;
   }
 
   .ui-tabs__menu {
@@ -99,34 +111,22 @@ body {
     @apply inline-flex;
   }
 
-  .ui-toggle__menu {
+  /* Preferred (no ui- prefix, underscore style) */
+  .tab_menu {
     @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
   }
 
-  /* Preferred (simpler) alias */
-  .toggle_menu {
-    @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
-  }
-
-  .ui-toolbar_wrap {
+  .toolbar_group {
     @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
   }
 
-  /* Backward/forward compatible alias:
-     - `wrap` was used historically
-     - `warp` appears in some pages
-     Keep them visually consistent to avoid layout regressions. */
-  .ui-toolbar_warp {
-    @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
-  }
-
-  .ui-toolbar_warp--scroll {
+  .toolbar_group--scroll {
     @apply w-full flex items-center gap-4 flex-wrap overflow-visible;
     scrollbar-width: none;
     /* Firefox */
   }
 
-  .ui-toolbar_warp--scroll::-webkit-scrollbar {
+  .toolbar_group--scroll::-webkit-scrollbar {
     display: none;
     /* Chrome/Safari */
   }
@@ -284,14 +284,14 @@ body {
   /* Align toolbar buttons with the demo rings.
      - Primary + FX: fixed dark ring (Claude-like)
      - Ghost + FX: keep default ghost ring color, but still shadow-only (no real border)
-     Scoped to `.ui-toolbar_warp` to avoid global surprises. */
-  .ui-toolbar_warp .click_btn--primary.click_btn--fx {
+     Scoped to `.toolbar_group` to avoid global surprises. */
+  .toolbar_group .click_btn--primary.click_btn--fx {
     --click-fx-bg: rgb(20, 20, 19);
     --click-fx-border: rgb(48, 48, 46);
     --click-fx-border-hover: rgb(48, 48, 46);
   }
 
-  .ui-toolbar_warp .click_btn--ghost.click_btn--fx {
+  .toolbar_group .click_btn--ghost.click_btn--fx {
     --click-fx-bg: rgb(250, 249, 245);
     --click-fx-border: #d1d1d1;
     --click-fx-border-hover: #d1d1d1;
@@ -343,31 +343,31 @@ body {
   }
 
   /* Preferred (no ui- prefix, underscore style) */
-  .toggle_btn {
+  .tab_btn {
     @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
   }
 
-  .toggle_btn--sm {
+  .tab_btn--sm {
     @apply h-6 text-xs;
   }
 
-  .toggle_btn--md {
+  .tab_btn--md {
     @apply h-[38px] text-sm;
   }
 
-  .toggle_btn--active {
+  .tab_btn--active {
     @apply bg-white text-black shadow-sm;
   }
 
-  .toggle_btn--inactive {
+  .tab_btn--inactive {
     @apply text-gray-500 hover:text-gray-900;
   }
 
-  .toggle_btn_icon {
+  .tab_btn_icon {
     @apply inline-flex;
   }
 
-  .toggle_btn_text {
+  .tab_btn_text {
     @apply inline-flex;
   }
 

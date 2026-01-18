@@ -6,7 +6,7 @@ const cx = (...parts) => parts.filter(Boolean).join(" ");
  * Textarea (UI)
  * - Controlled: value + onChange(nextValue)
  * - Stable markers: data-style/data-state
- * - Optional DEV-only data-testid (align with Input/ToggleButton)
+ * - Optional DEV-only data-testid (align with Input/Tabs)
  */
 const Textarea = forwardRef(
   (

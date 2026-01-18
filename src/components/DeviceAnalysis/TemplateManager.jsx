@@ -22,7 +22,7 @@ import { apiService } from "../../services/apiService";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../hooks/useLanguage";
 import Toast from "../ui/Toast";
-import ToggleButton from "../ui/ToggleButton";
+import Tabs from "../ui/Tabs";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,
@@ -1345,13 +1345,12 @@ const TemplateManager = ({
           <div className="lg:col-span-1 space-y-4">
             <div>
               <div className="flex items-center justify-start gap-3 mb-2">
-                <ToggleButton
+                <Tabs
                   value={templateMode}
                   onChange={(val) => {
                     setTemplateMode(val);
                     if (val === "save") setIsDropdownOpen(false);
                   }}
-                  a11yVariant="tabs"
                   groupLabel="Template mode"
                   options={[
                     { value: "select", label: "Select", icon: List },

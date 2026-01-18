@@ -33,7 +33,7 @@ import {
 import { apiService } from "../../services/apiService";
 import Dropdown from "../ui/Dropdown";
 import Button from "../ui/Button";
-import ToggleButton from "../ui/ToggleButton";
+import Tabs from "../ui/Tabs";
 import Card from "../ui/Card";
 import Toast from "../ui/Toast";
 import { COLORS } from "./chartColors";
@@ -588,7 +588,7 @@ const OverviewGrid = React.memo(function OverviewGrid({
 
 
         <div className="flex items-center gap-3">
-          <ToggleButton
+          <Tabs
             options={[
               { label: "All", value: "all" },
               { label: "Transfer", value: "transfer" },
@@ -597,7 +597,6 @@ const OverviewGrid = React.memo(function OverviewGrid({
             value={curveFilter}
             onChange={setCurveFilter}
             size="md"
-            a11yVariant="tabs"
           />
 
           <button
@@ -2955,7 +2954,7 @@ How to use (manual fallback):
                 <span className="text-xs text-text-secondary whitespace-nowrap">
                   Y unit:
                 </span>
-                <ToggleButton
+                <Tabs
                   value={yUnit}
                   onChange={(next) => {
                     const nextUnit =
@@ -2989,7 +2988,7 @@ How to use (manual fallback):
                     log(|I|)
                   </span>
                 ) : (
-                  <ToggleButton
+                  <Tabs
                     options={[
                       { value: "linear", label: "Linear" },
                       { value: "log", label: "Log" },

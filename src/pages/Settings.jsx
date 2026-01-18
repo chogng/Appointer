@@ -209,7 +209,7 @@ const Settings = () => {
   const handleSaveTranslationApiKey = async () => {
     const key = String(translationApiKeyInput || "").trim();
     if (!key) {
-      showToast(t("personal_api_key_required") || "Please enter your API Key.", "error");
+      showToast(t("personal_api_key_required"), "error");
       return;
     }
 
@@ -223,14 +223,14 @@ const Settings = () => {
       );
       setTranslationApiKeyInput("");
       setTranslationApiKeySync({ state: "saved", message: "" });
-      showToast(t("personal_api_key_saved") || "API Key saved.", "success");
+      showToast(t("personal_api_key_saved"), "success");
     } catch (error) {
       setTranslationApiKeySync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("personal_api_key_save_failed") || "Failed to save API Key.") +
+        (t("personal_api_key_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error"
       );
@@ -248,14 +248,14 @@ const Settings = () => {
       );
       setTranslationApiKeyInput("");
       setTranslationApiKeySync({ state: "saved", message: "" });
-      showToast(t("personal_api_key_cleared") || "API Key cleared.", "success");
+      showToast(t("personal_api_key_cleared"), "success");
     } catch (error) {
       setTranslationApiKeySync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("personal_api_key_clear_failed") || "Failed to clear API Key.") +
+        (t("personal_api_key_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error"
       );
@@ -265,7 +265,7 @@ const Settings = () => {
   const handleSaveUserTranslationProvider = async () => {
     const provider = String(userTranslationProviderInput || "").trim();
     if (!provider) {
-      showToast(t("translation_provider_required") || "Please enter your provider.", "error");
+      showToast(t("translation_provider_required"), "error");
       return;
     }
 
@@ -279,14 +279,14 @@ const Settings = () => {
       );
       setUserTranslationProviderInput("");
       setUserTranslationProviderSync({ state: "saved", message: "" });
-      showToast(t("translation_provider_saved") || "Provider saved.", "success");
+      showToast(t("translation_provider_saved"), "success");
     } catch (error) {
       setUserTranslationProviderSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("translation_provider_save_failed") || "Failed to save provider.") +
+        (t("translation_provider_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -304,14 +304,14 @@ const Settings = () => {
       );
       setUserTranslationProviderInput("");
       setUserTranslationProviderSync({ state: "saved", message: "" });
-      showToast(t("translation_provider_cleared") || "Provider cleared.", "success");
+      showToast(t("translation_provider_cleared"), "success");
     } catch (error) {
       setUserTranslationProviderSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("translation_provider_clear_failed") || "Failed to clear provider.") +
+        (t("translation_provider_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -321,7 +321,7 @@ const Settings = () => {
   const handleSaveTranslationModel = async () => {
     const model = String(translationModelInput || "").trim();
     if (!model) {
-      showToast(t("personal_model_required") || "Please enter your model.", "error");
+      showToast(t("personal_model_required"), "error");
       return;
     }
 
@@ -333,14 +333,14 @@ const Settings = () => {
       );
       setTranslationModelInput("");
       setTranslationModelSync({ state: "saved", message: "" });
-      showToast(t("personal_model_saved") || "Model saved.", "success");
+      showToast(t("personal_model_saved"), "success");
     } catch (error) {
       setTranslationModelSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("personal_model_save_failed") || "Failed to save model.") +
+        (t("personal_model_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error"
       );
@@ -356,14 +356,14 @@ const Settings = () => {
       );
       setTranslationModelInput("");
       setTranslationModelSync({ state: "saved", message: "" });
-      showToast(t("personal_model_cleared") || "Model cleared.", "success");
+      showToast(t("personal_model_cleared"), "success");
     } catch (error) {
       setTranslationModelSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("personal_model_clear_failed") || "Failed to clear model.") +
+        (t("personal_model_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error"
       );
@@ -373,7 +373,7 @@ const Settings = () => {
   const handleSaveTranslationBaseUrl = async () => {
     const baseUrl = String(translationBaseUrlInput || "").trim();
     if (!baseUrl) {
-      showToast(t("personal_base_url_required") || "Please enter your base URL.", "error");
+      showToast(t("personal_base_url_required"), "error");
       return;
     }
 
@@ -387,14 +387,14 @@ const Settings = () => {
       );
       setTranslationBaseUrlInput("");
       setTranslationBaseUrlSync({ state: "saved", message: "" });
-      showToast(t("personal_base_url_saved") || "Base URL saved.", "success");
+      showToast(t("personal_base_url_saved"), "success");
     } catch (error) {
       setTranslationBaseUrlSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("personal_base_url_save_failed") || "Failed to save base URL.") +
+        (t("personal_base_url_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -410,14 +410,14 @@ const Settings = () => {
       );
       setTranslationBaseUrlInput("");
       setTranslationBaseUrlSync({ state: "saved", message: "" });
-      showToast(t("personal_base_url_cleared") || "Base URL cleared.", "success");
+      showToast(t("personal_base_url_cleared"), "success");
     } catch (error) {
       setTranslationBaseUrlSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("personal_base_url_clear_failed") || "Failed to clear base URL.") +
+        (t("personal_base_url_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -476,8 +476,7 @@ const Settings = () => {
     const key = String(defaultTranslationApiKeyInput || "").trim();
     if (!key) {
       showToast(
-        t("default_api_key_required") ||
-        "Please enter the default API Key.",
+        t("default_api_key_required"),
         "error",
       );
       return;
@@ -498,7 +497,7 @@ const Settings = () => {
       setDefaultTranslationApiKeyInput("");
       setDefaultTranslationApiKeySync({ state: "saved", message: "" });
       showToast(
-        t("default_api_key_saved") || "Default API Key saved.",
+        t("default_api_key_saved"),
         "success",
       );
     } catch (error) {
@@ -507,8 +506,7 @@ const Settings = () => {
         message: error?.message || String(error),
       });
       showToast(
-        (t("default_api_key_save_failed") ||
-          "Failed to save default API Key.") +
+        (t("default_api_key_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -526,7 +524,7 @@ const Settings = () => {
       setDefaultTranslationApiKeyInput("");
       setDefaultTranslationApiKeySync({ state: "saved", message: "" });
       showToast(
-        t("default_api_key_cleared") || "Default API Key cleared.",
+        t("default_api_key_cleared"),
         "success",
       );
     } catch (error) {
@@ -535,8 +533,7 @@ const Settings = () => {
         message: error?.message || String(error),
       });
       showToast(
-        (t("default_api_key_clear_failed") ||
-          "Failed to clear default API Key.") +
+        (t("default_api_key_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -547,8 +544,7 @@ const Settings = () => {
     const model = String(defaultTranslationModelInput || "").trim();
     if (!model) {
       showToast(
-        t("default_model_required") ||
-        "Please enter the default model.",
+        t("default_model_required"),
         "error",
       );
       return;
@@ -573,7 +569,7 @@ const Settings = () => {
       setDefaultTranslationModelInput("");
       setDefaultTranslationModelSync({ state: "saved", message: "" });
       showToast(
-        t("default_model_saved") || "Default model saved.",
+        t("default_model_saved"),
         "success",
       );
     } catch (error) {
@@ -582,8 +578,7 @@ const Settings = () => {
         message: error?.message || String(error),
       });
       showToast(
-        (t("default_model_save_failed") ||
-          "Failed to save default model.") +
+        (t("default_model_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -610,7 +605,7 @@ const Settings = () => {
       setDefaultTranslationModelInput("");
       setDefaultTranslationModelSync({ state: "saved", message: "" });
       showToast(
-        t("default_model_cleared") || "Default model cleared.",
+        t("default_model_cleared"),
         "success",
       );
     } catch (error) {
@@ -619,8 +614,7 @@ const Settings = () => {
         message: error?.message || String(error),
       });
       showToast(
-        (t("default_model_clear_failed") ||
-          "Failed to clear default model.") +
+        (t("default_model_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -631,7 +625,7 @@ const Settings = () => {
     const baseUrl = String(defaultTranslationBaseUrlInput || "").trim();
     if (!baseUrl) {
       showToast(
-        t("default_base_url_required") || "Please enter the default base URL.",
+        t("default_base_url_required"),
         "error",
       );
       return;
@@ -650,14 +644,14 @@ const Settings = () => {
       );
       setDefaultTranslationBaseUrlInput("");
       setDefaultTranslationBaseUrlSync({ state: "saved", message: "" });
-      showToast(t("default_base_url_saved") || "Default base URL saved.", "success");
+      showToast(t("default_base_url_saved"), "success");
     } catch (error) {
       setDefaultTranslationBaseUrlSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("default_base_url_save_failed") || "Failed to save default base URL.") +
+        (t("default_base_url_save_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -678,14 +672,14 @@ const Settings = () => {
       );
       setDefaultTranslationBaseUrlInput("");
       setDefaultTranslationBaseUrlSync({ state: "saved", message: "" });
-      showToast(t("default_base_url_cleared") || "Default base URL cleared.", "success");
+      showToast(t("default_base_url_cleared"), "success");
     } catch (error) {
       setDefaultTranslationBaseUrlSync({
         state: "error",
         message: error?.message || String(error),
       });
       showToast(
-        (t("default_base_url_clear_failed") || "Failed to clear default base URL.") +
+        (t("default_base_url_clear_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -699,8 +693,7 @@ const Settings = () => {
     if (translationProviderSync.state === "saving") return;
 
     const confirmed = window.confirm(
-      t("translation_provider_switch_confirm") ||
-      "Switching translation provider will clear the global default key/model/base URL. Continue?",
+      t("translation_provider_switch_confirm"),
     );
     if (!confirmed) return;
 
@@ -736,7 +729,7 @@ const Settings = () => {
 
       setTranslationProviderSync({ state: "saved", message: "" });
       showToast(
-        t("translation_provider_updated") || "Translation provider updated.",
+        t("translation_provider_updated"),
         "success",
       );
     } catch (error) {
@@ -745,7 +738,7 @@ const Settings = () => {
         message: error?.message || String(error),
       });
       showToast(
-        (t("translation_provider_update_failed") || "Failed to update provider.") +
+        (t("translation_provider_update_failed")) +
         (error?.message ? ` (${error.message})` : ""),
         "error",
       );
@@ -756,7 +749,7 @@ const Settings = () => {
     if (translateTest.state === "loading") return;
     const text = String(translateTestInput || "").trim();
     if (!text) {
-      showToast(t("literature_translate_test_required") || "Please enter test text.", "error");
+      showToast(t("literature_translate_test_required"), "error");
       return;
     }
 
@@ -884,7 +877,7 @@ const Settings = () => {
     if (result.success) {
       showToast(t("updateSuccess"), "success");
     } else {
-      showToast(t("updateFailed") || "Update failed", "error");
+      showToast(t("updateFailed"), "error");
     }
   };
 
@@ -1111,16 +1104,15 @@ const Settings = () => {
           </div>
         </Section>
 
-        <Section title={t("translation_service") || "Translation Service"} icon={Key}>
+        <Section title={t("translation_service")} icon={Key}>
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3 flex-wrap mb-2">
                 <label className="text-sm font-medium text-text-secondary">
-                  {t("default_provider") || "Default Provider (Global)"}
+                  {t("default_provider")}
                 </label>
                 <span className="text-xs text-text-tertiary">
-                  {t("default_provider_hint") ||
-                    "Used when you have not set a personal key/provider."}
+                  {t("default_provider_hint")}
                 </span>
               </div>
 
@@ -1164,7 +1156,7 @@ const Settings = () => {
                         {translationProviderSync.state === "saving" ? (
                           <Loader2 size={16} className="animate-spin" />
                         ) : (
-                          t("literature_save") || "Save"
+                          t("literature_save")
                         )}
                       </span>
                     </button>
@@ -1192,26 +1184,24 @@ const Settings = () => {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3 flex-wrap mb-2">
                 <label className="text-sm font-medium text-text-secondary">
-                  {t("personal_provider") || "Personal Provider"}
+                  {t("personal_provider")}
                 </label>
                 <span className="text-xs text-text-tertiary">
-                  {t("personal_provider_hint") ||
-                    "Used with your personal key. Leave blank to use the default provider."}
+                  {t("personal_provider_hint")}
                 </span>
               </div>
 
               <div className="text-xs text-text-tertiary -mt-1 mb-1">
                 {userTranslationProvider
-                  ? (t("provider_current") || "Current provider") +
+                  ? (t("provider_current")) +
                   `: ${formatProviderLabel(userTranslationProvider)}`
-                  : (t("personal_provider_using_default") || "Using the default provider") +
+                  : (t("personal_provider_using_default")) +
                   `: ${formatProviderLabel(translationProvider)}`}
               </div>
 
               {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
                 <div className="text-xs text-amber-600 -mt-1 mb-1">
-                  {t("personal_provider_requires_personal_key") ||
-                    "For security, personal provider is only used with a personal key."}
+                  {t("personal_provider_requires_personal_key")}
                 </div>
               )}
 
@@ -1243,7 +1233,7 @@ const Settings = () => {
                     {userTranslationProviderSync.state === "saving" ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      t("literature_save") || "Save"
+                      t("literature_save")
                     )}
                   </span>
                 </button>
@@ -1258,7 +1248,7 @@ const Settings = () => {
                       : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
                       }`}
                   >
-                    <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                    <span className="relative z-10">{t("literature_clear")}</span>
                   </button>
                 )}
               </div>
@@ -1275,18 +1265,16 @@ const Settings = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <label className="text-sm font-medium text-text-secondary">
-                    {t("default_api_key") ||
-                      "Default API Key (Global)"}
+                    {t("default_api_key")}
                   </label>
                   <span className="text-xs text-text-tertiary">
-                    {t("default_api_key_hint") ||
-                      "Used when a user has not set a personal key."}
+                    {t("default_api_key_hint")}
                   </span>
                 </div>
 
                 {defaultTranslationApiKeyMasked && (
                   <div className="text-xs text-text-tertiary -mt-1 mb-1">
-                    {(t("api_key_saved") || "Saved key") + `: ${defaultTranslationApiKeyMasked}`}
+                    {(t("api_key_saved")) + `: ${defaultTranslationApiKeyMasked}`}
                   </div>
                 )}
 
@@ -1295,7 +1283,7 @@ const Settings = () => {
                     type="password"
                     value={defaultTranslationApiKeyInput}
                     onChange={(e) => setDefaultTranslationApiKeyInput(e.target.value)}
-                    placeholder={t("default_api_key_placeholder") || ""}
+                    placeholder={t("default_api_key_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
                   />
@@ -1316,7 +1304,7 @@ const Settings = () => {
                       {defaultTranslationApiKeySync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        t("literature_save") || "Save"
+                        t("literature_save")
                       )}
                     </span>
                   </button>
@@ -1332,7 +1320,7 @@ const Settings = () => {
                         }`}
                     >
                       <span className="relative z-10">
-                        {t("literature_clear") || "Clear"}
+                        {t("literature_clear")}
                       </span>
                     </button>
                   )}
@@ -1344,22 +1332,20 @@ const Settings = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <label className="text-sm font-medium text-text-secondary">
-                    {t("default_model") ||
-                      "Default Model (Global)"}
+                    {t("default_model")}
                   </label>
                   <span className="text-xs text-text-tertiary">
-                    {t("default_model_hint") ||
-                      "Used with the global default key."}
+                    {t("default_model_hint")}
                   </span>
                 </div>
 
                 <div className="text-xs text-text-tertiary -mt-1 mb-1">
-                  {(t("model_current") || "Current model") +
+                  {(t("model_current")) +
                     `: ${hasDefaultTranslationModel ? defaultTranslationModel : "-"}`}
                   {!hasDefaultTranslationModel &&
                     translationProvider === "bigmodel" &&
                     builtinDefaultTranslationModel
-                    ? ` | ${t("model_builtin") || "built-in"}: ${builtinDefaultTranslationModel}`
+                    ? ` | ${t("model_builtin")}: ${builtinDefaultTranslationModel}`
                     : ""}
                 </div>
 
@@ -1368,7 +1354,7 @@ const Settings = () => {
                     type="text"
                     value={defaultTranslationModelInput}
                     onChange={(e) => setDefaultTranslationModelInput(e.target.value)}
-                    placeholder={t("default_model_placeholder") || ""}
+                    placeholder={t("default_model_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
                   />
@@ -1389,7 +1375,7 @@ const Settings = () => {
                       {defaultTranslationModelSync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        t("literature_save") || "Save"
+                        t("literature_save")
                       )}
                     </span>
                   </button>
@@ -1405,7 +1391,7 @@ const Settings = () => {
                         }`}
                     >
                       <span className="relative z-10">
-                        {t("literature_clear") || "Clear"}
+                        {t("literature_clear")}
                       </span>
                     </button>
                   )}
@@ -1417,10 +1403,10 @@ const Settings = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <label className="text-sm font-medium text-text-secondary">
-                    {t("default_base_url") || "Default Base URL (Global)"}
+                    {t("default_base_url")}
                   </label>
                   <span className="text-xs text-text-tertiary">
-                    {t("default_base_url_hint") || "Only used for OpenAI-compatible provider."}
+                    {t("default_base_url_hint")}
                   </span>
                 </div>
 
@@ -1433,7 +1419,7 @@ const Settings = () => {
                     type="text"
                     value={defaultTranslationBaseUrlInput}
                     onChange={(e) => setDefaultTranslationBaseUrlInput(e.target.value)}
-                    placeholder={t("default_base_url_placeholder") || ""}
+                    placeholder={t("default_base_url_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
                   />
@@ -1454,7 +1440,7 @@ const Settings = () => {
                       {defaultTranslationBaseUrlSync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        t("literature_save") || "Save"
+                        t("literature_save")
                       )}
                     </span>
                   </button>
@@ -1470,7 +1456,7 @@ const Settings = () => {
                         }`}
                     >
                       <span className="relative z-10">
-                        {t("literature_clear") || "Clear"}
+                        {t("literature_clear")}
                       </span>
                     </button>
                   )}
@@ -1481,24 +1467,22 @@ const Settings = () => {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3 flex-wrap mb-2">
                 <label className="text-sm font-medium text-text-secondary">
-                  {t("personal_api_key") || "API Key"}
+                  {t("personal_api_key")}
                 </label>
                 <span className="text-xs text-text-tertiary">
-                  {t("personal_api_key_hint") ||
-                    "Used for abstract translation. Stored on the server; never shown in full once saved."}
+                  {t("personal_api_key_hint")}
                 </span>
               </div>
 
               {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
                 <div className="text-xs text-text-tertiary -mt-1 mb-1">
-                  {t("personal_api_key_using_default") ||
-                    "Using the default key (admin). Set your own key to override."}
+                  {t("personal_api_key_using_default")}
                 </div>
               )}
 
               {translationApiKeyMasked && (
                 <div className="text-xs text-text-tertiary -mt-1 mb-1">
-                  {(t("api_key_saved") || "Saved key") + `: ${translationApiKeyMasked}`}
+                  {(t("api_key_saved")) + `: ${translationApiKeyMasked}`}
                 </div>
               )}
 
@@ -1507,7 +1491,7 @@ const Settings = () => {
                   type="password"
                   value={translationApiKeyInput}
                   onChange={(e) => setTranslationApiKeyInput(e.target.value)}
-                  placeholder={t("personal_api_key_placeholder") || ""}
+                  placeholder={t("personal_api_key_placeholder")}
                   className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                   autoComplete="off"
                 />
@@ -1525,7 +1509,7 @@ const Settings = () => {
                     {translationApiKeySync.state === "saving" ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      t("literature_save") || "Save"
+                      t("literature_save")
                     )}
                   </span>
                 </button>
@@ -1540,7 +1524,7 @@ const Settings = () => {
                       : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
                       }`}
                   >
-                    <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                    <span className="relative z-10">{t("literature_clear")}</span>
                   </button>
                 )}
               </div>
@@ -1550,24 +1534,22 @@ const Settings = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <label className="text-sm font-medium text-text-secondary">
-                    {t("personal_base_url") || "Base URL"}
+                    {t("personal_base_url")}
                   </label>
                   <span className="text-xs text-text-tertiary">
-                    {t("personal_base_url_hint") || "Only used for OpenAI-compatible provider."}
+                    {t("personal_base_url_hint")}
                   </span>
                 </div>
 
                 {hasDefaultTranslationBaseUrl && !translationBaseUrl && (
                   <div className="text-xs text-text-tertiary -mt-1 mb-1">
-                    {t("personal_base_url_using_default") ||
-                      "Using the default base URL (admin). Set your own base URL to override."}
+                    {t("personal_base_url_using_default")}
                   </div>
                 )}
 
                 {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
                   <div className="text-xs text-amber-600 -mt-1 mb-1">
-                    {t("personal_base_url_requires_personal_key") ||
-                      "For security, personal base URL is only used with a personal key."}
+                    {t("personal_base_url_requires_personal_key")}
                   </div>
                 )}
 
@@ -1580,7 +1562,7 @@ const Settings = () => {
                     type="text"
                     value={translationBaseUrlInput}
                     onChange={(e) => setTranslationBaseUrlInput(e.target.value)}
-                    placeholder={t("personal_base_url_placeholder") || ""}
+                    placeholder={t("personal_base_url_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
                   />
@@ -1600,7 +1582,7 @@ const Settings = () => {
                       {translationBaseUrlSync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        t("literature_save") || "Save"
+                        t("literature_save")
                       )}
                     </span>
                   </button>
@@ -1615,7 +1597,7 @@ const Settings = () => {
                         : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
                         }`}
                     >
-                      <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                      <span className="relative z-10">{t("literature_clear")}</span>
                     </button>
                   )}
                 </div>
@@ -1625,26 +1607,23 @@ const Settings = () => {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3 flex-wrap mb-2">
                 <label className="text-sm font-medium text-text-secondary">
-                  {t("personal_model") || "Model"}
+                  {t("personal_model")}
                 </label>
                 <span className="text-xs text-text-tertiary">
-                  {t("personal_model_hint") ||
-                    "Used with your personal key. Leave blank to use the default model."}
+                  {t("personal_model_hint")}
                 </span>
               </div>
 
               <div className="text-xs text-text-tertiary -mt-1 mb-1">
                 {translationModel
-                  ? (t("model_current") || "Current model") +
+                  ? (t("model_current")) +
                   `: ${translationModel}`
-                  : t("personal_model_using_default") ||
-                  "Using the default model."}
+                  : t("personal_model_using_default")}
               </div>
 
               {hasDefaultTranslationApiKey && !translationApiKeyMasked && (
                 <div className="text-xs text-amber-600 -mt-1 mb-1">
-                  {t("personal_model_requires_personal_key") ||
-                    "For security, personal model is only used with a personal key."}
+                  {t("personal_model_requires_personal_key")}
                 </div>
               )}
 
@@ -1653,7 +1632,7 @@ const Settings = () => {
                   type="text"
                   value={translationModelInput}
                   onChange={(e) => setTranslationModelInput(e.target.value)}
-                  placeholder={t("personal_model_placeholder") || ""}
+                  placeholder={t("personal_model_placeholder")}
                   className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                   autoComplete="off"
                 />
@@ -1671,7 +1650,7 @@ const Settings = () => {
                     {translationModelSync.state === "saving" ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      t("literature_save") || "Save"
+                      t("literature_save")
                     )}
                   </span>
                 </button>
@@ -1686,7 +1665,7 @@ const Settings = () => {
                       : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
                       }`}
                   >
-                    <span className="relative z-10">{t("literature_clear") || "Clear"}</span>
+                    <span className="relative z-10">{t("literature_clear")}</span>
                   </button>
                 )}
               </div>
@@ -1696,11 +1675,10 @@ const Settings = () => {
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-sm font-medium text-text-primary">
-                    {t("literature_translate_test_title") || "Translation test"}
+                    {t("literature_translate_test_title")}
                   </div>
                   <div className="text-xs text-text-tertiary mt-1">
-                    {t("literature_translate_test_hint") ||
-                      "Translate a short text to confirm whether the personal key or the default key is being used."}
+                    {t("literature_translate_test_hint")}
                   </div>
                 </div>
 
@@ -1718,8 +1696,8 @@ const Settings = () => {
                       <Loader2 size={16} className="animate-spin" />
                     )}
                     {translateTest.state === "loading"
-                      ? t("literature_translate_test_running") || "Testing..."
-                      : t("literature_translate_test_run") || "Test translate"}
+                      ? t("literature_translate_test_running")
+                      : t("literature_translate_test_run")}
                   </span>
                 </button>
               </div>
@@ -1733,8 +1711,7 @@ const Settings = () => {
                         checked={translateTestForceDefaultKey}
                         onChange={(e) => setTranslateTestForceDefaultKey(e.target.checked)}
                       />
-                      {t("literature_translate_test_force_default") ||
-                        "Test with default key (global)"}
+                      {t("literature_translate_test_force_default")}
                     </label>
                   )}
                 </div>
@@ -1745,8 +1722,7 @@ const Settings = () => {
                     checked={translateTestBypassCache}
                     onChange={(e) => setTranslateTestBypassCache(e.target.checked)}
                   />
-                  {t("literature_translate_test_bypass_cache") ||
-                    "Force upstream (bypass cache)"}
+                  {t("literature_translate_test_bypass_cache")}
                 </label>
               </div>
 
@@ -1755,8 +1731,7 @@ const Settings = () => {
                 onChange={(e) => setTranslateTestInput(e.target.value)}
                 rows={3}
                 placeholder={
-                  t("literature_translate_test_placeholder") ||
-                  "Paste a short English abstract here to test translation..."
+                  t("literature_translate_test_placeholder")
                 }
                 className="mt-3 w-full px-3 py-2.5 rounded-lg bg-bg-page border border-border-subtle focus:outline-none focus:ring-1 focus:ring-accent text-sm text-text-primary placeholder:text-text-tertiary resize-y"
               />
@@ -1764,45 +1739,45 @@ const Settings = () => {
               {translateTest.state === "done" && (
                 <div className="mt-3 text-sm text-text-secondary space-y-2">
                   <div className="text-xs text-text-tertiary">
-                    {(t("literature_translate_test_used_key") || "Used key") +
+                    {(t("literature_translate_test_used_key")) +
                       `: ${translateTest.apiKeySource === "user"
-                        ? t("literature_translate_test_key_user") || "personal"
+                        ? t("literature_translate_test_key_user")
                         : translateTest.apiKeySource === "default"
-                          ? t("literature_translate_test_key_default") || "default"
-                          : t("literature_translate_test_key_none") || "none"
+                          ? t("literature_translate_test_key_default")
+                          : t("literature_translate_test_key_none")
 	                      }`}
 	                    {translateTest.model
-	                      ? ` | ${(t("translation_model_short") || "model")}: ${translateTest.model}${translateTest.modelSource
+	                      ? ` | ${(t("translation_model_short"))}: ${translateTest.model}${translateTest.modelSource
 	                        ? ` (${translateTest.modelSource === "user"
-	                          ? t("literature_translate_test_key_user") || "personal"
+	                          ? t("literature_translate_test_key_user")
 	                          : translateTest.modelSource === "default"
-	                            ? t("literature_translate_test_key_default") || "default"
+	                            ? t("literature_translate_test_key_default")
 	                            : translateTest.modelSource
 	                        })`
 	                        : ""}`
 	                      : ""}
 	                    {translateTest.translationProvider
-	                      ? ` | ${(t("translation_provider_short") || "provider")}: ${translateTest.translationProvider}${translateTest.translationProviderSource
+	                      ? ` | ${(t("translation_provider_short"))}: ${translateTest.translationProvider}${translateTest.translationProviderSource
 	                        ? ` (${translateTest.translationProviderSource === "user"
-	                          ? t("literature_translate_test_key_user") || "personal"
+	                          ? t("literature_translate_test_key_user")
 	                          : translateTest.translationProviderSource === "default"
-	                            ? t("literature_translate_test_key_default") || "default"
+	                            ? t("literature_translate_test_key_default")
 	                            : translateTest.translationProviderSource
 	                        })`
 	                        : ""}`
 	                      : ""}
 	                    {translateTest.translationBaseUrlHost
-	                      ? ` | ${(t("translation_base_url_short") || "base URL")}: ${translateTest.translationBaseUrlHost}${translateTest.translationBaseUrlSource
+	                      ? ` | ${(t("translation_base_url_short"))}: ${translateTest.translationBaseUrlHost}${translateTest.translationBaseUrlSource
 	                        ? ` (${translateTest.translationBaseUrlSource === "user"
-	                          ? t("literature_translate_test_key_user") || "personal"
+	                          ? t("literature_translate_test_key_user")
 	                          : translateTest.translationBaseUrlSource === "default"
-	                            ? t("literature_translate_test_key_default") || "default"
-	                            : t("literature_translate_test_key_none") || "none"
+	                            ? t("literature_translate_test_key_default")
+	                            : t("literature_translate_test_key_none")
 	                        })`
 	                        : ""}`
 	                      : ""}
 	                    {translateTest.cached
-	                      ? ` | ${t("literature_translate_test_cached") || "cached"}`
+	                      ? ` | ${t("literature_translate_test_cached")}`
 	                      : ""}
 	                  </div>
                   <div className="whitespace-pre-wrap leading-relaxed">
@@ -1814,44 +1789,44 @@ const Settings = () => {
               {translateTest.state === "error" && (
                 <div className="mt-3 text-sm text-red-500">
                   <div>
-                    {(t("literature_translate_test_failed") || "Test failed") +
+                    {(t("literature_translate_test_failed")) +
                       (translateTest.error ? `: ${translateTest.error}` : "")}
                   </div>
                   <div className="mt-1 text-xs text-red-500/90">
-                    {(t("literature_translate_test_used_key") || "Used key") +
+                    {(t("literature_translate_test_used_key")) +
                       `: ${translateTest.apiKeySource === "user"
-                        ? t("literature_translate_test_key_user") || "personal"
+                        ? t("literature_translate_test_key_user")
                         : translateTest.apiKeySource === "default"
-                          ? t("literature_translate_test_key_default") || "default"
-                          : t("literature_translate_test_key_none") || "none"
+                          ? t("literature_translate_test_key_default")
+                          : t("literature_translate_test_key_none")
 	                      }`}
 	                    {translateTest.model
-	                      ? ` | ${(t("translation_model_short") || "model")}: ${translateTest.model}${translateTest.modelSource
+	                      ? ` | ${(t("translation_model_short"))}: ${translateTest.model}${translateTest.modelSource
 	                        ? ` (${translateTest.modelSource === "user"
-	                          ? t("literature_translate_test_key_user") || "personal"
+	                          ? t("literature_translate_test_key_user")
 	                          : translateTest.modelSource === "default"
-	                            ? t("literature_translate_test_key_default") || "default"
+	                            ? t("literature_translate_test_key_default")
 	                            : translateTest.modelSource
 	                        })`
 	                        : ""}`
 	                      : ""}
 	                    {translateTest.translationProvider
-	                      ? ` | ${(t("translation_provider_short") || "provider")}: ${translateTest.translationProvider}${translateTest.translationProviderSource
+	                      ? ` | ${(t("translation_provider_short"))}: ${translateTest.translationProvider}${translateTest.translationProviderSource
 	                        ? ` (${translateTest.translationProviderSource === "user"
-	                          ? t("literature_translate_test_key_user") || "personal"
+	                          ? t("literature_translate_test_key_user")
 	                          : translateTest.translationProviderSource === "default"
-	                            ? t("literature_translate_test_key_default") || "default"
+	                            ? t("literature_translate_test_key_default")
 	                            : translateTest.translationProviderSource
 	                        })`
 	                        : ""}`
 	                      : ""}
 	                    {translateTest.translationBaseUrlHost
-	                      ? ` | ${(t("translation_base_url_short") || "base URL")}: ${translateTest.translationBaseUrlHost}${translateTest.translationBaseUrlSource
+	                      ? ` | ${(t("translation_base_url_short"))}: ${translateTest.translationBaseUrlHost}${translateTest.translationBaseUrlSource
 	                        ? ` (${translateTest.translationBaseUrlSource === "user"
-	                          ? t("literature_translate_test_key_user") || "personal"
+	                          ? t("literature_translate_test_key_user")
 	                          : translateTest.translationBaseUrlSource === "default"
-	                            ? t("literature_translate_test_key_default") || "default"
-	                            : t("literature_translate_test_key_none") || "none"
+	                            ? t("literature_translate_test_key_default")
+	                            : t("literature_translate_test_key_none")
 	                        })`
 	                        : ""}`
 	                      : ""}

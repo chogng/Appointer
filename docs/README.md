@@ -14,7 +14,6 @@
 - [`dropdown_ui_component_spec.md`](./dropdown_ui_component_spec.md)：Dropdown（UI）规范
 - [`popup_ui_component_spec.md`](./popup_ui_component_spec.md)：Popup（Dropdown menu 等弹层容器）
 - [`tabs_ui_component_spec.md`](./tabs_ui_component_spec.md)：Tabs（UI）规范
-- [`toggle_button_component_spec.md`](./toggle_button_component_spec.md)：ToggleButton 规范
 - [`date_button_component_spec.md`](./date_button_component_spec.md)：DateButton（DatePicker 点击区域）规范
 - [`modal_ui_component_spec.md`](./modal_ui_component_spec.md)：Modal（对话框/弹窗）
 - [`toast_ui_component_spec.md`](./toast_ui_component_spec.md)：Toast（通知条）

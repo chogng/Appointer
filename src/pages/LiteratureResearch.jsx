@@ -21,7 +21,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLiteratureResearchSession } from "../hooks/useLiteratureResearchSession";
 
-import ToggleButton from "../components/ui/ToggleButton";
+import Tabs from "../components/ui/Tabs";
 import Toast from "../components/ui/Toast";
 import DatePicker from "../components/ui/DatePicker";
 import Input from "../components/ui/Input";
@@ -154,8 +154,20 @@ const areStringArraysEqual = (a, b) => {
 const LiteratureResearch = () => {
   const containerRef = useRef(null);
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const literatureSession = useLiteratureResearchSession();
+
+  // `t()` returns the key itself when a translation is missing. Avoid leaking keys into UI/a11y.
+  const tl = useMemo(() => {
+    const lang = language === "en" ? "en" : "zh";
+    return (key, fallbackZh, fallbackEn) => {
+      const translated = t?.(key);
+      if (typeof translated === "string" && translated.trim() && translated !== key) {
+        return translated;
+      }
+      return lang === "zh" ? fallbackZh : fallbackEn;
+    };
+  }, [t, language]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const defaultStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
@@ -420,7 +432,7 @@ const LiteratureResearch = () => {
 
     setToast({
       isVisible: true,
-      message: t("literature_session_cleared") || "Session cleared.",
+      message: t("literature_session_cleared"),
       type: "success",
     });
   };
@@ -904,8 +916,7 @@ const LiteratureResearch = () => {
               const parsed = Number(maxResultsTrimmed);
               if (!Number.isFinite(parsed)) {
                 throw new Error(
-                  t("literature_max_results_invalid") ||
-                  "最大返回条数必须是数字。"
+                  t("literature_max_results_invalid")
                 );
               }
               return Math.max(1, Math.trunc(parsed));
@@ -993,7 +1004,7 @@ const LiteratureResearch = () => {
       if (isMountedRef.current) {
         setToast({
           isVisible: true,
-          message: t("literature_settings_saved") || "设置已同步",
+          message: t("literature_settings_saved"),
           type: "success",
         });
       }
@@ -1002,7 +1013,7 @@ const LiteratureResearch = () => {
         setToast({
           isVisible: true,
           message:
-            (t("literature_settings_save_failed") || "设置同步失败") +
+            (t("literature_settings_save_failed")) +
             (error?.message ? ` (${error.message})` : ""),
           type: "error",
         });
@@ -1438,20 +1449,19 @@ const LiteratureResearch = () => {
 
         const isSelected = Boolean(id) && selectedIdSet.has(id);
 
-        let translateTitle = t("literature_translate") || "Translate abstract";
+        let translateTitle = t("literature_translate");
         if (!hasAbstract) {
-          translateTitle = t("literature_no_abstract") || "No abstract";
+          translateTitle = t("literature_no_abstract");
         } else if (isTranslated) {
           translateTitle = showOriginal
-            ? t("literature_show_translation") || "Show translation"
-            : t("literature_show_original") || "Show original abstract";
+            ? t("literature_show_translation")
+            : t("literature_show_original");
         } else if (isAnyTranslationInFlight) {
           translateTitle =
-            t("literature_translate_wait") ||
-            "Another translation is in progress. Please wait.";
+            t("literature_translate_wait");
         } else if (!hasTranslationApiKey) {
           translateTitle =
-            t("personal_api_key_required") || "Set API Key to translate.";
+            t("personal_api_key_required");
         }
 
         return (
@@ -1540,9 +1550,8 @@ const LiteratureResearch = () => {
                         }`}
                       title={
                         item?.downloadable
-                          ? t("literature_download") || "涓嬭浇"
-                          : t("literature_download_unavailable") ||
-                          "鏃犲彲涓嬭浇鏂囦欢"
+                          ? t("literature_download")
+                          : t("literature_download_unavailable")
                       }
                       data-ui="literature-result-download-btn"
                       data-item-id={String(id)}
@@ -1587,9 +1596,7 @@ const LiteratureResearch = () => {
 
             <div className="mt-4 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
 
-              {abstractText ||
-                t("literature_no_abstract") ||
-                "（该条目暂无摘要）"}
+              {abstractText || t("literature_no_abstract")}
             </div>
           </article>
         );
@@ -1724,7 +1731,7 @@ const LiteratureResearch = () => {
     if (!hasTranslationApiKey) {
       setToast({
         isVisible: true,
-        message: t("personal_api_key_required") || "Please enter your API Key.",
+        message: t("personal_api_key_required"),
         type: "error",
       });
       return;
@@ -1775,7 +1782,7 @@ const LiteratureResearch = () => {
       setToast({
         isVisible: true,
         message:
-          (t("literature_translate_failed") || "Translation failed.") +
+          (t("literature_translate_failed")) +
           (error?.message ? ` (${error.message})` : ""),
         type: "error",
       });
@@ -1796,7 +1803,7 @@ const LiteratureResearch = () => {
       setStatus({
         state: "error",
         message:
-          t("literature_seed_urls_required") || "请先选择至少一个入口链接。",
+          t("literature_seed_urls_required"),
       });
       setFetchProgress({
         state: "idle",
@@ -1817,8 +1824,7 @@ const LiteratureResearch = () => {
         state: "error",
         message:
           error?.message ||
-          t("literature_settings_save_failed") ||
-          "设置同步失败",
+          t("literature_settings_save_failed"),
       });
       return;
     }
@@ -1962,7 +1968,7 @@ const LiteratureResearch = () => {
     if (!hasTranslationApiKey) {
       setToast({
         isVisible: true,
-        message: t("personal_api_key_required") || "Please enter your API Key.",
+        message: t("personal_api_key_required"),
         type: "error",
       });
       return;
@@ -2199,8 +2205,7 @@ const LiteratureResearch = () => {
                 new TextRun({
                   text:
                     entry.abstractZh ||
-                    t("literature_no_abstract") ||
-                    "(No abstract available)",
+                    t("literature_no_abstract"),
                   font: fontSong,
                   size: 24,
                 }),
@@ -2236,14 +2241,14 @@ const LiteratureResearch = () => {
 
       setToast({
         isVisible: true,
-        message: t("literature_export_docx_success") || "DOCX exported.",
+        message: t("literature_export_docx_success"),
         type: "success",
       });
     } catch (error) {
       setToast({
         isVisible: true,
         message:
-          (t("literature_export_docx_failed") || "Export failed.") +
+          (t("literature_export_docx_failed")) +
           (error?.message ? ` (${error.message})` : ""),
         type: "error",
       });
@@ -2276,8 +2281,7 @@ const LiteratureResearch = () => {
       setToast({
         isVisible: true,
         message:
-          (t("literature_export_json_missing_doi") ||
-            "JSON export blocked: some selected items are missing DOI.") +
+          (t("literature_export_json_missing_doi")) +
           ` (${missingDoiCount})`,
         type: "error",
       });
@@ -2343,36 +2347,43 @@ const LiteratureResearch = () => {
 
     setToast({
       isVisible: true,
-      message: t("literature_export_json_success") || "JSON exported.",
+      message: t("literature_export_json_success"),
       type: "success",
     });
   };
 
   return (
     <div className="w-full min-h-screen relative" ref={containerRef}>
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">
-          {t("literature_research_title") || "鏂囩尞璋冪爺"}
+      <div className="page_head">
+        <h1 className="page_title">
+          {t("literature_research_title")}
         </h1>
-        <p className="text-text-secondary">
-          {t("literature_research_subtitle") ||
-            "输入需要抓取的栏目/入口链接，按日期范围筛选文章并提取摘要。"}
+        <p className="page_subtitle">
+          {t("literature_research_subtitle")}
         </p>
       </div>
 
-      <Card as="section">
-        <div className="ui-toolbar_warp">
-          <div data-ui="literature-source-toggle">
-            <ToggleButton
-              idBase="literature-source"
-              value={sourceType}
-              onChange={handleSourceChange}
-              options={[
-                { value: "nature", label: "Nature", icon: Leaf },
-                { value: "science", label: "Science", icon: FlaskConical },
-              ]}
-            />
-          </div>
+      <div className="page_content">
+        <section aria-label={tl("journal_links", "期刊链接", "Journal links")}>
+          <h2 className="section_title">
+            {tl("journal_links", "期刊链接", "Journal links")}
+          </h2>
+          <Card
+            as="section"
+            dta={{ page: "lr", slot: "journal-panel", comp: "card" }}
+            aria-label={tl("journal_links", "期刊链接", "Journal links")}
+          >
+        <div className="toolbar_group">
+          <Tabs
+            dta={{ page: "lr", slot: "journal", comp: "tabs" }}
+            value={sourceType}
+            onChange={handleSourceChange}
+            groupLabel="Journal view"
+            options={[
+              { value: "nature", label: "Nature", icon: Leaf },
+              { value: "science", label: "Science", icon: FlaskConical },
+            ]}
+          />
 
           <div className="ui-filter_warp" aria-label="date filter warp">
             <div className="date_btn_warp flex-none" data-ui="literature-start-date">
@@ -2380,13 +2391,13 @@ const LiteratureResearch = () => {
                 className="date_btn_label"
                 data-ui="literature-start-date-label"
               >
-                {t("literature_start_date") || "开始日期"}
+                {t("literature_start_date")}
               </label>
               <DatePicker
                 dataUi="literature-start-date"
                 value={startDate}
                 onChange={setStartDate}
-                placeholder={t("literature_start_date") || "开始日期"}
+                placeholder={t("literature_start_date")}
                 cta="Literature research"
                 ctaPosition="date filter warp"
                 ctaCopy="start date"
@@ -2400,13 +2411,13 @@ const LiteratureResearch = () => {
                 className="date_btn_label"
                 data-ui="literature-end-date-label"
               >
-                {t("literature_end_date") || "鎴鏃ユ湡"}
+                {t("literature_end_date")}
               </label>
               <DatePicker
                 dataUi="literature-end-date"
                 value={endDate}
                 onChange={setEndDate}
-                placeholder={t("literature_end_date") || "鎴鏃ユ湡"}
+                placeholder={t("literature_end_date")}
                 className="min-w-0"
                 textClassName="hidden sm:block"
                 aria-label="end date"
@@ -2415,7 +2426,7 @@ const LiteratureResearch = () => {
 
             <Input
               dataUi="literature-max-results"
-              label={t("literature_max_results") || "最大返回条数"}
+              label={t("literature_max_results")}
               labelPlacement="inline"
               className="shrink-0"
               type="text"
@@ -2457,7 +2468,7 @@ const LiteratureResearch = () => {
               >
                 <span className="click_btn_content">
                   <Plus size={16} />
-                  {t("literature_add_url") || "添加链接"}
+                  {t("literature_add_url")}
                 </span>
               </button>
 
@@ -2480,8 +2491,8 @@ const LiteratureResearch = () => {
                 <span className="click_btn_content">
                   <Search size={16} />
                   {status.state === "loading"
-                    ? t("literature_fetching") || "抓取中..."
-                    : t("literature_fetch") || "开始抓取"}
+                    ? t("literature_fetching")
+                    : t("literature_fetch")}
                 </span>
               </button>
             </div>
@@ -2494,7 +2505,7 @@ const LiteratureResearch = () => {
           <div className="">
             <div className="flex items-center gap-3">
               <label className="text-sm font-semibold text-text-primary">
-                {t("literature_seed_urls") || "文献种子链接"}
+                {t("literature_seed_urls")}
               </label>
               <span
                 className="text-xs text-text-secondary whitespace-nowrap"
@@ -2554,7 +2565,7 @@ const LiteratureResearch = () => {
                     }
                     leftIcon={LinkIcon}
                     className="flex-1"
-                    aria-label={`${t("literature_seed_urls") || "Seed URL"} ${index + 1
+                    aria-label={`${t("literature_seed_urls")} ${index + 1
                       }`}
                     data-seed-index={index}
                   />
@@ -2567,8 +2578,7 @@ const LiteratureResearch = () => {
                     onBlur={handleSettingsInputBlur}
                     inputClassName="rounded-lg"
                     placeholder={
-                      t("literature_seed_title_placeholder") ||
-                      "DOCX 标题（可选）"
+                      t("literature_seed_title_placeholder")
                     }
                     className="w-44 shrink-0"
                     aria-label={`Seed title ${index + 1}`}
@@ -2577,8 +2587,8 @@ const LiteratureResearch = () => {
                   <button
                     type="button"
                     onClick={() => removeSeedUrlAt(index)}
-                    title={t("literature_remove_url") || "绉婚櫎"}
-                    aria-label={t("literature_remove_url") || "Remove URL"}
+                    title={t("literature_remove_url")}
+                    aria-label={t("literature_remove_url")}
                     data-style="ghost"
                     data-icon="with"
                     data-cta="Literature research"
@@ -2597,8 +2607,6 @@ const LiteratureResearch = () => {
             </div>
           </div>
         </div>
-
-
         <div className="mt-3" data-ui="literature-fetch-progress-warp">
           <div data-ui="literature-fetch-progress">
             <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
@@ -2618,8 +2626,8 @@ const LiteratureResearch = () => {
               <span className="shrink-0 flex items-center gap-2">
                 <span className={status.state === "loading" ? "text-terracotta" : "opacity-80"}>
                   {status.state === "loading"
-                    ? (t("literature_fetching") || "Performing search...")
-                    : (t("literature_status_ready") || "Ready")
+                    ? (t("literature_fetching"))
+                    : (t("literature_status_ready"))
                   }
                 </span>
                 {status.state === "loading" && (
@@ -2687,36 +2695,36 @@ const LiteratureResearch = () => {
           </div>
         )}
       </Card>
+        </section>
 
-      <section className="mt-8">
-        <Card
-          as="section"
-          dataUi="literature-keyword-panel"
-          variant="panel"
-          className="mb-4"
+        <section
+          aria-label={tl("keyword_match", "关键词匹配", "Keyword match")}
         >
-          <div className="ui-toolbar_warp">
-            <div
-              className="flex items-center gap-2"
-              data-ui="literature-keyword-mode-toggle"
-            >
-              <ToggleButton
-                options={[
-                  {
-                    value: "any",
-                    label: t("literature_match_any") || "浠绘剰鍖归厤",
-                  },
-                  {
-                    value: "all",
-                    label: t("literature_match_all") || "鍏ㄩ儴鍖归厤",
-                  },
-                ]}
-                value={keywordMode}
-                onChange={setKeywordMode}
-                className="w-fit"
-                groupLabel="literature-match-mode-segment"
-              />
-            </div>
+          <h2 className="section_title">
+            {tl("keyword_match", "关键词匹配", "Keyword match")}
+          </h2>
+          <Card
+            as="section"
+            dta={{ page: "lr", slot: "keyword-panel", comp: "card" }}
+            aria-label={tl("keywords", "关键词", "Keywords")}
+          >
+          <div className="toolbar_group">
+            <Tabs
+              dta={{ page: "lr", slot: "keyword", comp: "tabs" }}
+              options={[
+                {
+                  value: "any",
+                  label: t("literature_match_any"),
+                },
+                {
+                  value: "all",
+                  label: t("literature_match_all"),
+                },
+              ]}
+              value={keywordMode}
+              onChange={setKeywordMode}
+              groupLabel="Match view"
+            />
           </div>
 
           <div className="mt-3" data-ui="literature-keywords-warp">
@@ -2725,73 +2733,69 @@ const LiteratureResearch = () => {
               value={keywordInput}
               onChange={setKeywordInput}
               placeholder={
-                t("literature_keywords_placeholder") ||
-                "关键词匹配：two-dimensional, wafer, AI 等（用空格/换行/逗号分隔）"
+                t("literature_keywords_placeholder")
               }
               rows={2}
               hint={
-                (t("literature_keywords_count") || "当前关键词") +
+                (t("literature_keywords_count")) +
                 `：${keywords.length}`
               }
             />
           </div>
-        </Card>
+          </Card>
+        </section>
 
-        <h2
-          className="ui-section_title ui-section_title--spaced"
-          aria-label="literature-results-title"
-        >
-          {t("literature_results_title") || "检索结果"}
-        </h2>
-        <Card
-          dataUi="literature-results-container"
-          className="min-h-[600px]"
-          aria-label="literature-results-container"
-        >
-          <div className="ui-toolbar_warp">
-            <div data-ui="literature-results-view-toggle">
-              <ToggleButton
-                options={[
-                  {
-                    value: "all",
-                    label:
-                      (t("literature_view_all") || "鍏ㄩ儴") +
-                      ` (${sortedResults.length})`,
-                    cta: "Literature research",
-                    ctaPosition: "result",
-                    ctaCopy: "all",
-                  },
-                  {
-                    value: "matched",
-                    label:
-                      (t("literature_view_matched") || "匹配") +
-                      ` (${matchedResults.length})`,
-                    cta: "Literature research",
-                    ctaPosition: "result",
-                    ctaCopy: "matched",
-                  },
-                  {
-                    value: "unmatched",
-                    label:
-                      (t("literature_view_unmatched") || "未匹配") +
-                      ` (${unmatchedResults.length})`,
-                    cta: "Literature research",
-                    ctaPosition: "result",
-                    ctaCopy: "unmatched",
-                  },
-                ]}
-                value={resultView}
-                onChange={setResultView}
-                className="w-fit"
-                groupLabel="Literature results view"
-              />
-            </div>
+        <section aria-label={tl("research_result", "检索结果", "Research result")}>
+          <h2 className="section_title">
+            {t("literature_results_title")}
+          </h2>
+          <Card
+            dta={{ page: "lr", slot: "result-panel", comp: "card" }}
+            className="min-h-[600px]"
+            aria-label="Results"
+          >
+          <div className="toolbar_group">
+            <Tabs
+              dta={{ page: "lr", slot: "result", comp: "tabs" }}
+              options={[
+                {
+                  value: "all",
+                  label:
+                    (t("literature_view_all")) +
+                    ` (${sortedResults.length})`,
+                  cta: "Literature research",
+                  ctaPosition: "result",
+                  ctaCopy: "all",
+                },
+                {
+                  value: "matched",
+                  label:
+                    (t("literature_view_matched")) +
+                    ` (${matchedResults.length})`,
+                  cta: "Literature research",
+                  ctaPosition: "result",
+                  ctaCopy: "matched",
+                },
+                {
+                  value: "unmatched",
+                  label:
+                    (t("literature_view_unmatched")) +
+                    ` (${unmatchedResults.length})`,
+                  cta: "Literature research",
+                  ctaPosition: "result",
+                  ctaCopy: "unmatched",
+                },
+              ]}
+              value={resultView}
+              onChange={setResultView}
+              groupLabel="Results view"
+            />
             <div className="flex items-center gap-2">
               <div
                 className="text-xs text-text-tertiary px-2"
                 data-ui="literature-selected-count-label"
               >
-                <span>{t("literature_selected_count") || "当前选中"}：</span>
+                <span>{t("literature_selected_count")}：</span>
                 <span className="">{selectedCount}</span>
               </div>
 
@@ -2811,15 +2815,13 @@ const LiteratureResearch = () => {
                   }`}
                 title={
                   selectionToggleAction === "deselect-all"
-                    ? t("literature_deselect_all_filtered") ||
-                    "Deselect all (filtered)"
-                    : t("literature_select_all_filtered") || "Select all (filtered)"
+                    ? t("literature_deselect_all_filtered")
+                    : t("literature_select_all_filtered")
                 }
                 aria-label={
                   selectionToggleAction === "deselect-all"
-                    ? t("literature_deselect_all_filtered") ||
-                    "Deselect all (filtered)"
-                    : t("literature_select_all_filtered") || "Select all (filtered)"
+                    ? t("literature_deselect_all_filtered")
+                    : t("literature_select_all_filtered")
                 }
                 data-style={
                   isExportingDocx ||
@@ -2881,8 +2883,8 @@ const LiteratureResearch = () => {
                   ? "click_btn--disabled"
                   : "click_btn--primary"
                   }`}
-                title={t("literature_export_json") || "Export JSON"}
-                aria-label={t("literature_export_json") || "Export JSON"}
+                title={t("literature_export_json")}
+                aria-label={t("literature_export_json")}
                 data-style={isExportingDocx || selectedCount === 0 ? "disabled" : "primary"}
                 data-icon="with"
                 data-cta="Literature research"
@@ -2910,8 +2912,8 @@ const LiteratureResearch = () => {
                   ? "click_btn--disabled"
                   : "click_btn--ghost click_btn--fx click_btn--fx-muted"
                   }`}
-                title={t("literature_clear_session") || "Clear session"}
-                aria-label={t("literature_clear_session") || "Clear session"}
+                title={t("literature_clear_session")}
+                aria-label={t("literature_clear_session")}
                 data-ui="literature-clear-session-btn"
               >
                 <span className="click_btn_content">
@@ -2923,11 +2925,10 @@ const LiteratureResearch = () => {
           {status.state === "done" && sortedResults.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-text-secondary">
               <p className="text-lg font-medium">
-                {t("literature_no_results") || "没有找到符合条件的文章。"}
+                {t("literature_no_results")}
               </p>
               <p className="text-sm mt-1">
-                {t("literature_no_results_hint") ||
-                  "尝试调整日期范围或入口链接。"}
+                {t("literature_no_results_hint")}
               </p>
             </div>
           )}
@@ -2950,9 +2951,7 @@ const LiteratureResearch = () => {
               return (
                 <Card
                   key={group.key}
-                  variant="panel"
                   className="mt-4"
-                  dataUi="literature-results-group"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -3009,8 +3008,9 @@ const LiteratureResearch = () => {
                 </Card>
               );
             })}
-        </Card>
-      </section>
+          </Card>
+        </section>
+      </div>
 
       <Toast
         isVisible={toast.isVisible}

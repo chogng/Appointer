@@ -65,7 +65,7 @@
 - `document.querySelector('[data-ui="literature-max-results"]')`
 - `document.querySelector('[data-ui="literature-max-results-label"]')?.closest('[data-ui="literature-max-results"]')`
 
-### 3.2 UI 组件（Input / Tabs / ToggleButton）
+### 3.2 UI 组件（Input / Tabs）
 
 - `ui-*` class 只负责样式
 - `data-ui` 用于稳定定位

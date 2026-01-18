@@ -297,12 +297,12 @@ const MainLayout = () => {
     { icon: DashboardIcon, label: t("dashboard"), path: "/dashboard" },
     {
       icon: ActivityIcon,
-      label: t("device_analysis") || "Device Analysis",
+      label: t("device_analysis"),
       path: "/device-analysis",
     },
     {
       icon: BookOpen,
-      label: t("literature_research") || "Literature Research",
+      label: t("literature_research"),
       path: "/literature-research",
     },
     {
@@ -319,12 +319,12 @@ const MainLayout = () => {
   if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {
     navItems.push({
       icon: Users,
-      label: t("user_management") || "Users",
+      label: t("user_management"),
       path: "/users",
     });
     navItems.push({
       icon: Trophy,
-      label: t("leaderboard") || "Leaderboard",
+      label: t("leaderboard"),
       path: "/leaderboard",
     });
   }

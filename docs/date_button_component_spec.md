@@ -12,7 +12,7 @@
 ## 1. 适用范围
 
 - 适用：任何 `DatePicker` 的日期选择入口（点击打开/关闭日历弹层）。
-- 不适用：普通 action button（用 `click_btn*`）、筛选项按钮（用 `ToggleButton` / `Tabs`）。
+- 不适用：普通 action button（用 `click_btn*`）、筛选项按钮（用 `Tabs`）。
 
 ---
 

@@ -6,7 +6,7 @@ const cx = (...parts) => parts.filter(Boolean).join(" ");
  * Input (UI)
  * - Controlled: value + onChange(nextValue)
  * - Stable markers: data-style/data-state
- * - Optional DEV-only data-testid (align with ToggleButton)
+ * - Optional DEV-only data-testid (align with Tabs)
  */
 const Input = forwardRef(
   (

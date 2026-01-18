@@ -80,7 +80,7 @@ const Messages = () => {
     <div className="w-full min-h-screen">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-serif font-medium text-text-primary">
-          {t("messages") || "Message History"}
+          {t("messages")}
         </h1>
         <div className="relative">
           <Search
@@ -89,7 +89,7 @@ const Messages = () => {
           />
           <input
             type="text"
-            placeholder={t("searchMessages") || "Search messages..."}
+            placeholder={t("searchMessages")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9 pr-4 py-2 text-sm bg-bg-200 border-none rounded-lg focus:ring-1 focus:ring-accent w-64 transition-all"
@@ -176,7 +176,7 @@ const Messages = () => {
               size={48}
               className="mx-auto mb-4 text-text-tertiary opacity-50"
             />
-            <p>{t("noMessages") || "No processed messages found"}</p>
+            <p>{t("noMessages")}</p>
           </div>
         )}
       </div>

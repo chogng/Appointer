@@ -132,11 +132,10 @@ const Leaderboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-1 gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium text-text-primary mb-2 flex items-center gap-3">
-            {t("leaderboard") || "Leaderboard"}
+            {t("leaderboard")}
           </h1>
           <p className="text-text-secondary">
-            {t("leaderboard_subtitle") ||
-              "Top contributors by total reservation hours. Keep up the good work!"}
+            {t("leaderboard_subtitle")}
           </p>
         </div>
       </div>

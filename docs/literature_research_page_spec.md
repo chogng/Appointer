@@ -53,7 +53,7 @@
 - 导出 docx：`[data-ui="literature-export-docx-btn"]`
 - 导出 json：`[data-ui="literature-export-json-btn"]`
 - 清空 session：`[data-ui="literature-clear-session-btn"]`
-- 匹配模式 ToggleButton wrapper：`[data-ui="literature-keyword-mode-toggle"]`
+- 匹配模式 Tabs wrapper：`[data-ui="literature-keyword-mode-toggle"]`
 - 关键词输入容器：`[data-ui="literature-keywords-warp"]`
 - 关键词输入：`[data-ui="literature-keywords-input"]`
 
@@ -61,7 +61,7 @@
 
 **必须锚点**（已落地）：
 - 结果容器：`[data-ui="literature-results-container"]`
-- 视图切换 ToggleButton wrapper：`[data-ui="literature-results-view-toggle"]`
+- 视图切换 Tabs wrapper：`[data-ui="literature-results-view-toggle"]`
 - 批量全选/取消：`[data-ui="literature-selection-toggle-btn"]`（当前动作：`[data-action="select-all|deselect-all"]`）
 
 **结果卡片组合锚点**（已落地）：

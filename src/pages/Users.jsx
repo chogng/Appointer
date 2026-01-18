@@ -69,7 +69,7 @@ const Users = () => {
       setUsers(data);
     } catch (error) {
       console.error("Failed to fetch users", error);
-      showToast(t("fetchFailed") || "Failed to load users", "error");
+      showToast(t("fetchFailed"), "error");
     } finally {
       setLoading(false);
     }
@@ -84,10 +84,10 @@ const Users = () => {
       await apiService.deleteUser(userId);
       setUsers(users.filter((u) => u.id !== userId));
       setDeleteConfirm(null);
-      showToast(t("updateSuccess") || "Success", "success");
+      showToast(t("updateSuccess"), "success");
     } catch (error) {
       console.error("Error deleting user", error);
-      showToast(t("deleteFailed") || "Failed", "error");
+      showToast(t("deleteFailed"), "error");
     }
   };
 
@@ -131,10 +131,10 @@ const Users = () => {
 
       setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
       setEditingUser(null);
-      showToast(t("updateSuccess") || "Success", "success");
+      showToast(t("updateSuccess"), "success");
     } catch (error) {
       console.error("Update failed", error);
-      showToast(t("updateFailed") || error.message || "Update failed", "error");
+      showToast(t("updateFailed"), "error");
     }
   };
 
@@ -147,7 +147,7 @@ const Users = () => {
         !createForm.email
       ) {
         showToast(
-          t("fillAllFields") || "Please fill in all required fields",
+          t("fillAllFields"),
           "error",
         );
         return;
@@ -170,7 +170,7 @@ const Users = () => {
         expiryDate: "",
         expiryType: "permanent",
       });
-      showToast(t("createSuccess") || "User created successfully", "success");
+      showToast(t("createSuccess"), "success");
     } catch (error) {
       console.error("Create failed", error);
       showToast(error.message || "Failed to create user", "error");
@@ -192,11 +192,10 @@ const Users = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium text-text-primary mb-2 flex items-center gap-3">
-            {t("user_management") || "User Management"}
+            {t("user_management")}
           </h1>
           <p className="text-text-secondary">
-            {t("user_management_subtitle") ||
-              "Manage system users and access controls."}
+            {t("user_management_subtitle")}
           </p>
         </div>
         <div className="relative flex gap-3">
@@ -207,7 +206,7 @@ const Users = () => {
             />
             <input
               type="text"
-              placeholder={t("search_users") || "Search users..."}
+              placeholder={t("search_users")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-4 py-2 bg-bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent w-64"
@@ -218,7 +217,7 @@ const Users = () => {
             className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
           >
             <Plus size={20} />
-            <span>{t("addUser") || "Add User"}</span>
+            <span>{t("addUser")}</span>
           </button>
         </div>
       </div>
@@ -537,7 +536,7 @@ const Users = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-bg-surface border border-border rounded-xl p-6 w-full max-w-md shadow-2xl">
             <h2 className="text-xl font-bold text-text-primary mb-4">
-              {t("addUser") || "Add User"}
+              {t("addUser")}
             </h2>
 
             <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">

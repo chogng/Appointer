@@ -123,21 +123,21 @@ const Dashboard = () => {
 
   const handleClearLogs = async () => {
     showToast(
-      t("confirmClearLogs") || "Are you sure you want to clear all logs?",
+      t("confirmClearLogs"),
       "warning",
-      t("clearLogs") || "Clear",
+      t("clearLogs"),
       async () => {
         try {
           closeToast();
           await apiService.deleteLogs();
           await fetchLogs();
           setTimeout(() => {
-            showToast(t("updateSuccess") || "Success", "success");
+            showToast(t("updateSuccess"), "success");
           }, 300);
         } catch (error) {
           console.error("Failed to clear logs:", error);
           setTimeout(() => {
-            showToast(t("clearLogsFailed") || "Failed to clear logs", "error");
+            showToast(t("clearLogsFailed"), "error");
           }, 300);
         }
       },
@@ -302,7 +302,7 @@ const Dashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder={t("searchLogs") || "Search logs..."}
+                  placeholder={t("searchLogs")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9 pr-4 py-1.5 text-sm bg-bg-200 border-none rounded-lg focus:ring-1 focus:ring-accent w-40 transition-all"
@@ -312,7 +312,7 @@ const Dashboard = () => {
                 <button
                   onClick={handleClearLogs}
                   className="p-1.5 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  title={t("clearLogs") || "Clear logs"}
+                  title={t("clearLogs")}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -367,7 +367,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 mb-4">
             <MessageSquare size={20} className="text-accent" />
             <h2 className="text-xl font-serif font-medium text-text-primary">
-              {t("recentMessages") || "Recent Messages"}
+              {t("recentMessages")}
             </h2>
           </div>
           <Card
@@ -480,7 +480,7 @@ const Dashboard = () => {
               </div>
             ) : (
               <p className="text-text-secondary text-center py-8">
-                {t("noPendingRequests") || "No new messages"}
+                {t("noPendingRequests")}
               </p>
             )}
           </Card>

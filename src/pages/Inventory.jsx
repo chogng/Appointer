@@ -138,13 +138,13 @@ const Inventory = () => {
           await apiService.deleteInventory(id);
           setItems(items.filter((item) => item.id !== id));
           setTimeout(
-            () => showToast(t("updateSuccess") || "Success", "success"),
+            () => showToast(t("updateSuccess"), "success"),
             300,
           );
         } catch (error) {
           console.error("Failed to delete item:", error);
           setTimeout(
-            () => showToast(t("deleteFailed") || "Failed to delete", "error"),
+            () => showToast(t("deleteFailed"), "error"),
             300,
           );
         }
@@ -231,7 +231,7 @@ const Inventory = () => {
       setIsModalOpen(false);
     } catch (error) {
       console.error("Failed to save item:", error);
-      showToast(t("updateFailed") || "Operation failed", "error");
+      showToast(t("updateFailed"), "error");
     }
   };
 
@@ -509,7 +509,7 @@ const Inventory = () => {
                   {isEditing
                     ? isAdmin()
                       ? t("saveChanges")
-                      : t("submitRequest") || "Submit Request"
+                      : t("submitRequest")
                     : t("commit")}
                 </button>
               </div>
