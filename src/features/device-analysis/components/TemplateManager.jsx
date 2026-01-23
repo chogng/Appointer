@@ -23,6 +23,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useLanguage } from "../../../hooks/useLanguage";
 import Toast from "../../../components/ui/Toast";
 import Tabs from "../../../components/ui/Tabs";
+import Card from "../../../components/ui/Card";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,
@@ -1329,16 +1330,13 @@ const TemplateManager = ({
   }, [buildSelectionTsv, ensurePreviewRows, previewFile, selections]);
 
   return (
-    <div className="mb-6">
-      <div className="mb-4">
-        <h2 className="text-xl font-bold text-text-primary">
-          Data Extraction Template
-        </h2>
-      </div>
+    <section aria-label="Data Extraction Template">
+      <h2 className="section_title">Data Extraction Template</h2>
 
-      <div
+      <Card
         ref={containerRef}
-        className="bg-bg-surface border border-border rounded-xl p-8 shadow-sm"
+        id="device-analysis-template-manager"
+        className="p-8"
       >
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Configuration Panel */}
@@ -2010,8 +2008,8 @@ const TemplateManager = ({
           containerRef={containerRef}
           position="absolute"
         />
-      </div>
-    </div >
+      </Card>
+    </section>
   );
 };
 

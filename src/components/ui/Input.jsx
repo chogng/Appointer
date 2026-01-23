@@ -76,10 +76,10 @@ const Input = forwardRef(
     const state = disabled ? "disabled" : error ? "error" : "enable";
     const sizeClass =
       size === "sm"
-        ? "ui-input_field--sm"
+        ? "input_field--sm"
         : size === "lg"
-          ? "ui-input_field--lg"
-          : "ui-input_field--md";
+          ? "input_field--lg"
+          : "input_field--md";
     const uiMarker =
       typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
     const resolvedLabelPlacement =
@@ -89,7 +89,7 @@ const Input = forwardRef(
     const labelNode = label ? (
       <label
         htmlFor={inputId}
-        className={cx("ui-input_label", shouldInlineLabel && "whitespace-nowrap")}
+        className={cx("input_label", shouldInlineLabel && "whitespace-nowrap")}
         data-ui={uiMarker ? `${uiMarker}-label` : undefined}
       >
         {label}
@@ -98,7 +98,7 @@ const Input = forwardRef(
 
     const fieldNode = (
       <div
-        className={cx("ui-input_field", sizeClass, fieldClassName)}
+        className={cx("input_field", sizeClass, fieldClassName)}
         data-icon={LeftIcon ? "with" : "without"}
         data-state={state}
         data-testid={devTestId}
@@ -107,7 +107,7 @@ const Input = forwardRef(
         data-cta-copy={ctaCopy}
       >
         {LeftIcon ? (
-          <span className="ui-input_icon" aria-hidden="true">
+          <span className="input_icon" aria-hidden="true">
             <LeftIcon size={16} />
           </span>
         ) : null}
@@ -126,16 +126,16 @@ const Input = forwardRef(
           aria-invalid={!!error}
           aria-describedby={ariaDescribedBy}
           data-ui={uiMarker ? `${uiMarker}-input` : undefined}
-          className={cx("ui-input_native", inputClassName)}
+          className={cx("input_native", inputClassName)}
         />
 
-        {rightSlot ? <div className="ui-input_right">{rightSlot}</div> : null}
+        {rightSlot ? <div className="input_right">{rightSlot}</div> : null}
       </div>
     );
 
     return (
       <div
-        className={cx("ui-input_warp", className)}
+        className={cx("input_warp", className)}
         data-style="input"
         data-ui={uiMarker}
       >
@@ -152,12 +152,12 @@ const Input = forwardRef(
         )}
 
         {error ? (
-          <div id={errorId} className="ui-input_error">
+          <div id={errorId} className="input_error">
             {error}
           </div>
         ) : null}
         {!error && hint ? (
-          <div id={hintId} className="ui-input_hint">
+          <div id={hintId} className="input_hint">
             {hint}
           </div>
         ) : null}

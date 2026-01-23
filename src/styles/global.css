@@ -398,74 +398,91 @@ body {
   }
 
   /* Input */
-  .ui-input_warp {
+  .ui-input_warp,
+  .input_warp {
     @apply space-y-2;
   }
 
-  .ui-input_label {
+  .ui-input_label,
+  .input_label {
     @apply text-sm font-medium text-text-secondary;
   }
 
-  .ui-input_field {
-    @apply flex items-center gap-2 px-3 py-2 rounded-xl border transition-all bg-bg-page;
+  .ui-input_field,
+  .input_field {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition-all bg-bg-page;
   }
 
-  .ui-input_field--sm {
+  .ui-input_field--sm,
+  .input_field--sm {
     @apply h-6 text-xs;
   }
 
-  .ui-input_field--md {
+  .ui-input_field--md,
+  .input_field--md {
     @apply h-[38px] text-sm;
   }
 
-  .ui-input_field--lg {
+  .ui-input_field--lg,
+  .input_field--lg {
     @apply h-[42px] text-sm;
   }
 
-  .ui-input_field[data-state="enable"] {
+  .ui-input_field[data-state="enable"],
+  .input_field[data-state="enable"] {
     @apply border-border-200;
   }
 
-  .ui-input_field[data-state="enable"]:focus-within {
+  .ui-input_field[data-state="enable"]:focus-within,
+  .input_field[data-state="enable"]:focus-within {
     @apply border-border-200;
   }
 
   /* Literature inputs: hover does not change border (keep it calm like DateButton) */
 
   /* System focus outline only for keyboard navigation (Tab) */
-  html[data-nav="keyboard"] .ui-input_field[data-state="enable"]:focus-within {
+  html[data-nav="keyboard"] .ui-input_field[data-state="enable"]:focus-within,
+  html[data-nav="keyboard"] .input_field[data-state="enable"]:focus-within {
     outline: auto;
   }
 
-  .ui-input_field[data-state="error"] {
+  .ui-input_field[data-state="error"],
+  .input_field[data-state="error"] {
     @apply border-red-500 ring-1 ring-red-500/10;
   }
 
-  .ui-input_field[data-state="disabled"] {
+  .ui-input_field[data-state="disabled"],
+  .input_field[data-state="disabled"] {
     @apply opacity-60 cursor-not-allowed;
   }
 
-  .ui-input_icon {
+  .ui-input_icon,
+  .input_icon {
     @apply text-text-tertiary inline-flex;
   }
 
-  .ui-input_native {
+  .ui-input_native,
+  .input_native {
     @apply flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary;
   }
 
-  .ui-textarea_native {
+  .ui-textarea_native,
+  .textarea_native {
     @apply w-full min-w-0 flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary text-sm resize-y;
   }
 
-  .ui-input_right {
+  .ui-input_right,
+  .input_right {
     @apply inline-flex items-center;
   }
 
-  .ui-input_error {
+  .ui-input_error,
+  .input_error {
     @apply text-xs text-red-600;
   }
 
-  .ui-input_hint {
+  .ui-input_hint,
+  .input_hint {
     @apply text-xs text-text-tertiary;
   }
 

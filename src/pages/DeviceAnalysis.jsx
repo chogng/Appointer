@@ -22,6 +22,7 @@ import CsvImporter from "../features/device-analysis/components/CsvImporter";
 import TemplateManager from "../features/device-analysis/components/TemplateManager";
 import DataPreviewTable from "../features/device-analysis/components/DataPreviewTable";
 import AnalysisCharts from "../features/device-analysis/components/AnalysisCharts";
+import Card from "../components/ui/Card";
 import {
   classifySsFit,
   computeSubthresholdSwing,
@@ -1207,19 +1208,16 @@ Note:
   };
 
   return (
-    <div className="w-full">
-      <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div id="device-analysis-page" className="w-full pb-12">
+      <header className="page_head flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">
-            Device Analysis
-          </h1>
-          <p className="text-text-secondary mt-1">
-            Import, extract, and visualize device data
-          </p>
+          <h1 className="page_title">{t("device_analysis")}</h1>
+          <p className="page_subtitle">{t("device_analysis_subtitle")}</p>
         </div>
 
         <div className="flex gap-3">
           <button
+            id="device-analysis-export-zip-btn"
             onClick={handleExport}
             disabled={processedData.length === 0}
             className="flex items-center gap-2 px-4 py-2 bg-bg-surface border border-border text-text-primary rounded-lg hover:bg-bg-surface-hover disabled:opacity-50 transition-colors"
@@ -1228,6 +1226,7 @@ Note:
             <span>Export ZIP</span>
           </button>
           <button
+            id="device-analysis-export-origin-btn"
             onClick={handleExportOrigin}
             disabled={processedData.length === 0}
             className="flex items-center gap-2 px-4 py-2 bg-bg-surface border border-border text-text-primary rounded-lg hover:bg-bg-surface-hover disabled:opacity-50 transition-colors"
@@ -1238,61 +1237,65 @@ Note:
         </div>
       </header>
 
-      {/* Main Content: Vertical Stack for better width usage */}
-      <div className="flex flex-col gap-8 pb-12">
-        {/* 1. Import Section */}
-        <section>
-          <div className="flex items-center gap-4 mb-4">
-            <button
-              type="button"
-              onClick={() => importerRef.current?.openFileDialog()}
-              className="flex items-center gap-2 px-4 py-2 bg-accent/10 hover:bg-accent/15 text-accent font-medium text-sm rounded-lg border border-accent/10 shadow-sm hover:shadow transition-all active:scale-[0.98]"
-            >
-              <Upload size={18} />
-              <span>Import CSV</span>
-            </button>
-            <span className="text-sm text-text-secondary font-medium">
-              Loaded {rawData.length} CSV files
-            </span>
-            <button
-              type="button"
-              onClick={handleClearSession}
-              disabled={!hasSessionData}
-              title="Reset session"
-              className="ml-auto p-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-            >
-              <RefreshCw
-                size={18}
-                className="transition-transform duration-500 hover:rotate-180"
-              />
-            </button>
-          </div>
-          <CsvImporter
-            ref={importerRef}
-            files={rawData}
-            onDataImported={handleDataImported}
-            onDataRemoved={handleDataRemoved}
-            onFileSelected={handlePreviewFileSelected}
-            selectedFileId={selectedPreviewFileId}
-          />
+      <div className="page_content">
+        <section aria-label="Import CSV files">
+          <h2 className="section_title">Import</h2>
+          <Card>
+            <div className="flex items-center gap-4 mb-4 flex-wrap">
+              <button
+                id="device-analysis-import-csv-btn"
+                type="button"
+                onClick={() => importerRef.current?.openFileDialog()}
+                className="flex items-center gap-2 px-4 py-2 bg-accent/10 hover:bg-accent/15 text-accent font-medium text-sm rounded-lg border border-accent/10 shadow-sm hover:shadow transition-all active:scale-[0.98]"
+              >
+                <Upload size={18} />
+                <span>Import CSV</span>
+              </button>
+              <span className="text-sm text-text-secondary font-medium">
+                Loaded {rawData.length} CSV files
+              </span>
+              <button
+                id="device-analysis-clear-session-btn"
+                type="button"
+                onClick={handleClearSession}
+                disabled={!hasSessionData}
+                title="Reset session"
+                aria-label="Reset session"
+                className="ml-auto p-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <RefreshCw
+                  size={18}
+                  className="transition-transform duration-500 hover:rotate-180"
+                />
+              </button>
+            </div>
+            <CsvImporter
+              ref={importerRef}
+              files={rawData}
+              onDataImported={handleDataImported}
+              onDataRemoved={handleDataRemoved}
+              onFileSelected={handlePreviewFileSelected}
+              selectedFileId={selectedPreviewFileId}
+            />
+          </Card>
         </section>
 
-        {/* 2. Template Configuration - Full Width */}
-        <section>
-          <TemplateManager
-            previewFile={previewFile}
-            previewStatus={previewStatus}
-            getPreviewRow={getPreviewRow}
-            ensurePreviewRows={ensurePreviewRows}
-            onTemplateApplied={handleTemplateApplied}
-            subscribePreviewRowsVersion={subscribePreviewRowsVersion}
-            getPreviewRowsVersion={getPreviewRowsVersion}
-          />
-        </section>
+        <TemplateManager
+          previewFile={previewFile}
+          previewStatus={previewStatus}
+          getPreviewRow={getPreviewRow}
+          ensurePreviewRows={ensurePreviewRows}
+          onTemplateApplied={handleTemplateApplied}
+          subscribePreviewRowsVersion={subscribePreviewRowsVersion}
+          getPreviewRowsVersion={getPreviewRowsVersion}
+        />
 
         {extractionErrors.length > 0 && (
-          <section>
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+          <section aria-label="Extraction errors">
+            <div
+              id="device-analysis-extraction-errors"
+              className="bg-red-500/10 border border-red-500/20 rounded-xl p-4"
+            >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-red-500">
                   <AlertCircle size={18} />
@@ -1301,6 +1304,7 @@ Note:
                   </h3>
                 </div>
                 <button
+                  id="device-analysis-extraction-errors-clear-btn"
                   type="button"
                   onClick={() => setExtractionErrors([])}
                   className="text-xs px-2 py-1 rounded border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-colors"
@@ -1325,22 +1329,24 @@ Note:
           </section>
         )}
 
-        {/* 3. Visualization/Analysis - Full Width */}
-        <section>
-          <div className="ui-section_head">
-            <h2 className="text-xl font-bold text-text-primary">
-              Analysis & Visualization
-            </h2>
+        <section aria-label="Analysis and visualization">
+          <div className="ui-section_head ui-section_head--gap">
+            <h2 className="section_title mb-0">Analysis & Visualization</h2>
 
             {/* View Toggles */}
-            <div className="bg-bg-surface border border-border rounded-lg p-1 inline-flex">
+            <div
+              id="device-analysis-view-toggle"
+              className="bg-bg-surface border border-border rounded-lg p-1 inline-flex"
+            >
               <button
+                id="device-analysis-view-table-btn"
                 onClick={() => setViewMode("table")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === "table" ? "bg-accent text-white shadow" : "text-text-secondary hover:text-text-primary"}`}
               >
                 <TableIcon size={18} /> Data Table
               </button>
               <button
+                id="device-analysis-view-chart-btn"
                 onClick={() => setViewMode("chart")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === "chart" ? "bg-accent text-white shadow" : "text-text-secondary hover:text-text-primary"}`}
               >
@@ -1369,13 +1375,16 @@ Note:
               />
             )
           ) : (
-            <div className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border rounded-xl text-text-secondary bg-white">
+            <Card
+              variant="panel"
+              className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border bg-bg-surface/50 text-text-secondary"
+            >
               <BarChart2 size={48} className="mb-4 opacity-20" />
               <p className="text-lg font-medium">No Processed Data</p>
               <p className="text-sm">
                 Apply a template above to generate results.
               </p>
-            </div>
+            </Card>
           )}
         </section>
       </div>

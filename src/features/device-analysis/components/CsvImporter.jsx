@@ -122,6 +122,9 @@ const CsvFileItem = React.memo(
   ({ fileEntry, isSelected, isInvisible, onSelect, onRemove }) => (
     <div
       aria-label="csv-file-item"
+      data-file-id={fileEntry?.fileId ?? undefined}
+      data-file-name={fileEntry?.file?.name ?? undefined}
+      data-selected={isSelected ? "true" : undefined}
       onClick={() => onSelect?.(fileEntry?.fileId ?? null)}
       className={cx(
         styles.fileItem,
@@ -137,6 +140,9 @@ const CsvFileItem = React.memo(
         <span className={styles.fileName}>{fileEntry?.file?.name}</span>
       </div>
       <button
+        type="button"
+        aria-label="Remove CSV file"
+        data-file-id={fileEntry?.fileId ?? undefined}
         onClick={(e) => {
           e.stopPropagation();
           onRemove?.(fileEntry?.fileId ?? null);
@@ -514,9 +520,10 @@ const CsvImporter = forwardRef(
     ]);
 
     return (
-      <div className="mb-6">
+      <div>
         <div
           ref={containerRef}
+          id="device-analysis-csv-dropzone"
           aria-label="csv-container"
           className={cx(
             styles.dropzone,
@@ -532,6 +539,7 @@ const CsvImporter = forwardRef(
           }
         >
           <input
+            id="device-analysis-csv-file-input"
             type="file"
             multiple
             accept=".csv"
@@ -574,7 +582,7 @@ const CsvImporter = forwardRef(
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red-500 bg-red-500/10 rounded-lg mb-4 whitespace-pre-wrap">
+          <div className="flex items-center gap-2 p-3 text-sm text-red-500 bg-red-500/10 rounded-lg mt-4 whitespace-pre-wrap">
             <AlertCircle size={16} />
             {error}
           </div>

@@ -120,7 +120,6 @@ const JournalLinksCard = ({
               onChange={onMaxResultsInputChange}
               onFocus={onSettingsInputFocus}
               onBlur={onSettingsInputBlur}
-              fieldClassName="rounded-lg"
               inputClassName="w-24"
               cta="Literature research"
               ctaPosition="date filter warp"
@@ -224,8 +223,6 @@ const JournalLinksCard = ({
                     onChange={(nextValue) => onSeedUrlChangeAt(index, nextValue)}
                     onFocus={onSettingsInputFocus}
                     onBlur={onSettingsInputBlur}
-                    fieldClassName="rounded-lg"
-                    inputClassName="rounded-lg"
                     spellCheck={false}
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -235,6 +232,9 @@ const JournalLinksCard = ({
                     leftIcon={LinkIcon}
                     className="flex-1"
                     aria-label={`Seed url ${index + 1}`}
+                    cta="Literature research"
+                    ctaPosition="seed urls"
+                    ctaCopy={`seed-url-${index}`}
                     data-seed-index={index}
                   />
 
@@ -245,11 +245,12 @@ const JournalLinksCard = ({
                     onChange={(nextValue) => onSeedUrlTitleChangeAt(index, nextValue)}
                     onFocus={onSettingsInputFocus}
                     onBlur={onSettingsInputBlur}
-                    fieldClassName="rounded-lg"
-                    inputClassName="rounded-lg"
                     placeholder={t("literature_seed_title_placeholder")}
                     className="w-44 shrink-0"
                     aria-label={`Seed title ${index + 1}`}
+                    cta="Literature research"
+                    ctaPosition="seed urls"
+                    ctaCopy={`seed-title-${index}`}
                     data-seed-index={index}
                   />
 

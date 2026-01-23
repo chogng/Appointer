@@ -2,7 +2,7 @@
 
 本文定义 [`src/components/ui/Textarea.jsx`](../src/components/ui/Textarea.jsx) 的 **DOM 输出、状态模型、ID/aria 规则、CTA 标记与 A11y 约束**（推荐用 `id` + `aria-label`；`data-ui` 仅遗留兼容）。
 
-说明：Textarea 复用 Input 体系的样式与容器结构（`ui-input_*`），因此其外层仍使用 `data-style="input"`；差异在于渲染的原生控件为 `<textarea>`。
+说明：Textarea 复用 Input 体系的样式与容器结构（`input_*`），因此其外层仍使用 `data-style="input"`；差异在于渲染的原生控件为 `<textarea>`。
 
 相关规范：
 - [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记约定
@@ -51,24 +51,24 @@ type TextareaProps = {
 ## 3. DOM 结构（规范）
 
 Wrapper：
-- `div.ui-input_warp`
+- `div.input_warp`
   - `data-style="input"`
   - 可选（Legacy）：`data-ui="<dataUi>"`
 
 Label（可选）：
-- `label.ui-input_label`
+- `label.input_label`
   - `htmlFor="<textareaId>"`
   - 当传入 `dataUi`（Legacy）：输出 `data-ui="<dataUi>-label"`
 
 Field：
-- `div.ui-input_field`
+- `div.input_field`
   - `data-icon="without"`
   - `data-state="enable|error|disabled"`
   - 可选：`data-testid`（DEV-only）
   - 可选埋点：`data-cta` / `data-cta-position` / `data-cta-copy`
 
 Native textarea：
-- `textarea.ui-textarea_native`
+- `textarea.textarea_native`
   - `id="<textareaId>"`
   - `disabled={disabled}`
   - `aria-invalid={!!error}`
@@ -77,9 +77,9 @@ Native textarea：
   - 当传入 `dataUi`（Legacy）：输出 `data-ui="<dataUi>-input"`
 
 Error/Hint：
-- 错误优先：`div.ui-input_error`
+- 错误优先：`div.input_error`
   - `id="<textareaId>-error"`
-- 无错误时可显示：`div.ui-input_hint`
+- 无错误时可显示：`div.input_hint`
   - `id="<textareaId>-hint"`
 
 ---
