@@ -4,6 +4,7 @@ import { enUS, zhCN } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
 import MiniCalendar from "../MiniCalendar";
 import { useLanguage } from "../../hooks/useLanguage";
+import { normalizeCtaName, normalizeCtaToken } from "../../utils/cta";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -84,9 +85,11 @@ const DatePicker = ({
             data-style="date"
             data-icon="with"
             data-state={isOpen ? "open" : "closed"}
-            data-cta={cta ?? derivedCta?.cta}
-            data-cta-position={ctaPosition ?? derivedCta?.ctaPosition}
-            data-cta-copy={ctaCopy ?? derivedCta?.ctaCopy}
+            data-cta={normalizeCtaName(cta ?? derivedCta?.cta)}
+            data-cta-position={normalizeCtaToken(
+              ctaPosition ?? derivedCta?.ctaPosition
+            )}
+            data-cta-copy={normalizeCtaToken(ctaCopy ?? derivedCta?.ctaCopy)}
             className={cx(
               "date_btn",
               isOpen ? "date_btn--open" : "date_btn--closed",

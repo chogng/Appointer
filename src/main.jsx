@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/global.css'
 import App from './App.jsx'
+import { initCtaTracking } from './utils/ctaTracking.js'
 
 // Track last input modality so focus rings can be limited to keyboard navigation.
 if (!window.__APPOINTER_NAV_MODE_INIT__) {
@@ -31,6 +32,8 @@ if (!window.__APPOINTER_NAV_MODE_INIT__) {
     true,
   );
 }
+
+initCtaTracking();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

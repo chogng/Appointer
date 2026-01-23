@@ -207,7 +207,7 @@ const JournalLinksCard = ({
                     aria-pressed={seedUrlSelected[index] !== false}
                     id={`literature-seed-url-select-${index}`}
                     data-cta="Literature research"
-                    data-cta-position="seed urls"
+                    data-cta-position="seed-urls"
                     data-cta-copy="toggle include"
                     data-seed-index={index}
                   >
@@ -233,7 +233,7 @@ const JournalLinksCard = ({
                     className="flex-1"
                     aria-label={`Seed url ${index + 1}`}
                     cta="Literature research"
-                    ctaPosition="seed urls"
+                    ctaPosition="seed-urls"
                     ctaCopy={`seed-url-${index}`}
                     data-seed-index={index}
                   />
@@ -249,7 +249,7 @@ const JournalLinksCard = ({
                     className="w-44 shrink-0"
                     aria-label={`Seed title ${index + 1}`}
                     cta="Literature research"
-                    ctaPosition="seed urls"
+                    ctaPosition="seed-urls"
                     ctaCopy={`seed-title-${index}`}
                     data-seed-index={index}
                   />
@@ -262,7 +262,7 @@ const JournalLinksCard = ({
                     id={`literature-seed-url-remove-${index}`}
                     data-icon="with"
                     data-cta="Literature research"
-                    data-cta-position="seed urls"
+                    data-cta-position="seed-urls"
                     data-cta-copy="remove url"
                     data-seed-index={index}
                     className="action-btn action-btn--md action-btn--icon-md-tight action-btn--fx action-btn--fx-muted action-btn--danger"

@@ -372,30 +372,36 @@ const MainLayout = () => {
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`
-                            absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
-                            ${
-                              isCollapsed
-                                ? "opacity-0 pointer-events-none"
-                                : "opacity-100"
-                            }
-                        `}
+                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
+                             ${
+                               isCollapsed
+                                 ? "opacity-0 pointer-events-none"
+                                 : "opacity-100"
+                             }
+                         `}
             aria-label={collapseMenuLabel}
             data-testid={collapseTestId}
+            data-cta="Navigation"
+            data-cta-position="sidebar"
+            data-cta-copy="collapse"
           >
             <SidebarCollapseIcon size={20} />
           </button>
         </div>
 
         {/* Invisible Toggle Overlay on Logo for Collapsed State */}
-        {isCollapsed && (
-          <button
-            type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="absolute top-6 left-[28px] w-6 h-6 z-50 cursor-pointer"
-            aria-label={t("expandMenu")}
-            data-testid={expandTestId}
-          />
-        )}
+          {isCollapsed && (
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="absolute top-6 left-[28px] w-6 h-6 z-50 cursor-pointer"
+              aria-label={t("expandMenu")}
+              data-testid={expandTestId}
+              data-cta="Navigation"
+              data-cta-position="sidebar"
+              data-cta-copy="expand"
+            />
+          )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto mb-4 px-2">
@@ -403,11 +409,14 @@ const MainLayout = () => {
             <NavLink
               key={item.path}
               to={item.path}
+              data-cta="Navigation"
+              data-cta-position="sidebar"
+              data-cta-copy={item.path}
               className={({ isActive }) => `
-                                flex items-center rounded-2xl mb-1.5 h-12
-                                transition-all duration-500 text-[15px] group relative
-                                mx-3 pl-2.5 pr-4 gap-3.5
-                                ${
+                                 flex items-center rounded-2xl mb-1.5 h-12
+                                 transition-all duration-500 text-[15px] group relative
+                                 mx-3 pl-2.5 pr-4 gap-3.5
+                                 ${
                                   isActive
                                     ? "bg-accent text-white font-semibold shadow-lg shadow-accent/25"
                                     : "text-text-secondary hover:text-text-primary hover:bg-accent/5"
@@ -467,6 +476,9 @@ const MainLayout = () => {
                             }
                         `}
             onClick={() => navigate("/settings")}
+            data-cta="Navigation"
+            data-cta-position="sidebar"
+            data-cta-copy="/settings"
             style={{
               left: "70px",
               top: "48px",
@@ -492,6 +504,9 @@ const MainLayout = () => {
             }}
             aria-label={t("logout")}
             data-testid={logoutTestId}
+            data-cta="Auth"
+            data-cta-position="sidebar"
+            data-cta-copy="logout"
           >
             <LogoutIcon size={18} />
           </button>

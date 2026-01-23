@@ -1,4 +1,5 @@
 import { forwardRef, useId } from "react";
+import { normalizeCtaName, normalizeCtaToken } from "../../utils/cta";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -102,9 +103,9 @@ const Input = forwardRef(
         data-icon={LeftIcon ? "with" : "without"}
         data-state={state}
         data-testid={devTestId}
-        data-cta={cta}
-        data-cta-position={ctaPosition}
-        data-cta-copy={ctaCopy}
+        data-cta={normalizeCtaName(cta)}
+        data-cta-position={normalizeCtaToken(ctaPosition)}
+        data-cta-copy={normalizeCtaToken(ctaCopy)}
       >
         {LeftIcon ? (
           <span className="input_icon" aria-hidden="true">

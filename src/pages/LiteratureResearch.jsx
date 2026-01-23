@@ -140,8 +140,15 @@ const LiteratureResearch = () => {
   const { t } = useLanguage();
   const literatureSession = useLiteratureResearchSession();
 
-  const today = format(new Date(), "yyyy-MM-dd");
-  const defaultStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
+  const [now, setNow] = useState(() => new Date());
+  const today = useMemo(() => format(now, "yyyy-MM-dd"), [now]);
+  const defaultStart = useMemo(
+    () => format(subDays(now, 7), "yyyy-MM-dd"),
+    [now],
+  );
+
+  const startDateAutoRef = useRef(true);
+  const endDateAutoRef = useRef(true);
 
   const [seedUrlsBySourceType, setSeedUrlsBySourceType] = useState({
     nature: [""],
@@ -252,6 +259,33 @@ const LiteratureResearch = () => {
   useEffect(() => {
     maxResultsRef.current = maxResults;
   }, [maxResults]);
+
+  useEffect(() => {
+    let timeoutId = null;
+
+    const scheduleNextTick = () => {
+      const current = new Date();
+      const nextMidnight = new Date(current);
+      nextMidnight.setHours(24, 0, 5, 0);
+      const delay = Math.max(1000, nextMidnight.getTime() - current.getTime());
+
+      timeoutId = setTimeout(() => {
+        setNow(new Date());
+        scheduleNextTick();
+      }, delay);
+    };
+
+    scheduleNextTick();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (startDateAutoRef.current) setStartDate(defaultStart);
+    if (endDateAutoRef.current) setEndDate(today);
+  }, [defaultStart, today]);
 
   const committedSettingsRef = useRef({
     seedUrlsBySourceType: { nature: [], science: [] },
@@ -421,6 +455,10 @@ const LiteratureResearch = () => {
     hasRestoredSessionRef.current = false;
     isRestoringSessionRef.current = false;
 
+    const currentNow = new Date();
+    const currentToday = format(currentNow, "yyyy-MM-dd");
+    const currentDefaultStart = format(subDays(currentNow, 7), "yyyy-MM-dd");
+
     const parsed = literatureSession.getSession(userId);
     if (!parsed || parsed?.v !== LITERATURE_SESSION_STATE_VERSION) return;
 
@@ -538,8 +576,42 @@ const LiteratureResearch = () => {
         [restoredSource]: normalizeSeedUrlSelectedList(null, nextSeedUrls.length),
       }));
     }
-    if (restoredStartDate) setStartDate(restoredStartDate);
-    if (restoredEndDate) setEndDate(restoredEndDate);
+    const savedAtRaw = Number(parsed?.savedAt);
+    const savedAt = Number.isFinite(savedAtRaw) ? savedAtRaw : null;
+    const savedDate = savedAt != null ? new Date(savedAt) : null;
+    const savedToday = savedDate ? format(savedDate, "yyyy-MM-dd") : null;
+    const savedDefaultStart = savedDate
+      ? format(subDays(savedDate, 7), "yyyy-MM-dd")
+      : null;
+
+    if (
+      restoredStartDate &&
+      restoredEndDate &&
+      savedToday &&
+      savedDefaultStart &&
+      restoredEndDate === savedToday &&
+      restoredStartDate === savedDefaultStart
+    ) {
+      startDateAutoRef.current = true;
+      endDateAutoRef.current = true;
+      setStartDate(currentDefaultStart);
+      setEndDate(currentToday);
+    } else {
+      if (restoredStartDate) {
+        startDateAutoRef.current = restoredStartDate === currentDefaultStart;
+        setStartDate(restoredStartDate);
+      }
+
+      if (restoredEndDate) {
+        if (savedToday && restoredEndDate === savedToday) {
+          endDateAutoRef.current = true;
+          setEndDate(currentToday);
+        } else {
+          endDateAutoRef.current = restoredEndDate === currentToday;
+          setEndDate(restoredEndDate);
+        }
+      }
+    }
     if (typeof restoredMaxResults === "string")
       setMaxResults(restoredMaxResults);
 
@@ -632,6 +704,13 @@ const LiteratureResearch = () => {
     (async () => {
       if (!user?.id) return;
       try {
+        const currentNow = new Date();
+        const currentToday = format(currentNow, "yyyy-MM-dd");
+        const currentDefaultStart = format(
+          subDays(currentNow, 7),
+          "yyyy-MM-dd",
+        );
+
         const data = await apiService.getLiteratureSettings();
         if (cancelled) return;
 
@@ -711,11 +790,11 @@ const LiteratureResearch = () => {
         const resolvedStartDate =
           typeof data?.startDate === "string" && data.startDate
             ? data.startDate
-            : defaultStart;
+            : currentDefaultStart;
         const resolvedEndDate =
           typeof data?.endDate === "string" && data.endDate
             ? data.endDate
-            : today;
+            : currentToday;
 
         const resolvedMaxResults =
           typeof data?.maxResults === "number" &&
@@ -752,6 +831,14 @@ const LiteratureResearch = () => {
             nature: resolvedSeedUrlTitlesBySourceType.nature,
             science: resolvedSeedUrlTitlesBySourceType.science,
           }));
+          startDateAutoRef.current =
+            typeof resolvedStartDate === "string" &&
+            resolvedStartDate &&
+            resolvedStartDate === currentDefaultStart;
+          endDateAutoRef.current =
+            typeof resolvedEndDate === "string" &&
+            resolvedEndDate &&
+            resolvedEndDate === currentToday;
           setStartDate(resolvedStartDate);
           setEndDate(resolvedEndDate);
           setMaxResults(
@@ -771,7 +858,19 @@ const LiteratureResearch = () => {
     return () => {
       cancelled = true;
     };
-  }, [defaultStart, today, user?.id]);
+  }, [user?.id]);
+
+  const handleStartDateChange = (value) => {
+    const next = typeof value === "string" ? value : "";
+    startDateAutoRef.current = Boolean(next) && next === defaultStart;
+    setStartDate(next);
+  };
+
+  const handleEndDateChange = (value) => {
+    const next = typeof value === "string" ? value : "";
+    endDateAutoRef.current = Boolean(next) && next === today;
+    setEndDate(next);
+  };
 
   const enqueueSettingsSync = (job) => {
     const run = () => Promise.resolve().then(job);
@@ -2339,9 +2438,9 @@ const LiteratureResearch = () => {
           sourceType={sourceType}
           onSourceChange={handleSourceChange}
           startDate={startDate}
-          onStartDateChange={setStartDate}
+          onStartDateChange={handleStartDateChange}
           endDate={endDate}
-          onEndDateChange={setEndDate}
+          onEndDateChange={handleEndDateChange}
           maxResults={maxResults}
           onMaxResultsInputChange={handleMaxResultsInputChange}
           onSettingsInputFocus={handleSettingsInputFocus}

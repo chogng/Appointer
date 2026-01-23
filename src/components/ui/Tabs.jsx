@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { normalizeCtaName, normalizeCtaToken } from "../../utils/cta";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -220,9 +221,9 @@ const Tabs = ({
                         data-icon={Icon ? "with" : "without"}
                         data-tabs="tab"
                         data-ui={uiMarker ? `${uiMarker}-tab-${token}` : undefined}
-                        data-cta={option?.cta}
-                        data-cta-position={option?.ctaPosition}
-                        data-cta-copy={option?.ctaCopy}
+                        data-cta={normalizeCtaName(option?.cta)}
+                        data-cta-position={normalizeCtaToken(option?.ctaPosition)}
+                        data-cta-copy={normalizeCtaToken(option?.ctaCopy)}
                         data-testid={testId}
                         type="button"
                         onClick={() => {

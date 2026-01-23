@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { normalizeCtaName, normalizeCtaToken } from "../../utils/cta";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -82,9 +83,9 @@ const Button = forwardRef(
         data-icon={dataIcon}
         data-ui={uiMarker}
         data-testid={devTestId}
-        data-cta={cta}
-        data-cta-position={ctaPosition}
-        data-cta-copy={ctaCopy}
+        data-cta={normalizeCtaName(cta)}
+        data-cta-position={normalizeCtaToken(ctaPosition)}
+        data-cta-copy={normalizeCtaToken(ctaCopy)}
         className={cx(
           "action-btn",
           sizeClass,

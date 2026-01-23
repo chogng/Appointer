@@ -228,7 +228,7 @@ const ResultsCard = ({
                     aria-label={exportDocxLabel}
                     data-icon="with"
                     data-cta="Literature research"
-                    data-cta-position="result group"
+                    data-cta-position="result-group"
                     data-cta-copy="export docx group"
                     data-ui="literature-group-export-docx-btn"
                   >

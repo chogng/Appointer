@@ -1,4 +1,5 @@
 import { createElement, forwardRef } from "react";
+import { normalizeCtaName, normalizeCtaToken } from "../../utils/cta";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -27,13 +28,9 @@ const Card = forwardRef(
     const uiMarker =
       typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
 
-    const ctaMarker = typeof cta === "string" && cta.trim() ? cta.trim() : undefined;
-    const ctaPositionMarker =
-      typeof ctaPosition === "string" && ctaPosition.trim()
-        ? ctaPosition.trim()
-        : undefined;
-    const ctaCopyMarker =
-      typeof ctaCopy === "string" && ctaCopy.trim() ? ctaCopy.trim() : undefined;
+    const ctaMarker = normalizeCtaName(cta);
+    const ctaPositionMarker = normalizeCtaToken(ctaPosition);
+    const ctaCopyMarker = normalizeCtaToken(ctaCopy);
 
     const cardClasses = cx(variants[variant] || variants.default, className);
 
