@@ -40,6 +40,9 @@ dist-ssr
 # .snow artifacts
 .snow/
 
+# Vercel local project settings
+.vercel/
+
 # Local debug snippets
 mcp-claude-hover-snippet.js
 

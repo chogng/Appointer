@@ -56,6 +56,9 @@ const KeywordMatchCard = ({
             onChange={onKeywordInputChange}
             placeholder={t("literature_keywords_placeholder")}
             rows={2}
+            cta="Literature research"
+            ctaPosition="keyword-panel"
+            ctaCopy="keywords"
             hint={`${t("literature_keywords_count")}：${keywordsCount}`}
           />
         </div>

@@ -232,6 +232,9 @@ const JournalLinksCard = ({
                     leftIcon={LinkIcon}
                     className="flex-1"
                     aria-label={`Seed url ${index + 1}`}
+                    cta="Literature research"
+                    ctaPosition="seed urls"
+                    ctaCopy={`seed-url-${index}`}
                     data-seed-index={index}
                   />
 
@@ -245,6 +248,9 @@ const JournalLinksCard = ({
                     placeholder={t("literature_seed_title_placeholder")}
                     className="w-44 shrink-0"
                     aria-label={`Seed title ${index + 1}`}
+                    cta="Literature research"
+                    ctaPosition="seed urls"
+                    ctaCopy={`seed-title-${index}`}
                     data-seed-index={index}
                   />
 
