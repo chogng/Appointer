@@ -10,7 +10,6 @@ import React, {
 import {
   AlertCircle,
   BarChart2,
-  Download,
   Table as TableIcon,
   Trash2,
   Upload,
@@ -23,6 +22,7 @@ import TemplateManager from "../features/device-analysis/components/TemplateMana
 import DataPreviewTable from "../features/device-analysis/components/DataPreviewTable";
 import AnalysisCharts from "../features/device-analysis/components/AnalysisCharts";
 import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
 import {
   classifySsFit,
   computeSubthresholdSwing,
@@ -1207,33 +1207,29 @@ Note:
     triggerDownloadBlob("device_analysis_origin.zip", zipBlob);
   };
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+
+    // Expose export helpers for DevTools without keeping header-level export buttons.
+    window.__appointerDebug = window.__appointerDebug || {};
+    window.__appointerDebug.deviceAnalysis = {
+      exportZip: handleExport,
+      exportOriginZip: handleExportOrigin,
+    };
+
+    return () => {
+      if (window.__appointerDebug?.deviceAnalysis) {
+        delete window.__appointerDebug.deviceAnalysis;
+      }
+    };
+  }, [handleExport, handleExportOrigin]);
+
   return (
     <div id="device-analysis-page" className="w-full pb-12">
       <header className="page_head flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="page_title">{t("device_analysis")}</h1>
           <p className="page_subtitle">{t("device_analysis_subtitle")}</p>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            id="device-analysis-export-zip-btn"
-            onClick={handleExport}
-            disabled={processedData.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-bg-surface border border-border text-text-primary rounded-lg hover:bg-bg-surface-hover disabled:opacity-50 transition-colors"
-          >
-            <Download size={18} />
-            <span>Export ZIP</span>
-          </button>
-          <button
-            id="device-analysis-export-origin-btn"
-            onClick={handleExportOrigin}
-            disabled={processedData.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-bg-surface border border-border text-text-primary rounded-lg hover:bg-bg-surface-hover disabled:opacity-50 transition-colors"
-          >
-            <Download size={18} />
-            <span>Export for Origin</span>
-          </button>
         </div>
       </header>
 
@@ -1242,15 +1238,20 @@ Note:
           <h2 className="section_title">Import</h2>
           <Card>
             <div className="flex items-center gap-4 mb-4 flex-wrap">
-              <button
+              <Button
                 id="device-analysis-import-csv-btn"
                 type="button"
                 onClick={() => importerRef.current?.openFileDialog()}
-                className="flex items-center gap-2 px-4 py-2 bg-accent/10 hover:bg-accent/15 text-accent font-medium text-sm rounded-lg border border-accent/10 shadow-sm hover:shadow transition-all active:scale-[0.98]"
+                variant="primary"
+                fx
+                dataIcon="with"
+                cta="Device analysis"
+                ctaPosition="import"
+                ctaCopy="import csv"
               >
-                <Upload size={18} />
+                <Upload size={16} />
                 <span>Import CSV</span>
-              </button>
+              </Button>
               <span className="text-sm text-text-secondary font-medium">
                 Loaded {rawData.length} CSV files
               </span>

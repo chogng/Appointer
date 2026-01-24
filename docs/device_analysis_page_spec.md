@@ -15,8 +15,6 @@
 
 **必须锚点**：
 - 页面根：`#device-analysis-page`
-- 导出 ZIP：`#device-analysis-export-zip-btn`
-- 导出 Origin ZIP：`#device-analysis-export-origin-btn`
 - 导入 CSV：`#device-analysis-import-csv-btn`
 - 清空/重置 session：`#device-analysis-clear-session-btn`
 
