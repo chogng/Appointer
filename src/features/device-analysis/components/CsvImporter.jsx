@@ -118,12 +118,32 @@ const ExpandedCard = ({
   );
 };
 
+const buildFileKeyRaw = (file) =>
+  file && typeof file === "object" ? `${file.name}::${file.size}` : "";
+
+const fnv1a32 = (input) => {
+  const str = String(input ?? "");
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    // 32-bit FNV prime: 16777619
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+};
+
+const buildItemKey = (file) => {
+  const raw = buildFileKeyRaw(file);
+  if (!raw) return "";
+  return `csv-${fnv1a32(raw)}`;
+};
+
 const CsvFileItem = React.memo(
   ({ fileEntry, isSelected, isInvisible, onSelect, onRemove }) => (
     <div
       aria-label="csv-file-item"
-      data-file-id={fileEntry?.fileId ?? undefined}
-      data-file-name={fileEntry?.file?.name ?? undefined}
+      data-ui="csv-file-item"
+      data-item-key={fileEntry?.itemKey || undefined}
       data-selected={isSelected ? "true" : undefined}
       onClick={() => onSelect?.(fileEntry?.fileId ?? null)}
       className={cx(
@@ -142,7 +162,8 @@ const CsvFileItem = React.memo(
       <button
         type="button"
         aria-label="Remove CSV file"
-        data-file-id={fileEntry?.fileId ?? undefined}
+        data-ui="csv-file-remove-btn"
+        data-item-key={fileEntry?.itemKey || undefined}
         onClick={(e) => {
           e.stopPropagation();
           onRemove?.(fileEntry?.fileId ?? null);
@@ -331,7 +352,7 @@ const CsvImporter = forwardRef(
         if (!file.name.toLowerCase().endsWith(".csv")) return;
 
         const fileId = createFileId();
-        const fileEntry = { fileId, file };
+        const fileEntry = { fileId, file, itemKey: buildItemKey(file) };
 
         if (setFiles) {
           setFiles((prev) => {
@@ -472,6 +493,7 @@ const CsvImporter = forwardRef(
         return {
           enabled: false,
           gridStyle: undefined,
+          baseIndex: 0,
           visibleFiles: files,
         };
       }
@@ -504,6 +526,7 @@ const CsvImporter = forwardRef(
           gridTemplateColumns: `repeat(${cols}, minmax(${GRID_MIN_COL_WIDTH}px, 1fr))`,
           gridAutoRows: `${GRID_ROW_HEIGHT}px`,
         },
+        baseIndex: startIndex,
         visibleFiles: files.slice(startIndex, endIndex),
       };
     }, [

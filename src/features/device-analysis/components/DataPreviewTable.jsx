@@ -7,11 +7,13 @@ import React, {
   useState,
 } from "react";
 import Card from "../../../components/ui/Card";
+import { useLanguage } from "../../../hooks/useLanguage";
 
 const PREVIEW_ROW_OVERSCAN = 12;
 const DEFAULT_PREVIEW_ROW_HEIGHT_PX = 44;
 
 const DataPreviewTable = ({ processedData }) => {
+  const { t } = useLanguage();
   const [activeFileId, setActiveFileId] = useState(
     processedData?.[0]?.fileId ?? null,
   );
@@ -174,9 +176,9 @@ const DataPreviewTable = ({ processedData }) => {
         variant="panel"
         className="flex flex-col items-center justify-center p-12 text-text-secondary border border-dashed border-border bg-bg-surface/50 h-[300px]"
       >
-        <p>No data extracted yet.</p>
+        <p>{t("da_no_data_extracted")}</p>
         <p className="text-sm">
-          Import CSVs and apply a template to see results.
+          {t("da_no_data_extracted_hint")}
         </p>
       </Card>
     );
@@ -219,18 +221,18 @@ const DataPreviewTable = ({ processedData }) => {
               {activeFile.x.groups}
             </>
           ) : (
-            "No file selected"
+            t("da_no_file_selected")
           )}
         </div>
 
         <select
           id="device-analysis-data-preview-series-select"
-          aria-label="Select series"
+          aria-label={t("da_select_series")}
           value={effectiveActiveSeriesId ?? ""}
           onChange={(e) => setActiveSeriesId(e.target.value)}
           disabled={!activeFile?.series?.length}
           className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black max-w-[260px]"
-          title="Select a series"
+          title={t("da_select_series")}
         >
           {activeFile?.series?.map((s) => (
             <option key={s.id} value={s.id}>

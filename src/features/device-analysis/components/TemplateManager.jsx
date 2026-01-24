@@ -1330,8 +1330,8 @@ const TemplateManager = ({
   }, [buildSelectionTsv, ensurePreviewRows, previewFile, selections]);
 
   return (
-    <section aria-label="Data Extraction Template">
-      <h2 className="section_title">Data Extraction Template</h2>
+    <section aria-label={t("da_data_extraction_template")}>
+      <h2 className="section_title">{t("da_data_extraction_template")}</h2>
 
       <Card
         ref={containerRef}
@@ -1349,11 +1349,12 @@ const TemplateManager = ({
                     setTemplateMode(val);
                     if (val === "save") setIsDropdownOpen(false);
                   }}
-                  groupLabel="Template mode"
+                  idBase="device-analysis-template-mode"
+                  groupLabel={t("da_template_mode")}
                   options={[
                     {
                       value: "select",
-                      label: "Select",
+                      label: t("da_template_mode_select"),
                       icon: List,
                       cta: "Device Analysis",
                       ctaPosition: "template-mode",
@@ -1361,7 +1362,7 @@ const TemplateManager = ({
                     },
                     {
                       value: "save",
-                      label: "Save",
+                      label: t("da_template_mode_save"),
                       icon: Save,
                       cta: "Device Analysis",
                       ctaPosition: "template-mode",

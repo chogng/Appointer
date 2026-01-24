@@ -22,7 +22,6 @@ import TemplateManager from "../features/device-analysis/components/TemplateMana
 import DataPreviewTable from "../features/device-analysis/components/DataPreviewTable";
 import AnalysisCharts from "../features/device-analysis/components/AnalysisCharts";
 import Card from "../components/ui/Card";
-import Button from "../components/ui/Button";
 import {
   classifySsFit,
   computeSubthresholdSwing,
@@ -1234,40 +1233,47 @@ Note:
       </header>
 
       <div className="page_content">
-        <section aria-label="Import CSV files">
-          <h2 className="section_title">Import</h2>
+        <section aria-label={t("da_import_section")}>
+          <h2 className="section_title">{t("da_import")}</h2>
           <Card>
-            <div className="flex items-center gap-4 mb-4 flex-wrap">
-              <Button
+            <div className="toolbar_row">
+              <button
                 id="device-analysis-import-csv-btn"
                 type="button"
                 onClick={() => importerRef.current?.openFileDialog()}
-                variant="primary"
-                fx
-                dataIcon="with"
-                cta="Device analysis"
-                ctaPosition="import"
-                ctaCopy="import csv"
+                data-icon="with"
+                data-cta="Device analysis"
+                data-cta-position="import"
+                data-cta-copy="import csv"
+                className="action-btn action-btn--md action-btn--fx action-btn--primary"
+                aria-label={t("da_import_csv")}
               >
-                <Upload size={16} />
-                <span>Import CSV</span>
-              </Button>
-              <span className="text-sm text-text-secondary font-medium">
-                Loaded {rawData.length} CSV files
+                <span className="action-btn__content">
+                  <Upload size={16} />
+                  {t("da_import_csv")}
+                </span>
+              </button>
+              <span className="meta_text whitespace-nowrap">
+                {t("da_loaded_csv_files", { count: rawData.length })}
               </span>
               <button
                 id="device-analysis-clear-session-btn"
                 type="button"
                 onClick={handleClearSession}
                 disabled={!hasSessionData}
-                title="Reset session"
-                aria-label="Reset session"
-                className="ml-auto p-2 bg-red-500/10 hover:bg-red-500/15 text-red-500 rounded-lg border border-red-500/20 shadow-sm hover:shadow transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                title={t("da_reset_session")}
+                aria-label={t("da_reset_session")}
+                data-icon="with"
+                data-cta="Device analysis"
+                data-cta-position="import"
+                data-cta-copy="reset session"
+                className={`toolbar_spacer action-btn action-btn--md action-btn--icon-md-tight ${
+                  hasSessionData ? "action-btn--fx action-btn--fx-muted action-btn--danger" : "action-btn--disabled"
+                }`}
               >
-                <RefreshCw
-                  size={18}
-                  className="transition-transform duration-500 hover:rotate-180"
-                />
+                <span className="action-btn__content">
+                  <RefreshCw size={16} className="transition-transform duration-500 hover:rotate-180" />
+                </span>
               </button>
             </div>
             <CsvImporter
@@ -1292,7 +1298,7 @@ Note:
         />
 
         {extractionErrors.length > 0 && (
-          <section aria-label="Extraction errors">
+          <section aria-label={t("da_extraction_errors")}>
             <div
               id="device-analysis-extraction-errors"
               className="bg-red-500/10 border border-red-500/20 rounded-xl p-4"
@@ -1301,7 +1307,7 @@ Note:
                 <div className="flex items-center gap-2 text-red-500">
                   <AlertCircle size={18} />
                   <h3 className="text-sm font-semibold">
-                    Extraction errors ({extractionErrors.length})
+                    {t("da_extraction_errors")} ({extractionErrors.length})
                   </h3>
                 </div>
                 <button
@@ -1310,7 +1316,7 @@ Note:
                   onClick={() => setExtractionErrors([])}
                   className="text-xs px-2 py-1 rounded border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-colors"
                 >
-                  Clear
+                  {t("common_clear")}
                 </button>
               </div>
 
@@ -1330,9 +1336,9 @@ Note:
           </section>
         )}
 
-        <section aria-label="Analysis and visualization">
+        <section aria-label={t("da_analysis_visualization")}>
           <div className="ui-section_head ui-section_head--gap">
-            <h2 className="section_title mb-0">Analysis & Visualization</h2>
+            <h2 className="section_title mb-0">{t("da_analysis_visualization")}</h2>
 
             {/* View Toggles */}
             <div
@@ -1344,14 +1350,14 @@ Note:
                 onClick={() => setViewMode("table")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === "table" ? "bg-accent text-white shadow" : "text-text-secondary hover:text-text-primary"}`}
               >
-                <TableIcon size={18} /> Data Table
+                <TableIcon size={18} /> {t("da_view_table")}
               </button>
               <button
                 id="device-analysis-view-chart-btn"
                 onClick={() => setViewMode("chart")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === "chart" ? "bg-accent text-white shadow" : "text-text-secondary hover:text-text-primary"}`}
               >
-                <BarChart2 size={18} /> Charts
+                <BarChart2 size={18} /> {t("da_view_charts")}
               </button>
             </div>
           </div>
@@ -1381,9 +1387,9 @@ Note:
               className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border bg-bg-surface/50 text-text-secondary"
             >
               <BarChart2 size={48} className="mb-4 opacity-20" />
-              <p className="text-lg font-medium">No Processed Data</p>
+              <p className="text-lg font-medium">{t("da_no_processed_data")}</p>
               <p className="text-sm">
-                Apply a template above to generate results.
+                {t("da_no_processed_data_hint")}
               </p>
             </Card>
           )}

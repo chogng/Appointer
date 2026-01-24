@@ -305,12 +305,9 @@ body {
       @apply text-text-secondary hover:text-text-primary bg-transparent border border-transparent hover:bg-black/5;
     }
 
-  /* Align toolbar buttons with the demo rings.
-     - Primary + FX: fixed dark ring (Claude-like)
-     - Ghost + FX: keep default ghost ring color, but still shadow-only (no real border)
-     Scoped to `.toolbar_group` to avoid global surprises. */
-  .toolbar_group .action-btn--primary.action-btn--fx,
-  .toolbar_group .click_btn--primary.click_btn--fx {
+  /* Primary + FX: fixed dark ring (Claude-like), consistent across pages */
+  .action-btn--primary.action-btn--fx,
+  .click_btn--primary.click_btn--fx {
     --click-fx-bg: rgb(20, 20, 19);
     --click-fx-border: rgb(48, 48, 46);
     --click-fx-border-hover: rgb(48, 48, 46);
@@ -356,6 +353,21 @@ body {
   .action-btn--disabled,
   .click_btn--disabled {
     @apply text-text-secondary cursor-not-allowed bg-bg-200 border border-transparent;
+  }
+
+  /* Small secondary meta text (labels like "Loaded 3 files") */
+  .meta_text {
+    @apply text-sm text-text-secondary font-medium;
+  }
+
+  /* Common toolbar row layout: primary action + meta + trailing actions */
+  .toolbar_row {
+    @apply flex items-center gap-4 mb-4 flex-wrap;
+  }
+
+  /* Push trailing items to the far right within `.toolbar_row` */
+  .toolbar_spacer {
+    @apply ml-auto;
   }
 
   /* Claude-like "scale" illusion: hover uses box-shadow spread, not transform */

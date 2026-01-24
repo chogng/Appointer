@@ -25,8 +25,8 @@
 **必须锚点**：
 - Dropzone 容器：`#device-analysis-csv-dropzone`（兼容：`[aria-label="csv-container"]`）
 - 文件选择 input：`#device-analysis-csv-file-input`（用于自动化上传）
-- CSV 列表项：`[aria-label="csv-file-item"][data-file-id="..."]`
-- 删除 CSV：`button[aria-label="Remove CSV file"][data-file-id="..."]`
+- CSV 列表项（稳定建议）：`[data-ui="csv-file-item"][data-item-key="name::size"]`
+- 删除 CSV（稳定建议）：`[data-ui="csv-file-remove-btn"][data-item-key="name::size"]`
 
 **行为约束**
 - 选中文件由 `selectedFileId` 决定；列表项可额外输出 `data-selected="true"`（便于脚本断言）。
