@@ -184,7 +184,9 @@ const CsvImporter = forwardRef(
     const GRID_GAP = 12; // gap-3 => 0.75rem
     const GRID_ROW_HEIGHT = 56; // p-3 + 32px icon => stable row height
     const GRID_PADDING_Y = 24; // py-6 => 1.5rem
-    const GRID_OVERSCAN_ROWS = 3;
+    // Higher overscan reduces the chance of seeing "blank" or content popping at row boundaries.
+    // Keep modest to avoid rendering too many items per frame.
+    const GRID_OVERSCAN_ROWS = 6;
 
     const fileInputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -216,7 +218,10 @@ const CsvImporter = forwardRef(
       [onFileSelected, setOptimisticSelectedFileId],
     );
 
-    const [scrollTop, setScrollTop] = useState(0);
+    // Scroll virtualization anchor (row index). Updating on every scrollTop pixel causes
+    // frequent React renders and can make scrolling feel janky. We only update when the
+    // scroll crosses a row boundary, which is enough for row-based virtualization.
+    const [scrollRowIndex, setScrollRowIndex] = useState(0);
     const [viewportHeight, setViewportHeight] = useState(0);
     const [contentWidth, setContentWidth] = useState(0);
     const scrollRafRef = useRef(0);
@@ -287,9 +292,31 @@ const CsvImporter = forwardRef(
       scrollRafRef.current = requestAnimationFrame(() => {
         scrollRafRef.current = 0;
         const el = containerRef.current;
-        setScrollTop(el ? el.scrollTop : 0);
+        const scrollTop = el ? el.scrollTop : 0;
+        const rowStep = GRID_ROW_HEIGHT + GRID_GAP;
+        const nextRowIndex = Math.max(
+          0,
+          Math.floor((scrollTop - GRID_PADDING_Y) / rowStep),
+        );
+        if (!Number.isFinite(nextRowIndex)) return;
+        // Schedule the (rare) virtual window update as low priority so native scrolling stays smooth.
+        startTransition(() => {
+          setScrollRowIndex((prev) =>
+            prev === nextRowIndex ? prev : nextRowIndex,
+          );
+        });
       });
     }, []);
+
+    // For mouse wheel scrolling, React's synthetic `onScroll` can add overhead.
+    // Use a passive native listener so the browser can keep scrolling responsive.
+    useEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const onScroll = () => handleScroll();
+      el.addEventListener("scroll", onScroll, { passive: true });
+      return () => el.removeEventListener("scroll", onScroll);
+    }, [handleScroll]);
 
     const handleFileChange = (event) => {
       const selectedFiles = Array.from(event.target.files);
@@ -483,6 +510,7 @@ const CsvImporter = forwardRef(
         return {
           enabled: false,
           gridStyle: undefined,
+          stageStyle: undefined,
           baseIndex: 0,
           visibleFiles: files,
         };
@@ -495,7 +523,7 @@ const CsvImporter = forwardRef(
       const rowCount = Math.max(0, Math.ceil(files.length / cols));
       const rowStep = GRID_ROW_HEIGHT + GRID_GAP;
 
-      const scrollY = scrollTop - GRID_PADDING_Y;
+      const scrollY = scrollRowIndex * rowStep;
       const startRow = Math.max(
         0,
         Math.floor(scrollY / rowStep) - GRID_OVERSCAN_ROWS,
@@ -510,9 +538,12 @@ const CsvImporter = forwardRef(
 
       return {
         enabled: true,
+        stageStyle: {
+          height: `${rowCount * rowStep}px`,
+        },
         gridStyle: {
-          paddingTop: `${startRow * rowStep}px`,
-          paddingBottom: `${Math.max(0, (rowCount - endRow) * rowStep)}px`,
+          transform: `translateY(${startRow * rowStep}px)`,
+          willChange: "transform",
           gridTemplateColumns: `repeat(${cols}, minmax(${GRID_MIN_COL_WIDTH}px, 1fr))`,
           gridAutoRows: `${GRID_ROW_HEIGHT}px`,
         },
@@ -524,11 +555,10 @@ const CsvImporter = forwardRef(
       GRID_GAP,
       GRID_MIN_COL_WIDTH,
       GRID_ROW_HEIGHT,
-      GRID_PADDING_Y,
       GRID_OVERSCAN_ROWS,
       contentWidth,
       files,
-      scrollTop,
+      scrollRowIndex,
       viewportHeight,
     ]);
 
@@ -546,7 +576,6 @@ const CsvImporter = forwardRef(
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onScroll={handleScroll}
           onClick={
             files.length === 0 ? () => fileInputRef.current.click() : undefined
           }
@@ -576,20 +605,45 @@ const CsvImporter = forwardRef(
               </div>
             </div>
           ) : (
-            <div className="w-full min-h-full flex flex-col py-6">
-              <div className={styles.fileGrid} style={virtual.gridStyle}>
-                {/* Reverse to show newest first? Or just append. Currently appending. */}
-                {virtual.visibleFiles.map((fileEntry) => (
-                  <CsvFileItem
-                    key={fileEntry.fileId}
-                    fileEntry={fileEntry}
-                    isSelected={effectiveSelectedFileId === fileEntry.fileId}
-                    isInvisible={activeFile?.fileId === fileEntry.fileId}
-                    onSelect={handleSelectFile}
-                    onRemove={removeFile}
-                  />
-                ))}
-              </div>
+            <div id="device-analysis-import-scroll" className="w-full min-h-full flex flex-col py-6">
+              {virtual.enabled ? (
+                <div className={styles.virtualStage} style={virtual.stageStyle}>
+                  <div
+                    className={styles.fileGrid}
+                    style={{
+                      ...virtual.gridStyle,
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                    }}
+                  >
+                    {virtual.visibleFiles.map((fileEntry) => (
+                      <CsvFileItem
+                        key={fileEntry.fileId}
+                        fileEntry={fileEntry}
+                        isSelected={effectiveSelectedFileId === fileEntry.fileId}
+                        isInvisible={activeFile?.fileId === fileEntry.fileId}
+                        onSelect={handleSelectFile}
+                        onRemove={removeFile}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.fileGrid}>
+                  {virtual.visibleFiles.map((fileEntry) => (
+                    <CsvFileItem
+                      key={fileEntry.fileId}
+                      fileEntry={fileEntry}
+                      isSelected={effectiveSelectedFileId === fileEntry.fileId}
+                      isInvisible={activeFile?.fileId === fileEntry.fileId}
+                      onSelect={handleSelectFile}
+                      onRemove={removeFile}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

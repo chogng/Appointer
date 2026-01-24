@@ -2,6 +2,7 @@
   @apply border-2 border-dashed rounded-xl pl-6 text-center transition-all duration-300 relative overflow-y-auto;
   padding-right: 18px;
   height: 300px;
+  overscroll-behavior: contain;
 }
 
 .dropzoneDragging {
@@ -34,6 +35,8 @@
 
 .fileItem {
   @apply flex items-center justify-between p-3 bg-bg-surface border border-border rounded-lg transition-colors cursor-pointer relative;
+  /* Limit layout/paint scope during scroll to improve perceived smoothness. */
+  contain: content;
 }
 
 .fileItemSelected {
@@ -59,4 +62,8 @@
 .fileGrid {
   @apply grid gap-3 text-left;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.virtualStage {
+  position: relative;
 }
