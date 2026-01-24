@@ -445,7 +445,7 @@ const DeviceAnalysis = () => {
     previewRequestIdRef.current = requestId;
 
     startTransition(() => {
-      setPreviewStatus({ state: "loading", message: "Parsing CSV preview…" });
+      setPreviewStatus({ state: "loading", message: t("da_preview_loading") });
     });
 
     worker.postMessage({

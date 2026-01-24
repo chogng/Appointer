@@ -426,20 +426,45 @@ const TemplateManager = ({
     const el = previewScrollRef.current;
     if (!el) return;
 
-    const updateSize = () => {
-      setPreviewViewportHeight(el.clientHeight || 0);
-      setPreviewViewportWidth(el.clientWidth || 0);
+    let rafId = 0;
+    const commitSize = (height, width) => {
+      setPreviewViewportHeight((prev) => (prev === height ? prev : height));
+      setPreviewViewportWidth((prev) => (prev === width ? prev : width));
     };
-    updateSize();
+
+    const scheduleCommit = (height, width) => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        commitSize(height, width);
+      });
+    };
 
     if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", updateSize);
-      return () => window.removeEventListener("resize", updateSize);
+      const updateSizeFallback = () => {
+        const rect = el.getBoundingClientRect();
+        scheduleCommit(Math.round(rect.height), Math.round(rect.width));
+      };
+
+      updateSizeFallback();
+      window.addEventListener("resize", updateSizeFallback);
+      return () => {
+        window.removeEventListener("resize", updateSizeFallback);
+        if (rafId) cancelAnimationFrame(rafId);
+      };
     }
 
-    const ro = new ResizeObserver(() => updateSize());
+    const ro = new ResizeObserver((entries) => {
+      const entry = Array.isArray(entries) ? entries[0] : null;
+      const rect = entry?.contentRect;
+      if (!rect) return;
+      scheduleCommit(Math.round(rect.height), Math.round(rect.width));
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [previewFile?.fileId]);
 
   useEffect(() => {
@@ -1827,7 +1852,7 @@ const TemplateManager = ({
               </span>
               {previewStatus?.state === "loading" ? (
                 <span className="text-xs text-text-secondary">
-                  {previewStatus.message || "Loading preview…"}
+                  {previewStatus.message || "Loading preview..."}
                 </span>
               ) : previewStatus?.state === "error" ? (
                 <span className="text-xs text-red-500">
@@ -1847,7 +1872,39 @@ const TemplateManager = ({
               </div>
             </div>
 
-            {previewFile ? (
+            {previewStatus?.state === "loading" ? (
+              <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50 h-[500px]">
+                <div className="p-4 bg-white rounded-full shadow-sm mb-4">
+                  <FileSpreadsheet
+                    width={32}
+                    height={32}
+                    className="text-gray-300"
+                  />
+                </div>
+                <p className="text-sm font-medium text-text-secondary mb-1">
+                  {previewStatus.message || t("da_preview_loading")}
+                </p>
+                <p className="text-xs text-text-tertiary">
+                  {t("da_preview_loading_hint")}
+                </p>
+              </div>
+            ) : previewStatus?.state === "error" ? (
+              <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50 h-[500px]">
+                <div className="p-4 bg-white rounded-full shadow-sm mb-4">
+                  <FileSpreadsheet
+                    width={32}
+                    height={32}
+                    className="text-gray-300"
+                  />
+                </div>
+                <p className="text-sm font-medium text-text-secondary mb-1">
+                  {previewStatus.message || t("da_preview_error")}
+                </p>
+                <p className="text-xs text-text-tertiary">
+                  {t("da_preview_error_hint")}
+                </p>
+              </div>
+            ) : previewFile ? (
               <div
                 ref={previewScrollRef}
                 className={`overflow-auto border border-border rounded h-[500px] custom-scrollbar ${isColumnResizing ? "cursor-col-resize select-none" : ""}`}
