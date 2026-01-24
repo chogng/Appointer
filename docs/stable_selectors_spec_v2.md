@@ -6,7 +6,13 @@ This doc complements `docs/stable_selectors_spec.md` with **CTA markers** (`data
 
 - Stable automation anchors without depending on DOM depth or Tailwind classes
 - Reduce duplication (avoid repeating the same prefix across `data-ui` + `id` + `aria-controls`)
-- Keep accessibility IDs internal (still required for `aria-controls` / `aria-labelledby`)
+- Keep accessibility semantics correct (native elements, proper `aria-*`)
+
+## Selector Priority (v2)
+
+- **Unique elements (preferred):** stable `id` (keep `aria-label` for a11y, but don't use it as the primary automation selector).
+- **Repeated/list elements:** use `data-ui="<role>"` + a stable dynamic identifier such as `data-item-id="..."` / `data-seed-index="..."`.
+- **Analytics / CTA:** `data-cta*` is primarily for tracking. It can be used as a selector when it is intentionally stable (e.g. Tabs options), but avoid relying on it for general UI anchoring.
 
 ## Recommended Pattern (Tabs)
 
@@ -28,6 +34,6 @@ Use **role/value markers** for the actual clickable items, plus optional CTA mar
 
 ## Notes
 
-- Selector priority: follow `docs/stable_selectors_spec.md` (prefer `id` + `aria-label`; avoid `data-ui`).
+- Selector priority: follow `docs/stable_selectors_spec.md`, plus the "unique id vs repeated data-ui" rules above.
 - For Tabs specifically: prefer `data-tabs` + `data-cta*` (use `data-cta-copy` as the per-option token).
-- Avoid using `aria-controls`/`aria-labelledby` IDs as automation selectors unless they are explicitly made stable (e.g. via `idBase`).
+- Avoid using `aria-controls`/`aria-labelledby` IDs as automation selectors unless they are explicitly made stable (e.g. via `idBase`) and documented as such.

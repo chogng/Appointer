@@ -1012,6 +1012,8 @@ const Settings = () => {
                 <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer">
                   <Camera size={20} className="text-white" />
                   <input
+                    id="settings-avatar"
+                    name="avatar"
                     type="file"
                     className="hidden"
                     accept="image/*"
@@ -1026,11 +1028,15 @@ const Settings = () => {
                 </label>
                 <div className="flex items-center p-1 bg-bg-page border border-border-subtle rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-black transition-all">
                   <input
+                    id="settings-display-name"
+                    name="displayName"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="flex-1 min-w-0 pl-2 pr-4 py-1 bg-transparent border-none text-text-primary text-sm focus:outline-none focus:ring-0 placeholder:text-text-secondary"
                     placeholder={t("displayName")}
+                    autoComplete="name"
+                    spellCheck={false}
                   />
                   <button
                     type="button"
@@ -1120,6 +1126,8 @@ const Settings = () => {
                 {isSuperAdmin ? (
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
+                      id="settings-translation-provider-default"
+                      name="defaultTranslationProvider"
                       type="text"
                       value={translationProviderInput}
                       onChange={(e) => setTranslationProviderInput(e.target.value)}
@@ -1134,6 +1142,7 @@ const Settings = () => {
                       disabled={translationProviderSync.state === "saving"}
                       className="min-w-[240px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60"
                       autoComplete="off"
+                      spellCheck={false}
                     />
                     <button
                       type="button"
@@ -1207,6 +1216,8 @@ const Settings = () => {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <input
+                  id="settings-translation-provider-user"
+                  name="userTranslationProvider"
                   type="text"
                   value={userTranslationProviderInput}
                   onChange={(e) => setUserTranslationProviderInput(e.target.value)}
@@ -1215,6 +1226,7 @@ const Settings = () => {
                   disabled={userTranslationProviderSync.state === "saving"}
                   className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60"
                   autoComplete="off"
+                  spellCheck={false}
                 />
 
                 <button
@@ -1278,19 +1290,27 @@ const Settings = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <form
+                  className="flex items-center gap-2 flex-wrap"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSaveDefaultTranslationApiKey();
+                  }}
+                >
                   <input
+                    id="settings-default-api-key"
+                    name="defaultTranslationApiKey"
                     type="password"
                     value={defaultTranslationApiKeyInput}
                     onChange={(e) => setDefaultTranslationApiKeyInput(e.target.value)}
                     placeholder={t("default_api_key_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                    autoComplete="off"
+                    autoComplete="new-password"
+                    spellCheck={false}
                   />
 
                   <button
-                    type="button"
-                    onClick={handleSaveDefaultTranslationApiKey}
+                    type="submit"
                     disabled={
                       defaultTranslationApiKeySync.state === "saving" ||
                       !defaultTranslationApiKeyInput.trim()
@@ -1324,7 +1344,7 @@ const Settings = () => {
                       </span>
                     </button>
                   )}
-                </div>
+                </form>
               </div>
             )}
 
@@ -1351,12 +1371,15 @@ const Settings = () => {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
+                    id="settings-default-model"
+                    name="defaultTranslationModel"
                     type="text"
                     value={defaultTranslationModelInput}
                     onChange={(e) => setDefaultTranslationModelInput(e.target.value)}
                     placeholder={t("default_model_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
+                    spellCheck={false}
                   />
 
                   <button
@@ -1416,12 +1439,15 @@ const Settings = () => {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
+                    id="settings-default-base-url"
+                    name="defaultTranslationBaseUrl"
                     type="text"
                     value={defaultTranslationBaseUrlInput}
                     onChange={(e) => setDefaultTranslationBaseUrlInput(e.target.value)}
                     placeholder={t("default_base_url_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
+                    spellCheck={false}
                   />
 
                   <button
@@ -1486,19 +1512,27 @@ const Settings = () => {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <form
+                className="flex items-center gap-2 flex-wrap"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveTranslationApiKey();
+                }}
+              >
                 <input
+                  id="settings-personal-api-key"
+                  name="translationApiKey"
                   type="password"
                   value={translationApiKeyInput}
                   onChange={(e) => setTranslationApiKeyInput(e.target.value)}
                   placeholder={t("personal_api_key_placeholder")}
                   className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                  autoComplete="off"
+                  autoComplete="new-password"
+                  spellCheck={false}
                 />
 
                 <button
-                  type="button"
-                  onClick={handleSaveTranslationApiKey}
+                  type="submit"
                   disabled={translationApiKeySync.state === "saving" || !translationApiKeyInput.trim()}
                   className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationApiKeySync.state === "saving" || !translationApiKeyInput.trim()
                     ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
@@ -1527,7 +1561,7 @@ const Settings = () => {
                     <span className="relative z-10">{t("literature_clear")}</span>
                   </button>
                 )}
-              </div>
+              </form>
             </div>
 
             {isEffectiveOpenAICompatibleProviderForUser && (
@@ -1559,12 +1593,15 @@ const Settings = () => {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
+                    id="settings-personal-base-url"
+                    name="translationBaseUrl"
                     type="text"
                     value={translationBaseUrlInput}
                     onChange={(e) => setTranslationBaseUrlInput(e.target.value)}
                     placeholder={t("personal_base_url_placeholder")}
                     className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     autoComplete="off"
+                    spellCheck={false}
                   />
 
                   <button
@@ -1629,12 +1666,15 @@ const Settings = () => {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <input
+                  id="settings-personal-model"
+                  name="translationModel"
                   type="text"
                   value={translationModelInput}
                   onChange={(e) => setTranslationModelInput(e.target.value)}
                   placeholder={t("personal_model_placeholder")}
                   className="flex-1 min-w-[280px] px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                   autoComplete="off"
+                  spellCheck={false}
                 />
 
                 <button
@@ -1707,6 +1747,8 @@ const Settings = () => {
                   {isSuperAdmin && (
                     <label className="inline-flex items-center gap-2 select-none">
                       <input
+                        id="settings-translate-test-force-default"
+                        name="translateTestForceDefaultKey"
                         type="checkbox"
                         checked={translateTestForceDefaultKey}
                         onChange={(e) => setTranslateTestForceDefaultKey(e.target.checked)}
@@ -1718,6 +1760,8 @@ const Settings = () => {
 
                 <label className="inline-flex items-center gap-2 text-text-secondary select-none">
                   <input
+                    id="settings-translate-test-bypass-cache"
+                    name="translateTestBypassCache"
                     type="checkbox"
                     checked={translateTestBypassCache}
                     onChange={(e) => setTranslateTestBypassCache(e.target.checked)}
@@ -1727,12 +1771,16 @@ const Settings = () => {
               </div>
 
               <textarea
+                id="settings-translate-test-input"
+                name="translateTestInput"
                 value={translateTestInput}
                 onChange={(e) => setTranslateTestInput(e.target.value)}
                 rows={3}
                 placeholder={
                   t("literature_translate_test_placeholder")
                 }
+                autoComplete="off"
+                spellCheck={false}
                 className="mt-3 w-full px-3 py-2.5 rounded-lg bg-bg-page border border-border-subtle focus:outline-none focus:ring-1 focus:ring-accent text-sm text-text-primary placeholder:text-text-tertiary resize-y"
               />
 
@@ -1844,12 +1892,15 @@ const Settings = () => {
                 {t("currentPassword")}
               </label>
               <input
+                id="settings-current-password"
+                name="currentPassword"
                 type="password"
                 value={passwordData.current}
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, current: e.target.value })
                 }
                 className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                autoComplete="current-password"
               />
             </div>
             <div>
@@ -1857,12 +1908,15 @@ const Settings = () => {
                 {t("newPassword")}
               </label>
               <input
+                id="settings-new-password"
+                name="newPassword"
                 type="password"
                 value={passwordData.new}
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, new: e.target.value })
                 }
                 className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                autoComplete="new-password"
               />
             </div>
             <div>
@@ -1870,12 +1924,15 @@ const Settings = () => {
                 {t("confirmPassword")}
               </label>
               <input
+                id="settings-confirm-password"
+                name="confirmPassword"
                 type="password"
                 value={passwordData.confirm}
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, confirm: e.target.value })
                 }
                 className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                autoComplete="new-password"
               />
             </div>
             <button
@@ -1904,6 +1961,8 @@ const Settings = () => {
                         {t("logsRetentionDays")}
                       </label>
                       <input
+                        id="settings-retention-logs-days"
+                        name="logsRetentionDays"
                         type="number"
                         min="1"
                         max="3650"
@@ -1927,6 +1986,8 @@ const Settings = () => {
                         {t("requestsRetentionDays")}
                       </label>
                       <input
+                        id="settings-retention-requests-days"
+                        name="requestsRetentionDays"
                         type="number"
                         min="1"
                         max="3650"

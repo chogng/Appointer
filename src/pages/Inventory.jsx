@@ -282,11 +282,15 @@ const Inventory = () => {
               size={20}
             />
             <input
+              id="inventory-search"
+              name="inventorySearch"
               type="text"
               placeholder={t("searchLogs")}
               className="w-full bg-bg-surface border border-border rounded-xl py-2.5 pl-10 pr-4 outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
             />
           </div>
 

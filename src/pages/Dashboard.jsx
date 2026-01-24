@@ -1,7 +1,9 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useCallback, useMemo, useRef } from "react";
+import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Input from "../components/ui/Input";
 import Toast from "../components/ui/Toast";
 import Modal from "../components/ui/Modal";
 import { apiService } from "../services/apiService";
@@ -252,11 +254,9 @@ const Dashboard = () => {
       ref={containerRef}
       className="w-full relative min-h-screen"
     >
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">
-          {t("dashboard")}
-        </h1>
-        <p className="text-text-secondary">
+      <div className="page_head">
+        <h1 className="page_title">{t("dashboard")}</h1>
+        <p className="page_subtitle">
           {t("welcomeBack")}, {user?.name}
         </p>
       </div>
@@ -265,8 +265,7 @@ const Dashboard = () => {
         {stats.map((stat, index) => (
           <Card
             key={index}
-            variant="glass"
-            className="flex items-center gap-4 hover:shadow-md transition-shadow duration-200"
+            className="flex items-center gap-4"
           >
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center"
@@ -286,43 +285,51 @@ const Dashboard = () => {
 
       <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity Column */}
-        <div>
-          <div className="ui-section_head">
-            <div className="flex items-center gap-2">
-              <Activity size={20} className="text-accent" />
-              <h2 className="text-xl font-serif font-medium text-text-primary">
-                {t("recentActivity")}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  placeholder={t("searchLogs")}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-1.5 text-sm bg-bg-200 border-none rounded-lg focus:ring-1 focus:ring-accent w-40 transition-all"
-                />
-              </div>
+        <section aria-label={t("recentActivity")}>
+          <h2 className="section_title flex items-center gap-2">
+            <Activity size={18} className="text-accent" />
+            {t("recentActivity")}
+          </h2>
+          <Card className="p-0 overflow-hidden h-[500px] overflow-y-auto">
+            <div className="p-6 pb-4 toolbar_group">
+              <Input
+                id="dashboard-search-logs"
+                idBase="dashboard-search-logs"
+                name="searchLogs"
+                type="text"
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={t("searchLogs")}
+                leftIcon={Search}
+                size="sm"
+                className="w-40"
+                inputClassName="text-sm"
+                autoComplete="off"
+                spellCheck={false}
+                cta="Dashboard"
+                ctaPosition="recent-activity"
+                ctaCopy="search-logs"
+                aria-label={t("searchLogs")}
+              />
               {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
-                <button
+                <Button
+                  type="button"
                   onClick={handleClearLogs}
-                  className="p-1.5 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  variant="ghost"
+                  size="md"
+                  fx
+                  fxMuted
+                  className="action-btn--icon-md-tight"
                   title={t("clearLogs")}
+                  aria-label={t("clearLogs")}
+                  cta="Dashboard"
+                  ctaPosition="recent-activity"
+                  ctaCopy="clear-logs"
                 >
                   <Trash2 size={18} />
-                </button>
+                </Button>
               )}
             </div>
-          </div>
-          <Card
-            variant="glass"
-            className="p-0 overflow-hidden h-[500px] overflow-y-auto"
-          >
             {logs.length > 0 ? (
               <div className="divide-y divide-border-subtle">
                 {logs.map((log) => (
@@ -360,20 +367,15 @@ const Dashboard = () => {
               </p>
             )}
           </Card>
-        </div>
+        </section>
 
         {/* Recent Messages (Pending Approvals & Requests) Column */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <MessageSquare size={20} className="text-accent" />
-            <h2 className="text-xl font-serif font-medium text-text-primary">
-              {t("recentMessages")}
-            </h2>
-          </div>
-          <Card
-            variant="glass"
-            className="p-0 overflow-hidden h-[500px] overflow-y-auto"
-          >
+        <section aria-label={t("recentMessages")}>
+          <h2 className="section_title flex items-center gap-2">
+            <MessageSquare size={18} className="text-accent" />
+            {t("recentMessages")}
+          </h2>
+          <Card className="p-0 overflow-hidden h-[500px] overflow-y-auto">
             {messages.length > 0 ? (
               <div className="divide-y divide-border-subtle">
                 {messages.map((msg) => (
@@ -484,7 +486,7 @@ const Dashboard = () => {
               </p>
             )}
           </Card>
-        </div>
+        </section>
       </div>
 
       {/* Message Details Modal */}

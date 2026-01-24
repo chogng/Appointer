@@ -24,7 +24,7 @@ const DatePicker = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const locale = language === "zh" ? zhCN : enUS;
 
   const dateValue = value ? parseISO(value) : null;
@@ -80,7 +80,8 @@ const DatePicker = ({
             : null;
 
         return (
-          <div
+          <button
+            type="button"
             data-ui={uiMarker ? `${uiMarker}-btn` : undefined}
             data-style="date"
             data-icon="with"
@@ -96,8 +97,12 @@ const DatePicker = ({
               buttonClassName
             )}
             onClick={() => setIsOpen(!isOpen)}
-            role="button"
-            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsOpen((prev) => !prev);
+              }
+            }}
             {...props}
           >
             <div
@@ -113,10 +118,10 @@ const DatePicker = ({
                 ? format(dateValue, "yyyy-MM-dd", { locale })
                 : placeholder}
             </div>
-            <div className="date_btn_icon">
+            <div className="date_btn_icon" aria-hidden="true">
               <CalendarIcon size={16} />
             </div>
-          </div>
+          </button>
         );
       })()}
 
@@ -141,13 +146,13 @@ const DatePicker = ({
                 onClick={handleClear}
                 className="text-xs text-text-tertiary hover:text-red-500 transition-colors px-2 py-1 rounded-md hover:bg-red-50"
               >
-                {language === "zh" ? "清除" : "Clear"}
+                {t?.("literature_clear") || "Clear"}
               </button>
               <button
                 onClick={handleToday}
                 className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors px-2 py-1 rounded-md hover:bg-accent/10"
               >
-                {language === "zh" ? "今天" : "Today"}
+                {t?.("today") || "Today"}
               </button>
             </div>
           </div>

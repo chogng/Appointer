@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 const CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Exclude I, O, 1, 0, Q to avoid confusion
 
@@ -203,61 +205,90 @@ const Register = () => {
                   Create your account to get started
                 </h3>
                 {/*register card*/}
-                <div className="mt-8 mx-4 sm:mx-auto p-7 max-w-md min-w-xs text-center border border-border-100 rounded-[2rem] flex flex-col bg-bg-100 shadow-[0_4px_24px_0_rgba(0,0,0,0.02),0_4px_32px_0_rgba(0,0,0,0.02)] space-y-2">
-                  <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1 text-left">
-                      <input
+                  <div className="mt-8 mx-4 sm:mx-auto p-7 max-w-md min-w-xs text-center border border-border-100 rounded-[2rem] flex flex-col bg-bg-100 shadow-[0_4px_24px_0_rgba(0,0,0,0.02),0_4px_32px_0_rgba(0,0,0,0.02)] space-y-2">
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                      <Input
+                        id="student-id"
+                        idBase="register-student-id"
+                        name="studentId"
                         type="text"
                         value={studentId}
-                        onChange={(e) => setStudentId(e.target.value)}
+                        onChange={setStudentId}
                         placeholder="Student ID"
-                        className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
+                        autoComplete="username"
+                        aria-label="student id"
+                        cta="Auth"
+                        ctaPosition="register-form"
+                        ctaCopy="student-id"
                       />
-                    </div>
-                    <div className="flex flex-col gap-1 text-left">
-                      <input
+                      <Input
+                        id="email"
+                        idBase="register-email"
+                        name="email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={setEmail}
                         placeholder="Email (Optional)"
-                        className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
+                        autoComplete="email"
+                        aria-label="email"
+                        cta="Auth"
+                        ctaPosition="register-form"
+                        ctaCopy="email"
                       />
-                    </div>
-                    <div className="flex flex-col gap-1 text-left">
-                      <input
+                      <Input
+                        id="new-password"
+                        idBase="register-password"
+                        name="password"
                         type="password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={setPassword}
                         placeholder="Password"
-                        className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
+                        autoComplete="new-password"
+                        aria-label="password"
+                        cta="Auth"
+                        ctaPosition="register-form"
+                        ctaCopy="password"
                       />
-                    </div>
-                    <div className="flex flex-col gap-1 text-left">
-                      <input
+                      <Input
+                        id="repeat-password"
+                        idBase="register-repeat-password"
+                        name="repeatPassword"
                         type="password"
                         value={repeatPassword}
-                        onChange={(e) => setRepeatPassword(e.target.value)}
+                        onChange={setRepeatPassword}
                         placeholder="Repeat Password"
-                        className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full"
+                        autoComplete="new-password"
+                        aria-label="repeat password"
+                        cta="Auth"
+                        ctaPosition="register-form"
+                        ctaCopy="repeat-password"
                       />
-                    </div>
-                    <div className="flex flex-row gap-2 text-left items-center">
-                      <input
-                        type="text"
-                        value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value)}
-                        placeholder="Enter CAPTCHA"
-                        className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus h-11 px-3 rounded-[0.6rem] w-full flex-grow"
-                      />
-                      <canvas
-                        ref={canvasRef}
-                        width="100"
-                        height="44"
-                        onClick={regenerateCaptcha}
-                        className="border border-border-300 rounded-[0.6rem] cursor-pointer hover:border-border-200 transition-colors"
-                        title="Click to refresh"
-                      />
-                    </div>
+                      <div className="flex flex-row gap-2 text-left items-center">
+                        <div className="flex-1">
+                          <Input
+                            id="captcha"
+                            idBase="register-captcha"
+                            name="captcha"
+                            type="text"
+                            value={verificationCode}
+                            onChange={setVerificationCode}
+                            placeholder="Enter CAPTCHA"
+                            autoComplete="off"
+                            aria-label="captcha"
+                            cta="Auth"
+                            ctaPosition="register-form"
+                            ctaCopy="captcha"
+                          />
+                        </div>
+                        <canvas
+                          ref={canvasRef}
+                          width="100"
+                          height="44"
+                          onClick={regenerateCaptcha}
+                          className="border border-border-300 rounded-[0.6rem] cursor-pointer hover:border-border-200 transition-colors"
+                          title="Click to refresh"
+                        />
+                      </div>
 
                     {error && (
                       <div className="text-red-500 text-sm text-center bg-red-50 border border-red-200 rounded-[0.6rem] px-3 py-2">
@@ -265,12 +296,16 @@ const Register = () => {
                       </div>
                     )}
                     <div className="flex flex-col gap-2 mt-2">
-                      <button
+                      <Button
                         type="submit"
-                        className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] h-11 rounded-[0.6rem] px-5 min-w-[6rem] active:scale-[0.985] whitespace-nowrap bg-text-0 text-bg-0 text-base can-focus"
+                        variant="dark"
+                        className="w-full h-11 rounded-[0.6rem] text-base"
+                        cta="Auth"
+                        ctaPosition="register-form"
+                        ctaCopy="submit"
                       >
                         Register
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </div>

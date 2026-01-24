@@ -88,10 +88,14 @@ const Messages = () => {
             size={16}
           />
           <input
+            id="messages-search"
+            name="messagesSearch"
             type="text"
             placeholder={t("searchMessages")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
             className="pl-9 pr-4 py-2 text-sm bg-bg-200 border-none rounded-lg focus:ring-1 focus:ring-accent w-64 transition-all"
           />
         </div>

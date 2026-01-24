@@ -2902,7 +2902,6 @@ How to use (manual fallback):
             fxMuted
             disabled={originBusy || !focusedSeries}
             onClick={handleDownloadOriginPackage}
-            data-ui="device-analysis-origin-download-zip-btn"
             type="button"
           >
             Download Origin ZIP

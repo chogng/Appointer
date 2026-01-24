@@ -209,6 +209,8 @@ const DeviceCard = ({
               <div className="relative flex-1 min-w-0 z-10">
                 <div className="flex items-center p-1 bg-transparent rounded-xl focus-within:ring-1 focus-within:ring-black transition-all">
                   <input
+                    id={`device-name-${device.id}`}
+                    name="deviceName"
                     type="text"
                     value={nameInputValue}
                     onChange={(e) => {
@@ -216,6 +218,8 @@ const DeviceCard = ({
                       setNameValue(e.target.value);
                     }}
                     onKeyDown={handleKeyDownName}
+                    autoComplete="off"
+                    spellCheck={false}
                     className="flex-1 min-w-0 pl-2 pr-4 py-1 bg-transparent border-none text-[1rem] sm:text-[1.125rem] font-semibold text-text-primary focus:outline-none focus:ring-0 placeholder:text-text-secondary"
                     placeholder={t("enterDeviceName")}
                   />
@@ -270,6 +274,8 @@ const DeviceCard = ({
               <div className="relative flex-1 min-w-0">
                 <div className="flex items-center p-1 bg-transparent rounded-lg focus-within:ring-1 focus-within:ring-black transition-all">
                   <input
+                    id={`device-desc-${device.id}`}
+                    name="deviceDescription"
                     type="text"
                     value={descInputValue}
                     onChange={(e) => {
@@ -278,6 +284,8 @@ const DeviceCard = ({
                     }}
                     onKeyDown={handleKeyDownDesc}
                     placeholder={t("addDescription")}
+                    autoComplete="off"
+                    spellCheck={false}
                     className="flex-1 min-w-0 pl-2 pr-4 py-0.5 bg-transparent border-none text-[0.6875rem] text-text-secondary focus:outline-none focus:ring-0 placeholder:text-text-secondary"
                   />
                 </div>

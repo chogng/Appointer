@@ -205,10 +205,14 @@ const Users = () => {
               size={20}
             />
             <input
+              id="users-search"
+              name="usersSearch"
               type="text"
               placeholder={t("search_users")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
               className="pl-10 pr-4 py-2 bg-bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent w-64"
             />
           </div>

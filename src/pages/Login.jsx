@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -64,23 +66,35 @@ const Login = () => {
                   </span>
                 </a>
               </div>
-              <div className="hidden sm:flex items-center gap-3">
-                <button
+               <div className="hidden sm:flex items-center gap-3">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  fx
+                  fxMuted
                   onClick={() =>
                     navigate("/docs", { state: { from: "login" } })
                   }
-                  className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-all will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 h-9 px-5 rounded-lg min-w-[7rem] whitespace-nowrap bg-bg-100 text-text-100 border border-border-200 text-[15px] hover:border-border-200 hover:bg-bg-150"
+                  className="min-w-[7rem] h-9"
+                  cta="Auth"
+                  ctaPosition="login-nav"
+                  ctaCopy="docs"
                 >
                   Docs
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant="dark"
                   onClick={() =>
                     navigate("/register", { state: { from: "login" } })
                   }
-                  className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] h-9 px-5 rounded-lg min-w-[7rem] active:scale-[0.985] whitespace-nowrap bg-text-0 text-bg-0 text-[15px]"
+                  className="min-w-[7rem] h-9"
+                  cta="Auth"
+                  ctaPosition="login-nav"
+                  ctaCopy="sign-up"
                 >
                   Sign up
-                </button>
+                </Button>
               </div>
             </div>
           </nav>
@@ -115,29 +129,38 @@ const Login = () => {
                         onSubmit={handleSubmit}
                         className="flex flex-col gap-4"
                       >
-                        <div className="flex flex-col gap-1 text-left">
-                          <input
-                            id="account"
-                            type="account"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Enter your account"
-                            className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus-blue h-11 px-3 rounded-[0.6rem] w-full"
-                          />
-                        </div>
+                        <Input
+                          id="account"
+                          idBase="login-account"
+                          name="username"
+                          type="text"
+                          value={username}
+                          onChange={setUsername}
+                          placeholder="Enter your account"
+                          autoComplete="username"
+                          aria-label="username"
+                          cta="Auth"
+                          ctaPosition="login-form"
+                          ctaCopy="username"
+                        />
                         <div className="text-center text-text-300 text-xs">
                           AND
                         </div>
                         {/*password*/}
-                        <div className="flex flex-col gap-1 text-left">
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter your password"
-                            className="bg-bg-0 border border-border-300 hover:border-border-200 transition-colors placeholder:text-text-400 can-focus-blue h-11 px-3 rounded-[0.6rem] w-full"
-                          />
-                        </div>
+                        <Input
+                          id="password"
+                          idBase="login-password"
+                          name="password"
+                          type="password"
+                          value={password}
+                          onChange={setPassword}
+                          placeholder="Enter your password"
+                          autoComplete="current-password"
+                          aria-label="password"
+                          cta="Auth"
+                          ctaPosition="login-form"
+                          ctaCopy="password"
+                        />
 
                         {error && (
                           <div className="text-red-500 text-sm text-center bg-red-50 border border-red-200 rounded-[0.6rem] px-3 py-2">
@@ -145,12 +168,16 @@ const Login = () => {
                           </div>
                         )}
                         <div className="flex flex-col gap-2 mt-2">
-                          <button
+                          <Button
                             type="submit"
-                            className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] h-11 rounded-[0.6rem] px-5 min-w-[6rem] active:scale-[0.985] whitespace-nowrap bg-text-0 text-bg-0 text-base can-focus-blue"
+                            variant="dark"
+                            className="w-full h-11 rounded-[0.6rem] text-base"
+                            cta="Auth"
+                            ctaPosition="login-form"
+                            ctaCopy="submit"
                           >
                             Continue
-                          </button>
+                          </Button>
                           <div className="text-center">
                             <div className="text-xs text-text-400 leading-relaxed">
                               By continuing, you acknowledge Appointer's{" "}

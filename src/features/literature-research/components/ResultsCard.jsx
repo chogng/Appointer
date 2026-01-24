@@ -76,6 +76,7 @@ const ResultsCard = ({
             </div>
 
             <button
+              id="literature-selection-toggle"
               type="button"
               onClick={onToggleSelectAllVisible}
               disabled={isExportingDocx || statusState === "loading" || visibleResultsLength === 0}
@@ -99,7 +100,6 @@ const ResultsCard = ({
               data-cta-position="result"
               data-cta-copy={selectionToggleAction === "deselect-all" ? "deselect all" : "select all"}
               data-action={selectionToggleAction}
-              data-ui="literature-selection-toggle-btn"
             >
               <span className="action-btn__content">
                 {selectionToggleAction === "deselect-all" ? (
@@ -111,6 +111,7 @@ const ResultsCard = ({
             </button>
 
             <button
+              id="literature-export-docx"
               type="button"
               onClick={onExportDocx}
               disabled={isExportingDocx || selectedCount === 0}
@@ -123,7 +124,6 @@ const ResultsCard = ({
               data-cta="Literature research"
               data-cta-position="result"
               data-cta-copy="export docx"
-              data-ui="literature-export-docx-btn"
             >
               <span className="action-btn__content">
                 {isExportingDocx ? (
@@ -136,6 +136,7 @@ const ResultsCard = ({
             </button>
 
             <button
+              id="literature-export-json"
               type="button"
               onClick={onExportJson}
               disabled={isExportingDocx || selectedCount === 0}
@@ -148,7 +149,6 @@ const ResultsCard = ({
               data-cta="Literature research"
               data-cta-position="result"
               data-cta-copy="export json"
-              data-ui="literature-export-json-btn"
             >
               <span className="action-btn__content">
                 <FileDown size={16} />
@@ -157,6 +157,7 @@ const ResultsCard = ({
             </button>
 
             <button
+              id="literature-clear-session"
               type="button"
               onClick={onClearPageSession}
               disabled={isExportingDocx || statusState === "loading" || isAnyTranslationInFlight}
@@ -167,7 +168,6 @@ const ResultsCard = ({
               }`}
               title={t("literature_clear_session")}
               aria-label={t("literature_clear_session")}
-              data-ui="literature-clear-session-btn"
             >
               <span className="action-btn__content">
                 <RefreshCw size={16} className="transition-transform duration-500 hover:rotate-180" />
@@ -202,6 +202,7 @@ const ResultsCard = ({
                       className="text-sm font-semibold text-text-primary truncate"
                       title={group.title}
                       data-ui="literature-results-group-title"
+                      data-group-key={group.key}
                     >
                       {group.title}
                     </div>
@@ -209,10 +210,15 @@ const ResultsCard = ({
                       className="mt-1 text-xs text-text-secondary truncate"
                       title={group.seedUrl || ""}
                       data-ui="literature-results-group-seed-url"
+                      data-group-key={group.key}
                     >
                       {group.seedUrl || "-"}
                     </div>
-                    <div className="mt-1 text-xs text-text-secondary" data-ui="literature-results-group-count">
+                    <div
+                      className="mt-1 text-xs text-text-secondary"
+                      data-ui="literature-results-group-count"
+                      data-group-key={group.key}
+                    >
                       {group.visibleItems.length}/{group.allItems.length} • {groupSelectedCount} selected
                     </div>
                   </div>
@@ -231,6 +237,7 @@ const ResultsCard = ({
                     data-cta-position="result-group"
                     data-cta-copy="export docx group"
                     data-ui="literature-group-export-docx-btn"
+                    data-group-key={group.key}
                   >
                     <span className="action-btn__content">
                       {isExportingDocx ? (
