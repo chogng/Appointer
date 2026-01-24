@@ -256,27 +256,34 @@ const DeviceBooking = () => {
           </Button>
 
           <Button
-            variant="secondary"
+            variant="ghost"
             onClick={handleToday}
-            className="px-4 py-1.5 text-sm border border-border rounded-md"
+            size="md"
+            fx
           >
             {t("today")}
           </Button>
           {/* Calendar switch */}
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={handlePrev}
-              className="p-1.5 hover:bg-bg-100 rounded-full"
+              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
               aria-label={t("prevWeek")}
             >
-              <ChevronLeft size={20} className="text-text-secondary" />
+              <span className="action-btn__content">
+                <ChevronLeft size={20} className="text-text-secondary" />
+              </span>
             </button>
             <button
+              type="button"
               onClick={handleNext}
-              className="p-1.5 hover:bg-bg-100 rounded-full"
+              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
               aria-label={t("nextWeek")}
             >
-              <ChevronRight size={20} className="text-text-secondary" />
+              <span className="action-btn__content">
+                <ChevronRight size={20} className="text-text-secondary" />
+              </span>
             </button>
           </div>
           {/* Calendar Date */}
@@ -300,22 +307,28 @@ const DeviceBooking = () => {
         {/* Right Side Controls */}
         <div className="flex items-center gap-2 justify-self-end">
           {/* Layout Toggle */}
-          <div className="flex items-center bg-bg-100 rounded-lg p-0.5">
+          <div id="device-booking-layout-toggle" className="tab_menu">
             <button
+              type="button"
               onClick={() => setLayoutMode("grid")}
-              className={`p-1.5 rounded-md transition-colors ${layoutMode === "grid" ? "bg-white shadow-sm text-accent" : "text-text-secondary hover:text-text-primary"}`}
+              className={`tab_btn tab_btn--control ${layoutMode === "grid" ? "tab_btn--active" : "tab_btn--inactive"}`}
               title={t("gridView")}
               aria-label={t("gridView")}
             >
-              <LayoutGrid size={18} />
+              <span className="tab_btn_icon">
+                <LayoutGrid size={18} />
+              </span>
             </button>
             <button
+              type="button"
               onClick={() => setLayoutMode("list")}
-              className={`p-1.5 rounded-md transition-colors ${layoutMode === "list" ? "bg-white shadow-sm text-accent" : "text-text-secondary hover:text-text-primary"}`}
+              className={`tab_btn tab_btn--control ${layoutMode === "list" ? "tab_btn--active" : "tab_btn--inactive"}`}
               title={t("listView")}
               aria-label={t("listView")}
             >
-              <List size={18} />
+              <span className="tab_btn_icon">
+                <List size={18} />
+              </span>
             </button>
           </div>
           <Dropdown

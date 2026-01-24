@@ -93,13 +93,15 @@ const CreateDevice = () => {
   return (
     <div className="w-full">
       <div className="mb-8">
-        <button
+        <Button
+          type="button"
+          variant="text"
           onClick={() => navigate("/devices")}
-          className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors mb-4"
+          className="pl-0 hover:bg-transparent text-text-secondary hover:text-text-primary mb-4"
         >
           <ArrowLeft size={20} />
           <span>{t("backToDeviceList")}</span>
-        </button>
+        </Button>
         <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">
           {t("createDevice")}
         </h1>
@@ -119,7 +121,7 @@ const CreateDevice = () => {
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder={t("deviceNamePlaceholder")}
               required
-              className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-blue-500 transition-colors placeholder:text-text-tertiary h-11 px-3 rounded-lg w-full outline-none"
+              className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors placeholder:text-text-tertiary h-11 px-3 rounded-lg w-full outline-none"
             />
           </div>
 
@@ -133,7 +135,7 @@ const CreateDevice = () => {
               onChange={(e) => handleChange("description", e.target.value)}
               placeholder={t("deviceDescriptionPlaceholder")}
               rows={3}
-              className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-blue-500 transition-colors placeholder:text-text-tertiary px-3 py-2 rounded-lg w-full outline-none resize-none"
+              className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors placeholder:text-text-tertiary px-3 py-2 rounded-lg w-full outline-none resize-none"
             />
           </div>
 
@@ -150,18 +152,18 @@ const CreateDevice = () => {
                 { value: "90", label: t("granularity90m") },
                 { value: "120", label: t("granularity120m") },
               ].map((option) => (
-                <button
+                <Button
                   key={option.value}
                   type="button"
                   onClick={() => handleChange("timeGranularity", option.value)}
-                  className={`h-11 px-4 rounded-lg border transition-all ${
-                    formData.timeGranularity === option.value
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-bg-subtle border-border-subtle hover:border-border-default"
-                  }`}
+                  variant={
+                    formData.timeGranularity === option.value ? "primary" : "ghost"
+                  }
+                  size="lg"
+                  fullWidth
                 >
                   {option.label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -172,51 +174,46 @@ const CreateDevice = () => {
               {t("bookableDaysLabel")} <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
+              <Button
                 type="button"
                 onClick={() => handleChange("availabilityType", "everyday")}
-                className={`h-11 px-4 rounded-lg border transition-all ${
-                  formData.availabilityType === "everyday"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-bg-subtle border-border-subtle hover:border-border-default"
-                }`}
+                variant={formData.availabilityType === "everyday" ? "primary" : "ghost"}
+                size="lg"
+                fullWidth
               >
                 {t("bookableEveryday")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => handleChange("availabilityType", "specific")}
-                className={`h-11 px-4 rounded-lg border transition-all ${
-                  formData.availabilityType === "specific"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-bg-subtle border-border-subtle hover:border-border-default"
-                }`}
+                variant={formData.availabilityType === "specific" ? "primary" : "ghost"}
+                size="lg"
+                fullWidth
               >
                 {t("bookableSpecificWeekdays")}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* 特定星期选择 */}
           {formData.availabilityType === "specific" && (
-            <div className="flex flex-col gap-2 pl-4 border-l-2 border-blue-500">
+            <div className="flex flex-col gap-2 pl-4 border-l-2 border-accent">
               <label className="text-sm font-medium text-text-primary">
                 {t("selectWeekdaysLabel")}
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
                 {weekDays.map((day) => (
-                  <button
+                  <Button
                     key={day.value}
                     type="button"
                     onClick={() => toggleDay(day.value)}
-                    className={`h-10 px-3 rounded-lg border text-sm transition-all ${
-                      formData.specificDays.includes(day.value)
-                        ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-bg-subtle border-border-subtle hover:border-border-default"
-                    }`}
+                    variant={formData.specificDays.includes(day.value) ? "primary" : "ghost"}
+                    size="md"
+                    className="h-10"
+                    fullWidth
                   >
                     {day.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -228,35 +225,31 @@ const CreateDevice = () => {
               {t("bookableTimeRangeLabel")}{" "}
               <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button
                 type="button"
                 onClick={() => handleChange("timeRangeType", "24hours")}
-                className={`h-11 px-4 rounded-lg border transition-all ${
-                  formData.timeRangeType === "24hours"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-bg-subtle border-border-subtle hover:border-border-default"
-                }`}
+                variant={formData.timeRangeType === "24hours" ? "primary" : "ghost"}
+                size="lg"
+                fullWidth
               >
                 {t("bookable24Hours")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => handleChange("timeRangeType", "specific")}
-                className={`h-11 px-4 rounded-lg border transition-all ${
-                  formData.timeRangeType === "specific"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-bg-subtle border-border-subtle hover:border-border-default"
-                }`}
+                variant={formData.timeRangeType === "specific" ? "primary" : "ghost"}
+                size="lg"
+                fullWidth
               >
                 {t("bookableSpecificTimeRange")}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* 特定时间段选择 */}
           {formData.timeRangeType === "specific" && (
-            <div className="flex flex-col gap-3 pl-4 border-l-2 border-blue-500">
+            <div className="flex flex-col gap-3 pl-4 border-l-2 border-accent">
               <label className="text-sm font-medium text-text-primary">
                 {t("setTimeRangeLabel")}
               </label>
@@ -271,7 +264,7 @@ const CreateDevice = () => {
                     onChange={(e) =>
                       handleChange("specificTimeStart", e.target.value)
                     }
-                    className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-blue-500 transition-colors h-11 px-3 rounded-lg w-full outline-none"
+                    className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors h-11 px-3 rounded-lg w-full outline-none"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -284,7 +277,7 @@ const CreateDevice = () => {
                     onChange={(e) =>
                       handleChange("specificTimeEnd", e.target.value)
                     }
-                    className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-blue-500 transition-colors h-11 px-3 rounded-lg w-full outline-none"
+                    className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors h-11 px-3 rounded-lg w-full outline-none"
                   />
                 </div>
               </div>

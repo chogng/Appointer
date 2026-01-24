@@ -2913,15 +2913,15 @@ How to use (manual fallback):
             <div className="flex items-center gap-4 flex-wrap">
               <div
                 id="device-analysis-plot-type-toggle"
-                className="bg-bg-page border border-border rounded-lg p-1 inline-flex"
+                className="tab_menu"
               >
                 <button
                   id="device-analysis-plot-iv-btn"
                   type="button"
                   onClick={() => startTransition(() => setPlotType("iv"))}
-                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "iv"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
+                  className={`tab_btn tab_btn--control ${effectivePlotType === "iv"
+                    ? "tab_btn--active"
+                    : "tab_btn--inactive"
                     }`}
                 >
                   I-V
@@ -2930,9 +2930,9 @@ How to use (manual fallback):
                   id="device-analysis-plot-gm-btn"
                   type="button"
                   onClick={() => startTransition(() => setPlotType("gm"))}
-                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "gm"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
+                  className={`tab_btn tab_btn--control ${effectivePlotType === "gm"
+                    ? "tab_btn--active"
+                    : "tab_btn--inactive"
                     }`}
                 >
                   gm
@@ -2944,9 +2944,9 @@ How to use (manual fallback):
                     ssApplicable && startTransition(() => setPlotType("ss"))
                   }
                   disabled={!ssApplicable}
-                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "ss"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
+                  className={`tab_btn tab_btn--control ${effectivePlotType === "ss"
+                    ? "tab_btn--active"
+                    : "tab_btn--inactive"
                     } ${!ssApplicable ? "opacity-50 cursor-not-allowed" : ""}`}
                   title={
                     !ssApplicable
@@ -2961,9 +2961,9 @@ How to use (manual fallback):
                   type="button"
                   onClick={() => startTransition(() => setPlotType("j"))}
                   disabled={!area}
-                  className={`h-[30px] px-3 py-1.5 rounded-md text-xs font-medium transition-all ${effectivePlotType === "j"
-                    ? "bg-accent text-white shadow"
-                    : "text-text-secondary hover:text-text-primary"
+                  className={`tab_btn tab_btn--control ${effectivePlotType === "j"
+                    ? "tab_btn--active"
+                    : "tab_btn--inactive"
                     } ${!area ? "opacity-50 cursor-not-allowed" : ""}`}
                   title={!area ? "Set a positive Area to enable J plot" : ""}
                 >

@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import Card from "../../../components/ui/Card";
 import { useLanguage } from "../../../hooks/useLanguage";
+import { stableItemKey } from "../../../utils/stableKey";
 
 const PREVIEW_ROW_OVERSCAN = 12;
 const DEFAULT_PREVIEW_ROW_HEIGHT_PX = 44;
@@ -197,7 +198,8 @@ const DataPreviewTable = ({ processedData }) => {
           <button
             key={file.fileId}
             type="button"
-            data-file-id={file.fileId}
+            data-ui="device-analysis-preview-file-tab"
+            data-item-key={stableItemKey("da-file", file.fileName)}
             aria-pressed={effectiveActiveFileId === file.fileId}
             onClick={() => setActiveFileId(file.fileId)}
             className={`

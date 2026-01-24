@@ -13,6 +13,7 @@ import React, {
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { createPortal } from "react-dom";
 import { cx } from "../../../utils/cx";
+import { stableItemKey } from "../../../utils/stableKey";
 import styles from "./CsvImporter.module.css";
 
 /*
@@ -121,21 +122,10 @@ const ExpandedCard = ({
 const buildFileKeyRaw = (file) =>
   file && typeof file === "object" ? `${file.name}::${file.size}` : "";
 
-const fnv1a32 = (input) => {
-  const str = String(input ?? "");
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    // 32-bit FNV prime: 16777619
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-};
-
 const buildItemKey = (file) => {
   const raw = buildFileKeyRaw(file);
   if (!raw) return "";
-  return `csv-${fnv1a32(raw)}`;
+  return stableItemKey("csv", raw);
 };
 
 const CsvFileItem = React.memo(

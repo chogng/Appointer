@@ -112,7 +112,7 @@ const Users = () => {
       setUserBlocklist(blocklist.map((b) => b.deviceId));
     } catch (error) {
       console.error("Failed to load blocklist info", error);
-      showToast("Failed to load restriction details", "error");
+      showToast(t("users_failed_load_restriction_details"), "error");
     } finally {
       setLoadingBlocklist(false);
     }
@@ -217,11 +217,15 @@ const Users = () => {
             />
           </div>
           <button
+            id="users-add-user-btn"
+            type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+            className="action-btn action-btn--md action-btn--fx action-btn--primary"
           >
-            <Plus size={20} />
-            <span>{t("addUser")}</span>
+            <span className="action-btn__content">
+              <Plus size={20} />
+              <span>{t("addUser")}</span>
+            </span>
           </button>
         </div>
       </div>
@@ -231,19 +235,19 @@ const Users = () => {
           <thead className="bg-bg-page/50">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                User
+                {t("user")}
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                Role
+                {t("role")}
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                Status
+                {t("status")}
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                Expiry
+                {t("expiry_date")}
               </th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                Actions
+                {t("actions")}
               </th>
             </tr>
           </thead>
@@ -293,24 +297,36 @@ const Users = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-text-secondary">
-                  {u.expiryDate || "Permanent"}
+                  {u.expiryDate || t("permanent")}
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button
+                      type="button"
+                      aria-label={t("edit")}
+                      data-ui="users-edit-btn"
+                      data-item-key={`user-${u.id}`}
                       onClick={() => handleEditClick(u)}
-                      className="p-2 text-text-secondary hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                      title="Edit"
+                      className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                      title={t("edit")}
                     >
-                      <Edit2 size={16} />
+                      <span className="action-btn__content">
+                        <Edit2 size={16} />
+                      </span>
                     </button>
                     {u.id !== currentUser?.id && (
                       <button
+                        type="button"
+                        aria-label={t("delete")}
+                        data-ui="users-delete-btn"
+                        data-item-key={`user-${u.id}`}
                         onClick={() => setDeleteConfirm(u)}
-                        className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Delete"
+                        className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                        title={t("delete")}
                       >
-                        <Trash2 size={16} />
+                        <span className="action-btn__content">
+                          <Trash2 size={16} />
+                        </span>
                       </button>
                     )}
                   </div>
@@ -326,13 +342,13 @@ const Users = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-bg-surface border border-border rounded-xl p-6 w-full max-w-md shadow-2xl">
             <h2 className="text-xl font-bold text-text-primary mb-4">
-              Edit User
+              {t("edit_user")}
             </h2>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Username
+                  {t("username")}
                 </label>
                 <input
                   type="text"
@@ -345,7 +361,7 @@ const Users = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Display Name
+                  {t("displayName")}
                 </label>
                 <input
                   type="text"
@@ -359,7 +375,7 @@ const Users = () => {
 
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Account Expiry
+                  {t("account_expiry")}
                 </label>
                 <div className="flex gap-4 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -376,7 +392,7 @@ const Users = () => {
                       }
                       className="text-accent focus:ring-accent"
                     />
-                    <span className="text-text-primary">Permanent</span>
+                    <span className="text-text-primary">{t("permanent")}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -392,7 +408,7 @@ const Users = () => {
                       }
                       className="text-accent focus:ring-accent"
                     />
-                    <span className="text-text-primary">Limited Time</span>
+                    <span className="text-text-primary">{t("limited_time")}</span>
                   </label>
                 </div>
                 {editForm.expiryType === "limited" && (
@@ -411,7 +427,7 @@ const Users = () => {
 
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Account Status
+                  {t("account_status")}
                 </label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -442,7 +458,7 @@ const Users = () => {
                       className="text-accent focus:ring-accent"
                     />
                     <span className="text-text-primary flex items-center gap-1">
-                      <Ban size={14} className="text-red-500" /> Disabled
+                      <Ban size={14} className="text-red-500" /> {t("disabled")}
                     </span>
                   </label>
                 </div>
@@ -450,11 +466,11 @@ const Users = () => {
 
               <div className="pt-4 border-t border-border">
                 <h3 className="text-base font-semibold text-text-primary mb-3">
-                  Device Restrictions
+                  {t("device_restrictions")}
                 </h3>
                 {loadingBlocklist ? (
                   <div className="text-sm text-text-secondary">
-                    Loading restrictions...
+                    {t("loading_restrictions")}
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -469,6 +485,10 @@ const Users = () => {
                             {device.name}
                           </span>
                           <button
+                            type="button"
+                            aria-label={t("users_toggle_restriction")}
+                            data-ui="users-device-restriction-toggle"
+                            data-item-key={`device-${device.id}`}
                             onClick={async () => {
                               try {
                                 if (isBlocked) {
@@ -492,24 +512,23 @@ const Users = () => {
                               } catch (error) {
                                 console.error("Failed to toggle block", error);
                                 showToast(
-                                  "Failed to update restriction",
+                                  t("users_failed_update_restriction"),
                                   "error",
                                 );
                               }
                             }}
-                            className={`px-2 py-1 text-xs font-medium rounded transition-colors ${isBlocked
-                                ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                                : "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                              }`}
+                            className={`action-btn action-btn--sm action-btn--fx action-btn--ghost ${isBlocked ? "action-btn--danger" : ""}`}
                           >
-                            {isBlocked ? "Blocked" : "Allowed"}
+                            <span className="action-btn__content">
+                              {isBlocked ? t("blocked") : t("allowed")}
+                            </span>
                           </button>
                         </div>
                       );
                     })}
                     {devices.length === 0 && (
                       <div className="text-sm text-text-secondary">
-                        No devices found.
+                        {t("no_devices_found")}
                       </div>
                     )}
                   </div>
@@ -519,16 +538,20 @@ const Users = () => {
 
             <div className="flex justify-end gap-3 mt-6">
               <button
+                id="users-edit-cancel-btn"
+                type="button"
                 onClick={() => setEditingUser(null)}
-                className="px-4 py-2 text-text-secondary hover:bg-bg-page rounded-lg"
+                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
               >
-                Cancel
+                <span className="action-btn__content">{t("cancel")}</span>
               </button>
               <button
+                id="users-edit-save-btn"
+                type="button"
                 onClick={handleUpdate}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90"
+                className="action-btn action-btn--md action-btn--fx action-btn--primary"
               >
-                Save Changes
+                <span className="action-btn__content">{t("saveChanges")}</span>
               </button>
             </div>
           </div>
@@ -546,7 +569,7 @@ const Users = () => {
             <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Role
+                  {t("role")}
                 </label>
                 {currentUser?.role === "SUPER_ADMIN" ? (
                   <select
@@ -556,18 +579,18 @@ const Users = () => {
                     }
                     className="w-full px-3 py-2 bg-bg-page border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
                   >
-                    <option value="USER">User (Regular)</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="USER">{t("users_role_user_regular")}</option>
+                    <option value="ADMIN">{t("admin")}</option>
                   </select>
                 ) : (
                   <div className="w-full px-3 py-2 bg-bg-page/50 border border-border rounded-lg text-text-secondary">
-                    User (Regular)
+                    {t("users_role_user_regular")}
                   </div>
                 )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Username <span className="text-red-500">*</span>
+                  {t("username")} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -576,12 +599,12 @@ const Users = () => {
                     setCreateForm({ ...createForm, username: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-bg-page border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
-                  placeholder="e.g. jdoe"
+                  placeholder={t("example_username")}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Password <span className="text-red-500">*</span>
+                  {t("password")} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -590,12 +613,12 @@ const Users = () => {
                     setCreateForm({ ...createForm, password: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-bg-page border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
-                  placeholder="••••••••"
+                  placeholder={t("password_placeholder")}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Display Name <span className="text-red-500">*</span>
+                  {t("displayName")} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -604,12 +627,12 @@ const Users = () => {
                     setCreateForm({ ...createForm, name: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-bg-page border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
-                  placeholder="e.g. John Doe"
+                  placeholder={t("example_display_name")}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
-                  Email <span className="text-red-500">*</span>
+                  {t("email")} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -618,12 +641,12 @@ const Users = () => {
                     setCreateForm({ ...createForm, email: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-bg-page border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
-                  placeholder="e.g. john@example.com"
+                  placeholder={t("example_email")}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Account Expiry
+                  {t("account_expiry")}
                 </label>
                 <div className="flex gap-4 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -640,7 +663,7 @@ const Users = () => {
                       }
                       className="text-accent focus:ring-accent"
                     />
-                    <span className="text-text-primary">Permanent</span>
+                    <span className="text-text-primary">{t("permanent")}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -656,7 +679,7 @@ const Users = () => {
                       }
                       className="text-accent focus:ring-accent"
                     />
-                    <span className="text-text-primary">Limited Time</span>
+                    <span className="text-text-primary">{t("limited_time")}</span>
                   </label>
                 </div>
                 {createForm.expiryType === "limited" && (
@@ -679,16 +702,20 @@ const Users = () => {
 
             <div className="flex justify-end gap-3 mt-6">
               <button
+                id="users-create-cancel-btn"
+                type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 text-text-secondary hover:bg-bg-page rounded-lg transition-colors"
+                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
               >
-                Cancel
+                <span className="action-btn__content">{t("cancel")}</span>
               </button>
               <button
+                id="users-create-submit-btn"
+                type="button"
                 onClick={handleCreate}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                className="action-btn action-btn--md action-btn--fx action-btn--primary"
               >
-                Create User
+                <span className="action-btn__content">{t("createUser")}</span>
               </button>
             </div>
           </div>
@@ -700,24 +727,27 @@ const Users = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-bg-surface border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl">
             <h2 className="text-lg font-bold text-text-primary mb-2">
-              Confirm Deletion
+              {t("confirmDeletion")}
             </h2>
             <p className="text-text-secondary mb-6">
-              Are you sure you want to delete user "{deleteConfirm.name}"? This
-              action cannot be undone.
+              {t("users_confirm_delete").replace("{name}", deleteConfirm.name)}
             </p>
             <div className="flex justify-end gap-3">
               <button
+                id="users-delete-cancel-btn"
+                type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-text-secondary hover:bg-bg-page rounded-lg"
+                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
               >
-                Cancel
+                <span className="action-btn__content">{t("cancel")}</span>
               </button>
               <button
+                id="users-delete-confirm-btn"
+                type="button"
                 onClick={() => handleDelete(deleteConfirm.id)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                className="action-btn action-btn--md action-btn--fx action-btn--ghost action-btn--danger"
               >
-                Delete
+                <span className="action-btn__content">{t("delete")}</span>
               </button>
             </div>
           </div>

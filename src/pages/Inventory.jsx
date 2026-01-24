@@ -255,7 +255,7 @@ const Inventory = () => {
         ref={containerRef}
         className="w-full min-h-screen relative"
       >
-        <div className="text-text-secondary">Loading...</div>
+        <div className="text-text-secondary">{t("loading")}</div>
       </div>
     );
   }
@@ -271,7 +271,7 @@ const Inventory = () => {
             {t("inventoryList")}
           </h1>
           <p className="text-text-secondary">
-            Manage your inbound stock and inventory records
+            {t("inventory_subtitle")}
           </p>
         </div>
 
@@ -295,11 +295,15 @@ const Inventory = () => {
           </div>
 
           <button
+            id="inventory-add-item-btn"
+            type="button"
             onClick={handleAddItem}
-            className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-accent/20 active:scale-95"
+            className="action-btn action-btn--md action-btn--fx action-btn--primary"
           >
-            <Plus size={20} />
-            <span className="font-medium">{t("addItem")}</span>
+            <span className="action-btn__content">
+              <Plus size={20} />
+              <span>{t("addItem")}</span>
+            </span>
           </button>
         </div>
       </div>
@@ -378,27 +382,39 @@ const Inventory = () => {
                         {isAdmin() ? (
                           <>
                             <button
+                              type="button"
+                              aria-label={t("edit")}
                               onClick={() => handleEditItem(item)}
-                              className="p-2 text-text-secondary hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+                              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
                               title={t("edit")}
                             >
-                              <Edit2 size={18} />
+                              <span className="action-btn__content">
+                                <Edit2 size={18} />
+                              </span>
                             </button>
                             <button
+                              type="button"
+                              aria-label={t("delete")}
                               onClick={() => handleDeleteItem(item.id)}
-                              className="p-2 text-text-secondary hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
                               title={t("delete")}
                             >
-                              <Trash2 size={18} />
+                              <span className="action-btn__content">
+                                <Trash2 size={18} />
+                              </span>
                             </button>
                           </>
                         ) : (
                           <button
+                            type="button"
+                            aria-label={t("requestModification")}
                             onClick={() => handleRequestModification(item)}
-                            className="p-2 text-text-secondary hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+                            className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
                             title={t("requestModification")}
                           >
-                            <FileQuestion size={18} />
+                            <span className="action-btn__content">
+                              <FileQuestion size={18} />
+                            </span>
                           </button>
                         )}
                       </div>
@@ -440,10 +456,14 @@ const Inventory = () => {
                   : t("addItem")}
               </h2>
               <button
+                type="button"
+                aria-label={t("common_close")}
                 onClick={() => setIsModalOpen(false)}
-                className="text-text-secondary hover:text-text-primary transition-colors"
+                className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
               >
-                <X size={24} />
+                <span className="action-btn__content">
+                  <X size={24} />
+                </span>
               </button>
             </div>
 
@@ -499,22 +519,28 @@ const Inventory = () => {
 
               <div className="flex justify-end gap-3 mt-8">
                 <button
+                  id="inventory-modal-cancel-btn"
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-text-secondary hover:bg-white/5 transition-colors"
+                  className="action-btn action-btn--md action-btn--fx action-btn--ghost"
                 >
-                  {t("cancel")}
+                  <span className="action-btn__content">{t("cancel")}</span>
                 </button>
                 <button
+                  id="inventory-modal-submit-btn"
                   type="submit"
-                  className="px-6 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white font-medium shadow-lg shadow-accent/20 transition-all flex items-center gap-2"
+                  className="action-btn action-btn--md action-btn--fx action-btn--primary"
                 >
-                  <Check size={18} />
-                  {isEditing
-                    ? isAdmin()
-                      ? t("saveChanges")
-                      : t("submitRequest")
-                    : t("commit")}
+                  <span className="action-btn__content">
+                    <Check size={18} />
+                    <span>
+                      {isEditing
+                        ? isAdmin()
+                          ? t("saveChanges")
+                          : t("submitRequest")
+                        : t("commit")}
+                    </span>
+                  </span>
                 </button>
               </div>
             </form>

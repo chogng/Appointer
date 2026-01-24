@@ -4,6 +4,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useLanguage } from "../hooks/useLanguage";
 import { apiService } from "../services/apiService";
 import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
 import Toast from "../components/ui/Toast";
 import {
   User,
@@ -1038,14 +1039,16 @@ const Settings = () => {
                     autoComplete="name"
                     spellCheck={false}
                   />
-                  <button
+                  <Button
                     type="button"
                     onClick={handleNameSave}
-                    className="group relative flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-lg active:scale-95 transition-all whitespace-nowrap before:content-[''] before:absolute before:inset-0 before:rounded-lg before:bg-black before:pointer-events-none before:transition-transform hover:before:scale-[1.02]"
+                    variant="primary"
+                    size="md"
+                    fx
                   >
-                    <span className="relative z-10">{t("saveChanges")}</span>
-                    <ArrowUp size={16} className="relative z-10" />
-                  </button>
+                    {t("saveChanges")}
+                    <ArrowUp size={16} />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1153,15 +1156,15 @@ const Settings = () => {
                         String(translationProviderInput || "").trim().toLowerCase() ===
                           String(translationProvider || "").trim().toLowerCase()
                       }
-                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationProviderSync.state === "saving" ||
+                      className={`action-btn action-btn--lg ${translationProviderSync.state === "saving" ||
                         !String(translationProviderInput || "").trim() ||
                         String(translationProviderInput || "").trim().toLowerCase() ===
                           String(translationProvider || "").trim().toLowerCase()
-                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                        : "bg-accent text-white hover:bg-accent-hover"
+                        ? "action-btn--disabled"
+                        : "action-btn--fx action-btn--primary"
                         }`}
                     >
-                      <span className="relative z-10">
+                      <span className="action-btn__content">
                         {translationProviderSync.state === "saving" ? (
                           <Loader2 size={16} className="animate-spin" />
                         ) : (
@@ -1236,12 +1239,13 @@ const Settings = () => {
                     userTranslationProviderSync.state === "saving" ||
                     !String(userTranslationProviderInput || "").trim()
                   }
-                  className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${userTranslationProviderSync.state === "saving" || !String(userTranslationProviderInput || "").trim()
-                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                    : "bg-accent text-white hover:bg-accent-hover"
+                  className={`action-btn action-btn--lg ${userTranslationProviderSync.state === "saving" ||
+                    !String(userTranslationProviderInput || "").trim()
+                    ? "action-btn--disabled"
+                    : "action-btn--fx action-btn--primary"
                     }`}
                 >
-                  <span className="relative z-10">
+                  <span className="action-btn__content">
                     {userTranslationProviderSync.state === "saving" ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
@@ -1255,12 +1259,12 @@ const Settings = () => {
                     type="button"
                     onClick={handleClearUserTranslationProvider}
                     disabled={userTranslationProviderSync.state === "saving"}
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${userTranslationProviderSync.state === "saving"
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                    className={`action-btn action-btn--lg ${userTranslationProviderSync.state === "saving"
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--ghost action-btn--danger"
                       }`}
                   >
-                    <span className="relative z-10">{t("literature_clear")}</span>
+                    <span className="action-btn__content">{t("literature_clear")}</span>
                   </button>
                 )}
               </div>
@@ -1315,12 +1319,13 @@ const Settings = () => {
                       defaultTranslationApiKeySync.state === "saving" ||
                       !defaultTranslationApiKeyInput.trim()
                     }
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationApiKeySync.state === "saving" || !defaultTranslationApiKeyInput.trim()
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-accent text-white hover:bg-accent-hover"
+                    className={`action-btn action-btn--lg ${defaultTranslationApiKeySync.state === "saving" ||
+                      !defaultTranslationApiKeyInput.trim()
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--primary"
                       }`}
                   >
-                    <span className="relative z-10">
+                    <span className="action-btn__content">
                       {defaultTranslationApiKeySync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
@@ -1334,14 +1339,12 @@ const Settings = () => {
                       type="button"
                       onClick={handleClearDefaultTranslationApiKey}
                       disabled={defaultTranslationApiKeySync.state === "saving"}
-                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationApiKeySync.state === "saving"
-                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                      className={`action-btn action-btn--lg ${defaultTranslationApiKeySync.state === "saving"
+                        ? "action-btn--disabled"
+                        : "action-btn--fx action-btn--ghost action-btn--danger"
                         }`}
                     >
-                      <span className="relative z-10">
-                        {t("literature_clear")}
-                      </span>
+                      <span className="action-btn__content">{t("literature_clear")}</span>
                     </button>
                   )}
                 </form>
@@ -1389,12 +1392,13 @@ const Settings = () => {
                       defaultTranslationModelSync.state === "saving" ||
                       !defaultTranslationModelInput.trim()
                     }
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationModelSync.state === "saving" || !defaultTranslationModelInput.trim()
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-accent text-white hover:bg-accent-hover"
+                    className={`action-btn action-btn--lg ${defaultTranslationModelSync.state === "saving" ||
+                      !defaultTranslationModelInput.trim()
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--primary"
                       }`}
                   >
-                    <span className="relative z-10">
+                    <span className="action-btn__content">
                       {defaultTranslationModelSync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
@@ -1457,12 +1461,13 @@ const Settings = () => {
                       defaultTranslationBaseUrlSync.state === "saving" ||
                       !defaultTranslationBaseUrlInput.trim()
                     }
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationBaseUrlSync.state === "saving" || !defaultTranslationBaseUrlInput.trim()
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-accent text-white hover:bg-accent-hover"
+                    className={`action-btn action-btn--lg ${defaultTranslationBaseUrlSync.state === "saving" ||
+                      !defaultTranslationBaseUrlInput.trim()
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--primary"
                       }`}
                   >
-                    <span className="relative z-10">
+                    <span className="action-btn__content">
                       {defaultTranslationBaseUrlSync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
@@ -1476,14 +1481,12 @@ const Settings = () => {
                       type="button"
                       onClick={handleClearDefaultTranslationBaseUrl}
                       disabled={defaultTranslationBaseUrlSync.state === "saving"}
-                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${defaultTranslationBaseUrlSync.state === "saving"
-                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                      className={`action-btn action-btn--lg ${defaultTranslationBaseUrlSync.state === "saving"
+                        ? "action-btn--disabled"
+                        : "action-btn--fx action-btn--ghost action-btn--danger"
                         }`}
                     >
-                      <span className="relative z-10">
-                        {t("literature_clear")}
-                      </span>
+                      <span className="action-btn__content">{t("literature_clear")}</span>
                     </button>
                   )}
                 </div>
@@ -1534,12 +1537,13 @@ const Settings = () => {
                 <button
                   type="submit"
                   disabled={translationApiKeySync.state === "saving" || !translationApiKeyInput.trim()}
-                  className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationApiKeySync.state === "saving" || !translationApiKeyInput.trim()
-                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                    : "bg-accent text-white hover:bg-accent-hover"
+                  className={`action-btn action-btn--lg ${translationApiKeySync.state === "saving" ||
+                    !translationApiKeyInput.trim()
+                    ? "action-btn--disabled"
+                    : "action-btn--fx action-btn--primary"
                     }`}
                 >
-                  <span className="relative z-10">
+                  <span className="action-btn__content">
                     {translationApiKeySync.state === "saving" ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
@@ -1553,12 +1557,12 @@ const Settings = () => {
                     type="button"
                     onClick={handleClearTranslationApiKey}
                     disabled={translationApiKeySync.state === "saving"}
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationApiKeySync.state === "saving"
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                    className={`action-btn action-btn--lg ${translationApiKeySync.state === "saving"
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--ghost action-btn--danger"
                       }`}
                   >
-                    <span className="relative z-10">{t("literature_clear")}</span>
+                    <span className="action-btn__content">{t("literature_clear")}</span>
                   </button>
                 )}
               </form>
@@ -1610,12 +1614,13 @@ const Settings = () => {
                     disabled={
                       translationBaseUrlSync.state === "saving" || !translationBaseUrlInput.trim()
                     }
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationBaseUrlSync.state === "saving" || !translationBaseUrlInput.trim()
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-accent text-white hover:bg-accent-hover"
+                    className={`action-btn action-btn--lg ${translationBaseUrlSync.state === "saving" ||
+                      !translationBaseUrlInput.trim()
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--primary"
                       }`}
                   >
-                    <span className="relative z-10">
+                    <span className="action-btn__content">
                       {translationBaseUrlSync.state === "saving" ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
@@ -1629,12 +1634,12 @@ const Settings = () => {
                       type="button"
                       onClick={handleClearTranslationBaseUrl}
                       disabled={translationBaseUrlSync.state === "saving"}
-                      className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationBaseUrlSync.state === "saving"
-                        ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                        : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                      className={`action-btn action-btn--lg ${translationBaseUrlSync.state === "saving"
+                        ? "action-btn--disabled"
+                        : "action-btn--fx action-btn--ghost action-btn--danger"
                         }`}
                     >
-                      <span className="relative z-10">{t("literature_clear")}</span>
+                      <span className="action-btn__content">{t("literature_clear")}</span>
                     </button>
                   )}
                 </div>
@@ -1681,12 +1686,13 @@ const Settings = () => {
                   type="button"
                   onClick={handleSaveTranslationModel}
                   disabled={translationModelSync.state === "saving" || !translationModelInput.trim()}
-                  className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationModelSync.state === "saving" || !translationModelInput.trim()
-                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                    : "bg-accent text-white hover:bg-accent-hover"
+                  className={`action-btn action-btn--lg ${translationModelSync.state === "saving" ||
+                    !translationModelInput.trim()
+                    ? "action-btn--disabled"
+                    : "action-btn--fx action-btn--primary"
                     }`}
                 >
-                  <span className="relative z-10">
+                  <span className="action-btn__content">
                     {translationModelSync.state === "saving" ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
@@ -1700,12 +1706,12 @@ const Settings = () => {
                     type="button"
                     onClick={handleClearTranslationModel}
                     disabled={translationModelSync.state === "saving"}
-                    className={`group relative inline-flex items-center px-4 h-[42px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translationModelSync.state === "saving"
-                      ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                      : "bg-bg-page border border-border-subtle text-text-tertiary hover:text-red-500 hover:border-red-500/50"
+                    className={`action-btn action-btn--lg ${translationModelSync.state === "saving"
+                      ? "action-btn--disabled"
+                      : "action-btn--fx action-btn--ghost action-btn--danger"
                       }`}
                   >
-                    <span className="relative z-10">{t("literature_clear")}</span>
+                    <span className="action-btn__content">{t("literature_clear")}</span>
                   </button>
                 )}
               </div>
@@ -1726,18 +1732,20 @@ const Settings = () => {
                   type="button"
                   onClick={handleTestTranslate}
                   disabled={translateTest.state === "loading"}
-                  className={`group relative inline-flex items-center px-4 h-[38px] rounded-lg text-sm font-medium transition-colors before:content-[''] before:absolute before:inset-0 before:rounded-lg before:pointer-events-none before:transition-transform before:transition-colors ${translateTest.state === "loading"
-                    ? "text-text-secondary cursor-not-allowed before:bg-bg-subtle before:border before:border-border-subtle"
-                    : "bg-accent text-white hover:bg-accent-hover"
+                  className={`action-btn action-btn--md ${translateTest.state === "loading"
+                    ? "action-btn--disabled"
+                    : "action-btn--fx action-btn--primary"
                     }`}
                 >
-                  <span className="relative z-10 flex items-center gap-2">
+                  <span className="action-btn__content">
                     {translateTest.state === "loading" && (
                       <Loader2 size={16} className="animate-spin" />
                     )}
-                    {translateTest.state === "loading"
-                      ? t("literature_translate_test_running")
-                      : t("literature_translate_test_run")}
+                    <span>
+                      {translateTest.state === "loading"
+                        ? t("literature_translate_test_running")
+                        : t("literature_translate_test_run")}
+                    </span>
                   </span>
                 </button>
               </div>
@@ -1937,9 +1945,9 @@ const Settings = () => {
             </div>
             <button
               type="submit"
-              className="w-full py-2.5 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors font-medium text-sm"
+              className="action-btn action-btn--md action-btn--fx action-btn--primary w-full"
             >
-              {t("saveChanges")}
+              <span className="action-btn__content">{t("saveChanges")}</span>
             </button>
           </form>
         </Section>
@@ -2049,13 +2057,16 @@ const Settings = () => {
                     <button
                       type="button"
                       onClick={handleRetentionSave}
-                      className="group relative flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors font-medium text-sm disabled:opacity-60 before:content-[''] before:absolute before:inset-0 before:rounded-lg before:bg-accent before:pointer-events-none before:transition-transform hover:before:scale-[1.02] disabled:hover:before:scale-100"
+                      className={`action-btn action-btn--md ${retentionLoading || retentionSaving || retentionRunning
+                        ? "action-btn--disabled"
+                        : "action-btn--fx action-btn--primary"
+                        }`}
                       disabled={
                         retentionLoading || retentionSaving || retentionRunning
                       }
                     >
-                      <Check size={16} className="relative z-10" />
-                      <span className="relative z-10">
+                      <span className="action-btn__content">
+                        <Check size={16} />
                         {retentionSaving
                           ? `${t("saveChanges")}...`
                           : t("saveChanges")}
@@ -2064,15 +2075,22 @@ const Settings = () => {
                     <button
                       type="button"
                       onClick={handleRetentionRunNow}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-bg-page border border-border-subtle text-text-primary rounded-lg hover:bg-bg-subtle transition-colors font-medium text-sm disabled:opacity-60"
+                      className={`action-btn action-btn--md ${retentionLoading || retentionSaving || retentionRunning
+                        ? "action-btn--disabled"
+                        : "action-btn--fx action-btn--ghost"
+                        }`}
                       disabled={
                         retentionLoading || retentionSaving || retentionRunning
                       }
                     >
-                      <Trash2 size={16} />
-                      {retentionRunning
-                        ? `${t("runCleanupNow")}...`
-                        : t("runCleanupNow")}
+                      <span className="action-btn__content">
+                        <Trash2 size={16} />
+                        <span>
+                          {retentionRunning
+                            ? `${t("runCleanupNow")}...`
+                            : t("runCleanupNow")}
+                        </span>
+                      </span>
                     </button>
                   </div>
                 </div>

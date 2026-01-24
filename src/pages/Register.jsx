@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useLanguage } from "../hooks/useLanguage";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 
@@ -27,6 +28,7 @@ const Register = () => {
 
   const [error, setError] = useState("");
   const { register } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -165,22 +167,30 @@ const Register = () => {
                 </a>
               </div>
               <div className="hidden sm:flex items-center gap-3">
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  fx
                   onClick={() =>
                     navigate("/docs", { state: { from: "register" } })
                   }
-                  className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-all will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 h-9 px-5 rounded-lg min-w-[7rem] whitespace-nowrap bg-bg-100 text-text-100 border border-border-200 text-[15px] hover:border-border-200 hover:bg-bg-150"
+                  className="h-9 min-w-[7rem]"
                 >
-                  Docs
-                </button>
-                <button
+                  {t("docs")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  fx
                   onClick={() =>
                     navigate("/login", { state: { from: "register" } })
                   }
-                  className="inline-flex items-center justify-center relative shrink-0 overflow-hidden transition-transform will-change-transform ease-[cubic-bezier(0.165,0.85,0.45,1)] duration-150 hover:scale-y-[1.015] hover:scale-x-[1.005] h-9 px-5 rounded-lg min-w-[7rem] active:scale-[0.985] whitespace-nowrap bg-text-0 text-bg-0 text-[15px]"
+                  className="h-9 min-w-[7rem]"
                 >
-                  Log in
-                </button>
+                  {t("login")}
+                </Button>
               </div>
             </div>
           </nav>

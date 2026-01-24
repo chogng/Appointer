@@ -444,36 +444,48 @@ const Dashboard = () => {
                       user?.role === "SUPER_ADMIN" ? (
                         <>
                           <button
+                            type="button"
+                            aria-label={t("dashboard_approve")}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleApprove(msg);
                             }}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                            title="Approve"
+                            className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                            title={t("dashboard_approve")}
                           >
-                            <Check size={18} />
+                            <span className="action-btn__content">
+                              <Check size={18} />
+                            </span>
                           </button>
                           <button
+                            type="button"
+                            aria-label={t("dashboard_reject")}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleReject(msg);
                             }}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                            title="Reject"
+                            className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                            title={t("dashboard_reject")}
                           >
-                            <X size={18} />
+                            <span className="action-btn__content">
+                              <X size={18} />
+                            </span>
                           </button>
                         </>
                       ) : (
                         <button
+                          type="button"
+                          aria-label={t("dashboard_revoke_request")}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRevoke(msg);
                           }}
-                          className="p-2 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                          title="Revoke request"
+                          className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                          title={t("dashboard_revoke_request")}
                         >
-                          <Trash2 size={18} />
+                          <span className="action-btn__content">
+                            <Trash2 size={18} />
+                          </span>
                         </button>
                       )}
                     </div>
@@ -495,33 +507,41 @@ const Dashboard = () => {
         onClose={() => setSelectedMessage(null)}
         title={
           selectedMessage?.msgType === "USER_REGISTRATION"
-            ? "Application Details"
-            : "Request Details"
+            ? t("dashboard_application_details")
+            : t("dashboard_request_details")
         }
         footer={
           <>
             {user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" ? (
               <>
-                <button
+                <Button
                   onClick={() => handleReject(selectedMessage)}
-                  className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+                  variant="ghost"
+                  size="md"
+                  fx
+                  className="action-btn--danger"
                 >
-                  Reject
-                </button>
-                <button
+                  {t("dashboard_reject")}
+                </Button>
+                <Button
                   onClick={() => handleApprove(selectedMessage)}
-                  className="px-4 py-2 bg-text-primary text-white hover:bg-text-primary/90 rounded-lg transition-colors text-sm font-medium"
+                  variant="primary"
+                  size="md"
+                  fx
                 >
-                  Approve
-                </button>
+                  {t("dashboard_approve")}
+                </Button>
               </>
             ) : (
-              <button
+              <Button
                 onClick={() => handleRevoke(selectedMessage)}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+                variant="ghost"
+                size="md"
+                fx
+                className="action-btn--danger"
               >
-                Revoke Request
-              </button>
+                {t("dashboard_revoke_request")}
+              </Button>
             )}
           </>
         }

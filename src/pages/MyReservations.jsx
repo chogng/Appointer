@@ -6,7 +6,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Dropdown from "../components/ui/Dropdown";
-import SegmentedControl from "../components/ui/SegmentedControl";
+import Tabs from "../components/ui/Tabs";
 import {
   Calendar,
   Clock,
@@ -168,13 +168,16 @@ const MyReservations = () => {
           )}
           {isAdmin && (
             <div className="w-[200px] mt-1">
-              <SegmentedControl
+              <Tabs
+                idBase="my-reservations-scope"
+                groupLabel="Reservation scope"
+                value={scope}
+                onChange={setScope}
                 options={[
                   { label: t("myReservationsTitle"), value: "mine" },
                   { label: t("userReservationsTitle"), value: "all" },
                 ]}
-                value={scope}
-                onChange={setScope}
+                size="md"
               />
             </div>
           )}
@@ -185,10 +188,11 @@ const MyReservations = () => {
           {selectedIds.size > 0 && (
             <div className="flex items-center animate-in fade-in slide-in-from-right-4 duration-300">
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 onClick={handleBulkCancel}
-                className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
+                fx
+                className="action-btn--danger"
               >
                 <Trash2 size={16} />
                 {t("cancelSelected")} ({selectedIds.size})
@@ -207,40 +211,42 @@ const MyReservations = () => {
           </div>
 
           {/* View Switcher */}
-          <div className="flex bg-white/40 backdrop-blur-sm border border-border-subtle rounded-xl p-1 shadow-sm">
+          <div id="my-reservations-view-toggle" className="tab_menu">
             <button
+              type="button"
               onClick={toggleSelectAll}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isAllSelected
-                  ? "bg-indigo-50 text-indigo-600"
-                  : "text-text-secondary hover:bg-white/60"
+              className={`tab_btn tab_btn--control ${
+                isAllSelected ? "tab_btn--active" : "tab_btn--inactive"
               }`}
               title={isAllSelected ? t("deselectAll") : t("selectAll")}
             >
-              {isAllSelected ? <CheckSquare size={20} /> : <Square size={20} />}
+              <span className="tab_btn_icon">
+                {isAllSelected ? <CheckSquare size={20} /> : <Square size={20} />}
+              </span>
             </button>
-            <div className="w-[1px] bg-border-subtle my-1 mx-1" />
             <button
+              type="button"
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                viewMode === "list"
-                  ? "bg-[#7FB77E] text-white shadow-md shadow-green-100"
-                  : "text-text-secondary hover:bg-white/60"
+              className={`tab_btn tab_btn--control ${
+                viewMode === "list" ? "tab_btn--active" : "tab_btn--inactive"
               }`}
               title={t("listView")}
             >
-              <List size={20} />
+              <span className="tab_btn_icon">
+                <List size={20} />
+              </span>
             </button>
             <button
+              type="button"
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                viewMode === "grid"
-                  ? "bg-[#7FB77E] text-white shadow-md shadow-green-100"
-                  : "text-text-secondary hover:bg-white/60"
+              className={`tab_btn tab_btn--control ${
+                viewMode === "grid" ? "tab_btn--active" : "tab_btn--inactive"
               }`}
               title={t("gridView")}
             >
-              <LayoutGrid size={20} />
+              <span className="tab_btn_icon">
+                <LayoutGrid size={20} />
+              </span>
             </button>
           </div>
         </div>
@@ -286,8 +292,8 @@ const MyReservations = () => {
                 <div
                   className={`w-5 h-5 rounded border flex items-center justify-center transition-all duration-200 cursor-pointer ${
                     selectedIds.has(res.id)
-                      ? "bg-[#7FB77E] border-[#7FB77E] text-white shadow-sm"
-                      : "bg-white border-gray-300 text-transparent hover:border-[#7FB77E]"
+                      ? "bg-accent border-accent text-white shadow-sm"
+                      : "bg-white border-gray-300 text-transparent hover:border-accent/60"
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -314,7 +320,7 @@ const MyReservations = () => {
                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#FAFDF7] dark:bg-green-900/20 flex items-center justify-center shrink-0 border border-green-100/50 group-hover:scale-110 transition-transform duration-300">
                   <Calendar
                     size={24}
-                    className="text-[#7FB77E] dark:text-green-400"
+                    className="text-accent"
                   />
                 </div>
 

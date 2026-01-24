@@ -1343,21 +1343,29 @@ Note:
             {/* View Toggles */}
             <div
               id="device-analysis-view-toggle"
-              className="bg-bg-surface border border-border rounded-lg p-1 inline-flex"
+              className="tab_menu"
             >
               <button
                 id="device-analysis-view-table-btn"
+                type="button"
                 onClick={() => setViewMode("table")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === "table" ? "bg-accent text-white shadow" : "text-text-secondary hover:text-text-primary"}`}
+                className={`tab_btn tab_btn--md ${viewMode === "table" ? "tab_btn--active" : "tab_btn--inactive"}`}
               >
-                <TableIcon size={18} /> {t("da_view_table")}
+                <span className="tab_btn_icon">
+                  <TableIcon size={18} />
+                </span>
+                <span className="tab_btn_text">{t("da_view_table")}</span>
               </button>
               <button
                 id="device-analysis-view-chart-btn"
+                type="button"
                 onClick={() => setViewMode("chart")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === "chart" ? "bg-accent text-white shadow" : "text-text-secondary hover:text-text-primary"}`}
+                className={`tab_btn tab_btn--md ${viewMode === "chart" ? "tab_btn--active" : "tab_btn--inactive"}`}
               >
-                <BarChart2 size={18} /> {t("da_view_charts")}
+                <span className="tab_btn_icon">
+                  <BarChart2 size={18} />
+                </span>
+                <span className="tab_btn_text">{t("da_view_charts")}</span>
               </button>
             </div>
           </div>

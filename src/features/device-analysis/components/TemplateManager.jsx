@@ -24,6 +24,7 @@ import { useLanguage } from "../../../hooks/useLanguage";
 import Toast from "../../../components/ui/Toast";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,
@@ -1394,7 +1395,7 @@ const TemplateManager = ({
                       onFocus={() => {
                         if (templateMode === "select") setIsDropdownOpen(true);
                       }}
-                      placeholder="Template Name"
+                      placeholder={t("da_template_name")}
                       className={`flex-1 min-w-0 pl-2 py-1.5 bg-transparent border-none text-text-primary text-sm focus:outline-none focus:ring-0 placeholder:text-text-secondary no-focus-outline ${templateMode === "select" ? "pr-8" : "pr-2"}`}
                     />
 
@@ -1412,17 +1413,19 @@ const TemplateManager = ({
                     )}
 
                     {templateMode === "save" && (
-                      <button
+                      <Button
+                        type="button"
                         onClick={handleSaveTemplate}
-                        disabled={
-                          !config.name.trim()
-                        }
-                        className="group relative flex items-center justify-center gap-2 px-4 py-1.5 bg-black text-white text-sm font-medium rounded-md active:scale-95 transition-all whitespace-nowrap disabled:opacity-50 shadow-sm ml-2 before:content-[''] before:absolute before:inset-0 before:rounded-md before:bg-black before:pointer-events-none before:transition-transform hover:before:scale-[1.02] disabled:hover:before:scale-100"
-                        title="Save Template"
+                        disabled={!config.name.trim()}
+                        variant="primary"
+                        size="md"
+                        fx
+                        className="ml-2"
+                        title={t("da_save_template")}
                       >
-                        <span className="relative z-10">Save</span>
-                        <ArrowUp size={16} className="relative z-10" />
-                      </button>
+                        {t("da_template_mode_save")}
+                        <ArrowUp size={16} />
+                      </Button>
                     )}
                   </div>
 
@@ -1452,9 +1455,7 @@ const TemplateManager = ({
                           });
                         }}
                       >
-                        <span className="flex-1 text-sm font-medium">
-                          New Template
-                        </span>
+                        <span className="flex-1 text-sm font-medium">{t("da_new_template")}</span>
                         <div className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Plus size={14} />
                         </div>
@@ -1785,10 +1786,11 @@ const TemplateManager = ({
 
             {templateMode !== "save" && (
               <button
+                type="button"
                 onClick={applyConfiguration}
-                className="w-full py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover active:scale-[0.98] transition-all shadow-lg shadow-accent/20 mt-4 hover:-translate-y-0.5"
+                className="action-btn action-btn--md action-btn--fx action-btn--primary w-full mt-4"
               >
-                Apply to All Files
+                <span className="action-btn__content">{t("da_apply_to_all_files")}</span>
               </button>
             )}
 
@@ -1809,7 +1811,7 @@ const TemplateManager = ({
                 ) : (
                   <div className="w-[18px] h-[18px] rounded border-2 border-gray-300 group-hover:border-terracotta/50 transition-colors bg-white" />
                 )}
-                <span>Stop on first invalid file</span>
+                <span>{t("da_stop_on_first_invalid_file")}</span>
               </div>
             )}
 

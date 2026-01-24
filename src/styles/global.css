@@ -95,6 +95,10 @@ body {
     @apply h-[38px] text-sm;
   }
 
+  .ui-tabs__btn--control {
+    @apply h-[30px] text-xs px-3 py-1.5;
+  }
+
   .ui-tabs__btn--active {
     @apply bg-white text-black shadow-sm;
   }
@@ -398,6 +402,10 @@ body {
 
   .tab_btn--md {
     @apply h-[38px] text-sm;
+  }
+
+  .tab_btn--control {
+    @apply h-[30px] text-xs px-3 py-1.5;
   }
 
   .tab_btn--active {
