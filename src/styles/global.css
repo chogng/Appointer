@@ -250,7 +250,9 @@ body {
 
     box-shadow: 0 0 0 0 var(--click-fx-bg), 0 0 0 1px var(--click-fx-border);
     transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
-      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
+      transform 0.08s ease-out;
+    transform-origin: center;
   }
 
   .action-btn--fx:not(:disabled):not(.action-btn--disabled):hover,
@@ -264,6 +266,11 @@ body {
   .click_btn--fx:disabled,
   .click_btn--fx.click_btn--disabled {
     box-shadow: none;
+  }
+
+  .action-btn--fx:not(:disabled):not(.action-btn--disabled):active,
+  .click_btn--fx:not(:disabled):not(.click_btn--disabled):active {
+    transform: scale(0.98);
   }
 
   .ui-seed-url-check {
