@@ -88,6 +88,30 @@ body {
     @apply flex flex-col gap-12;
   }
 
+  /* Dashboard: fallback for small viewport heights (e.g. browser zoom). */
+  #dashboard-recent-activity-card,
+  #dashboard-recent-messages-card {
+    min-height: 360px;
+  }
+
+  @media (max-height: 720px) {
+    .dashboard_page {
+      height: auto;
+      min-height: 100%;
+    }
+
+    .dashboard_fill_grid {
+      flex: 0 0 auto;
+      min-height: auto;
+    }
+
+    #dashboard-recent-activity-card,
+    #dashboard-recent-messages-card {
+      flex: 0 0 auto;
+      height: clamp(340px, 56vh, 520px);
+    }
+  }
+
   /* Layout: Grids */
   .grid_auto_cards {
     @apply grid gap-6;

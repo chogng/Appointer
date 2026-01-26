@@ -63,18 +63,26 @@ const Dashboard = () => {
 
   const stats = [
     {
+      id: "upcoming-reservations",
       label: t("upcomingReservations"),
       value: "2",
       icon: Calendar,
       color: "#0071E3",
     },
     {
+      id: "reserved-hours",
       label: t("reservedHours"),
       value: `14 ${t("hours")}`,
       icon: Clock,
       color: "#34C759",
     },
-    { label: t("completed"), value: "8", icon: CheckCircle, color: "#FF9F0A" },
+    {
+      id: "completed",
+      label: t("completed"),
+      value: "8",
+      icon: CheckCircle,
+      color: "#FF9F0A",
+    },
   ];
 
   const fetchLogs = useCallback(async () => {
@@ -253,7 +261,7 @@ const Dashboard = () => {
   return (
     <div
       ref={containerRef}
-      className="w-full relative min-h-full flex flex-col"
+      className="dashboard_page w-full relative h-full min-h-0 flex flex-col"
     >
       <div className="page_head">
         <h1 className="page_title">{t("dashboard")}</h1>
@@ -268,8 +276,15 @@ const Dashboard = () => {
             {t("overview")}
           </h2>
           <div className="grid_auto_cards">
-            {stats.map((stat, index) => (
-              <Card key={index} className="flex items-center gap-4">
+            {stats.map((stat) => (
+              <Card
+                key={stat.id}
+                id={`dashboard-overview-stat-${stat.id}`}
+                className="flex items-center gap-4"
+                cta="Dashboard"
+                ctaPosition="overview"
+                ctaCopy={stat.id}
+              >
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center"
                   style={{ backgroundColor: `${stat.color}15` }}
@@ -289,7 +304,7 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
+        <div className="dashboard_fill_grid grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
           {/* Recent Activity Column */}
           <section
             aria-labelledby="dashboard-recent-activity-title"
@@ -298,7 +313,13 @@ const Dashboard = () => {
             <h2 id="dashboard-recent-activity-title" className="section_title">
               {t("recentActivity")}
             </h2>
-            <Card variant="fill">
+            <Card
+              id="dashboard-recent-activity-card"
+              variant="fill"
+              cta="Dashboard"
+              ctaPosition="recent-activity"
+              ctaCopy="activity-card"
+            >
               <div className="card_head_warp">
                 <div className="flex-1 max-w-sm">
                   <Input
@@ -418,7 +439,13 @@ const Dashboard = () => {
             <h2 id="dashboard-recent-messages-title" className="section_title">
               {t("recentMessages")}
             </h2>
-            <Card variant="fill">
+            <Card
+              id="dashboard-recent-messages-card"
+              variant="fill"
+              cta="Dashboard"
+              ctaPosition="recent-messages"
+              ctaCopy="messages-card"
+            >
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 {messages.length > 0 ? (
                   <div className="divide-y divide-border-subtle">
