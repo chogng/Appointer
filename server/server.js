@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import fs from "fs";
+import multer from "multer";
 import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -49,6 +50,14 @@ app.set("trust proxy", 1);
 const PORT = Number(process.env.PORT) || 3001;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistDir = path.resolve(__dirname, "../dist");
+const uploadsDir = path.resolve(__dirname, "uploads");
+const avatarsDir = path.join(uploadsDir, "avatars");
+
+try {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+} catch (error) {
+  console.warn(`[uploads] failed to ensure uploads dir: ${error?.message || error}`);
+}
 
 const corsOriginEnv = process.env.CORS_ORIGIN || process.env.CLIENT_ORIGIN;
 const corsOrigins = (corsOriginEnv || DEFAULT_CLIENT_ORIGIN)
@@ -1458,6 +1467,37 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(cookieParser());
+app.use("/api/uploads", express.static(uploadsDir, { maxAge: "7d" }));
+
+const AVATAR_MIME_TO_EXT = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
+
+const avatarUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, avatarsDir),
+    filename: (req, file, cb) => {
+      const ext =
+        path.extname(file.originalname || "").toLowerCase() ||
+        AVATAR_MIME_TO_EXT[file.mimetype] ||
+        "";
+      cb(null, `${req.params.id}_${Date.now()}_${randomUUID()}${ext}`);
+    },
+  }),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB
+  },
+  fileFilter: (_req, file, cb) => {
+    if (Object.prototype.hasOwnProperty.call(AVATAR_MIME_TO_EXT, file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Invalid avatar file type (expected jpg/png/webp/gif)"));
+  },
+});
 
 // 初始化数据库
 await db.init();
@@ -1542,9 +1582,58 @@ app.get(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const users = await db.query(
-      "SELECT id, username, role, status, name, email, expiryDate FROM users",
+      "SELECT id, username, role, status, name, email, expiryDate, avatarUrl FROM users",
     );
     res.json(users);
+  }),
+);
+
+app.post(
+  "/api/users/:id/avatar",
+  authenticateToken,
+  avatarUpload.single("avatar"),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ error: "Missing avatar file" });
+    }
+
+    const target = await db.queryOne("SELECT id, role, avatarUrl FROM users WHERE id = ?", [
+      id,
+    ]);
+    if (!target) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const isSelf = req.user.id === id;
+    if (!isSelf) {
+      if (!isAdminRole(req.user.role)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (req.user.role === "ADMIN" && target.role !== "USER") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+    }
+
+    const avatarUrl = `/api/uploads/avatars/${req.file.filename}`;
+
+    // Best-effort cleanup: delete old avatar file if it was stored locally.
+    const previous = typeof target.avatarUrl === "string" ? target.avatarUrl : "";
+    if (previous.startsWith("/api/uploads/avatars/")) {
+      const previousName = path.basename(previous);
+      const previousPath = path.join(avatarsDir, previousName);
+      fs.promises.unlink(previousPath).catch(() => {});
+    }
+
+    await db.execute("UPDATE users SET avatarUrl = ? WHERE id = ?", [avatarUrl, id]);
+
+    const updated = await db.queryOne(
+      "SELECT id, username, role, status, name, email, expiryDate, avatarUrl FROM users WHERE id = ?",
+      [id],
+    );
+
+    broadcast("user:updated", updated);
+    res.json(updated);
   }),
 );
 
@@ -1852,7 +1941,7 @@ app.patch(
     await db.execute(`UPDATE users SET ${fields} WHERE id = ?`, values);
 
     const updated = await db.queryOne(
-      "SELECT id, username, role, status, name, email, expiryDate FROM users WHERE id = ?",
+      "SELECT id, username, role, status, name, email, expiryDate, avatarUrl FROM users WHERE id = ?",
       [id],
     );
 
@@ -2684,7 +2773,7 @@ app.get(
       : 50;
 
     let query = `
-            SELECT l.*, u.name as userName
+            SELECT l.*, u.name as userName, u.role as userRole
             FROM logs l
             LEFT JOIN users u ON l.userId = u.id
         `;

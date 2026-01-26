@@ -76,11 +76,20 @@ class ApiService {
       return this._mockRequest(endpoint, options);
     }
 
+    const isFormData =
+      typeof FormData !== "undefined" && options?.body instanceof FormData;
+
+    const headers = { ...(options.headers || {}) };
+    const hasContentTypeHeader =
+      Object.prototype.hasOwnProperty.call(headers, "Content-Type") ||
+      Object.prototype.hasOwnProperty.call(headers, "content-type");
+
+    if (!isFormData && !hasContentTypeHeader) {
+      headers["Content-Type"] = "application/json";
+    }
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
       credentials: "include", // Important: Send cookies with request
       ...options,
     });
@@ -157,6 +166,15 @@ class ApiService {
     return this.request(`/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(updates),
+    });
+  }
+
+  async uploadUserAvatar(id, file) {
+    const form = new FormData();
+    form.append("avatar", file);
+    return this.request(`/users/${id}/avatar`, {
+      method: "POST",
+      body: form,
     });
   }
 

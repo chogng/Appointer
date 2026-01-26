@@ -14,9 +14,10 @@ export default {
       colors: {
         bg: {
           page: '#F5F4EF',
-          surface: '#FFFFFF',
+          surface: '#ffffff',
           'surface-hover': '#FAF9F5',
           subtle: '#F0F0F0',
+          50: '#FAF9F5',
           0: '#FFFFFF', // Claude bg-000
           100: '#F0EEE6', // Claude bg-100
           150: '#E8E6DC',

@@ -1355,7 +1355,7 @@ Note:
         )}
 
         <section aria-label={t("da_analysis_visualization")}>
-          <div className="ui-section_head ui-section_head--gap">
+          <div className="section_head section_head--gap">
             <h2 className="section_title mb-0">{t("da_analysis_visualization")}</h2>
 
             {/* View Toggles */}

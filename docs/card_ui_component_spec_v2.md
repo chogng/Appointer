@@ -14,7 +14,7 @@ Related:
 ## Props
 
 - `as`: root element/component (default: `div`)
-- `variant`: `"default" | "panel" | "glass" | "flat"` (default: `"default"`)
+- `variant`: `"default" | "panel" | "glass" | "flat" | "fill"` (default: `"default"`)
 - `className`: extra classes appended
 - `cta` / `ctaPosition` / `ctaCopy`: optional markers (analytics)
   - emits: `data-cta`, `data-cta-position`, `data-cta-copy`
@@ -36,6 +36,11 @@ Token rules (as implemented today):
 - `panel`: `card card--panel` (includes `p-4`)
 - `flat`: `card card--flat`
 - `glass`: `card card--glass` (applies `.glass`)
+- `fill`: `card card--fill` (layout template: `p-0 overflow-hidden flex-1 min-h-0 flex flex-col`)
+
+Notes:
+- `fill` is meant for cards that should expand to consume remaining height in a flex/grid layout (e.g. dashboards).
+- For scrollable content, prefer putting `overflow-y-auto` on an inner content container (not on the `Card` root) so the root can keep clipping (rounded corners) stable.
 
 ## Recommended JSX Template (Copy/Paste)
 
@@ -92,6 +97,25 @@ Notes:
 - Prefer `variant="panel"` instead of `className="card card--panel"` to avoid duplicated classes.
 - Keep `ctaPosition` / `ctaCopy` in `kebab-case` so emitted `data-cta-*` stays predictable.
 
+## Layout Template: Fill + Inner Scroll
+
+Use when:
+- The card should stretch to the bottom of the viewport area, and only the card content should scroll (not the whole page).
+
+```jsx
+<Card variant="fill" aria-labelledby="recent-messages-title">
+  <div className="card_head_warp">
+    <h2 id="recent-messages-title" className="section_title">
+      {t("recentMessages")}
+    </h2>
+  </div>
+
+  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+    {/* long list/table goes here */}
+  </div>
+</Card>
+```
+
 ## Checklist
 
 - Semantics: pick the right `as` (`section/article/div`).
@@ -99,4 +123,3 @@ Notes:
 - Visual: use `variant` for the base look; use `className` only for additional layout/spacing.
 - Markers: add `id` / `data-cta*` only when you need a stable anchor.
 - Copy: don't hardcode user-facing strings; use `t("key")` and update `src/context/LanguageContext.jsx` (`en`/`zh`).
-

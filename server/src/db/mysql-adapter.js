@@ -106,6 +106,7 @@ async function ensureSchema(db) {
       name VARCHAR(255) NOT NULL,
       email VARCHAR(255) NOT NULL,
       expiryDate VARCHAR(10) NULL,
+      avatarUrl TEXT NULL,
       UNIQUE KEY users_username_unique (username)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
@@ -244,6 +245,12 @@ async function ensureSchema(db) {
       throw error;
     }
   };
+
+  await ensureColumn(
+    "users",
+    "avatarUrl",
+    "TEXT NULL",
+  );
 
   await ensureColumn(
     "device_analysis_settings",

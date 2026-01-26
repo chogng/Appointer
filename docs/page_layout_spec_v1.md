@@ -80,7 +80,7 @@ Each section should be:
 `section_title` defines:
 
 - Left padding: `pl-2` (aligned inset relative to cards/content)
-- Bottom spacing: `mb-2` (distance to the following card/content)
+- Bottom spacing: `mb-4` (distance to the following card/content)
 
 ## Anchors
 

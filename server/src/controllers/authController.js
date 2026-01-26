@@ -46,7 +46,7 @@ export async function login(req, res) {
       makeId("log"),
       user.id,
       "LOGIN",
-      "User logged in",
+      String(user.role || "USER"),
       new Date().toISOString(),
     ],
   );
@@ -75,7 +75,7 @@ export function logout(req, res) {
 
 export async function getMe(req, res) {
   const user = await db.queryOne(
-    "SELECT id, username, role, status, name, email, expiryDate FROM users WHERE id = ?",
+    "SELECT id, username, role, status, name, email, expiryDate, avatarUrl FROM users WHERE id = ?",
     [req.user.id],
   );
   if (!user) return res.sendStatus(404);

@@ -886,14 +886,38 @@ const Settings = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const result = await updateUser({ avatar: reader.result });
-      if (result.success) {
-        showToast(t("updateSuccess"), "success");
+    const isMockApi =
+      String(import.meta.env?.VITE_MOCK_API || "").toLowerCase() === "true";
+
+    if (isMockApi) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const result = await updateUser(
+          { avatarUrl: reader.result },
+          { skipRemote: true },
+        );
+        if (result.success) showToast(t("updateSuccess"), "success");
+        e.target.value = "";
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    (async () => {
+      try {
+        if (!user?.id) return;
+        const updated = await apiService.uploadUserAvatar(user.id, file);
+        const result = await updateUser(
+          { avatarUrl: updated?.avatarUrl || null },
+          { skipRemote: true },
+        );
+        if (result.success) showToast(t("updateSuccess"), "success");
+      } catch (error) {
+        showToast(error.message || t("updateFailed"), "error");
+      } finally {
+        e.target.value = "";
       }
-    };
-    reader.readAsDataURL(file);
+    })();
   };
 
   const handlePasswordChange = (e) => {
@@ -955,9 +979,9 @@ const Settings = () => {
             <div className="flex items-center gap-4">
               <div className="relative group">
                 <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
-                  {user?.avatar ? (
+                  {user?.avatarUrl ? (
                     <img
-                      src={user.avatar}
+                      src={user.avatarUrl}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />

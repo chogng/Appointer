@@ -29,6 +29,7 @@ const Card = forwardRef(
       panel: "card card--panel",
       glass: "card card--glass",
       flat: "card card--flat",
+      fill: "card card--fill",
     };
 
     const ctaMarker = normalizeCtaName(cta);

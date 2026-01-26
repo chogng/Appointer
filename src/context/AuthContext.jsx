@@ -139,9 +139,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateUser = async (updates) => {
+  const updateUser = async (updates, options = {}) => {
     try {
-      if (user?.id) {
+      const skipRemote = options?.skipRemote === true;
+      if (!skipRemote && user?.id) {
         await apiService.updateUser(user.id, updates);
       }
       const newUser = { ...user, ...updates };

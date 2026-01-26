@@ -59,7 +59,8 @@ async function createTables() {
       status TEXT NOT NULL,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
-      expiryDate TEXT
+      expiryDate TEXT,
+      avatarUrl TEXT
     );
   `);
 
@@ -181,6 +182,7 @@ async function createTables() {
 
 async function migrateSchema() {
   // Keep runtime schema consistent with server expectations.
+  ensureColumn("users", "avatarUrl", "TEXT");
   ensureColumn("devices", "granularity", "INTEGER DEFAULT 60");
   ensureColumn(
     "devices",
