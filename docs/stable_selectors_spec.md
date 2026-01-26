@@ -1,84 +1,85 @@
-# 稳定选择器与 UI 标记规范 v1
+# Stable Selectors Spec
 
-目标：避免出现 `#root > ...` 这种**依赖 DOM 深度与 Tailwind 组合类名**的超长选择器；让样式与测试/自动化定位都能使用**短、稳定、可维护**的锚点。
+目标：给测试/自动化/排查提供**短、稳定、可维护**的定位锚点；避免依赖 DOM 深度或 Tailwind class 组合。
 
-本文的核心原则：
+相关：
+- `docs/card_ui_component_spec_v2.md`
+- `docs/input_ui_component_spec.md`
+- `docs/textarea_ui_component_spec.md`
+- `docs/button_component_spec.md`
+- `docs/tabs_ui_component_spec.md`
 
-- **语义与可访问性优先**：能用 `id/htmlFor`、`aria-*` 表达就不要用结构选择器。
-- **定位锚点语义化**：优先用 `id/htmlFor` + `aria-label`（或 `aria-labelledby`）；`data-ui` 仅作为遗留兼容，逐步移除。
-- **组件输出要稳定**：UI 组件应提供稳定 DOM 结构与必要的 aria 关系（参考 [`tabs_ui_component_spec.md`](./tabs_ui_component_spec.md)）。
-- 组件补充规范：`Card` 参见 [`card_ui_component_spec.md`](./card_ui_component_spec.md)；`Input` 参见 [`input_ui_component_spec.md`](./input_ui_component_spec.md)；`Textarea` 参见 [`textarea_ui_component_spec.md`](./textarea_ui_component_spec.md)；`Dropdown` 参见 [`dropdown_ui_component_spec.md`](./dropdown_ui_component_spec.md)；`Popup` 参见 [`popup_ui_component_spec.md`](./popup_ui_component_spec.md)；`Modal` 参见 [`modal_ui_component_spec.md`](./modal_ui_component_spec.md)；`Toast` 参见 [`toast_ui_component_spec.md`](./toast_ui_component_spec.md)；`Switch` 参见 [`switch_ui_component_spec.md`](./switch_ui_component_spec.md)；`SegmentedControl` 参见 [`segmented_control_ui_component_spec.md`](./segmented_control_ui_component_spec.md)。
+## 1. 选择器优先级（建议）
 
----
+1) **稳定 `id` / `htmlFor`**
+- 页面级、关键区块：给根元素一个稳定 `id`（不要用 `useId()` 生成的动态 id 做自动化锚点）
+- 表单：优先 `label[for]` + `#inputId`
 
-## 1. 选择器优先级（强制）
+2) **可访问性（A11y）**
+- 用 `aria-label` / `aria-labelledby` / 原生语义保证可访问性
+- 不建议把 `aria-*` 当作主定位锚点（除非团队明确约定它稳定）
 
-从上到下优先使用：
+3) **组件结构标记（仅限组件规范内）**
+- Tabs：使用 `data-tabs="menu|tab|panel"` 定位结构角色
+- 除 Tabs 外，不新增通用的 `data-*` 结构标记（例如 `data-card` / `data-ui` 这类）除非写进对应组件 spec
 
-1. **`id/htmlFor`**（推荐；用于表单语义与定位；避免用 React `useId()` 生成的动态 id 做自动化选择器）
-2. **`aria-label` / `aria-labelledby` / `role`**（推荐；用于无可见 label、icon-only 等场景）
-3. **`data-cta*`**（可选；用于埋点与可读的自动化辅助定位）
-4. **`data-ui`**（遗留兼容；不再新增，逐步替代）
-5. **组件级 `ui-*` class**（仅当它是组件规范的一部分且不会频繁变动）
+4) **业务标识（用于重复/列表项）**
+- 对可重复项，优先输出一个稳定业务字段：例如 `data-item-id="..."` / `data-seed-index="..."` / `data-row-id="..."`
+- 不依赖 DOM 深度来区分第几个 item（例如 `:nth-child()`）
 
-禁止：
+5) **CTA markers：`data-cta*`（可选）**
+- 主要用途：埋点/分析
+- 当且仅当团队明确这些 token 稳定时，可作为辅助定位锚点
 
-- ❌ `#root > div > ...` 依赖层级的选择器
-- ❌ 把 Tailwind 组合类（例如 `bg-bg-surface border ...`）当作定位锚点
+## 2. 禁止项（强制）
 
----
+- 禁止依赖 DOM 深度：`#root > div > ...`
+- 禁止把 Tailwind 组合类当 selector 锚点：例如 `bg-bg-surface border ...`
 
-## 2. 命名规范
+## 3. 命名约定
 
-### 2.1 `data-ui`（Legacy）
+- `id`：`kebab-case`，建议带路由/页面前缀避免冲突（例如 `button-fx-demo-card-demo-default`）
+- `data-cta-position` / `data-cta-copy`：`kebab-case`
 
-- 使用 `kebab-case`
-- 以“功能域/页面”作为前缀，避免全局冲突
-- 不再新增：新页面/新组件请用 `id` + `aria-label`；旧的 `data-ui` 仅用于兼容迁移期
+## 4. 推荐模式
 
-示例：
-
-- `data-ui="literature-max-results-label"`
-- `data-ui="literature-max-results-input"`
-- `data-ui="toolbar-filter"`
-
-### 2.2 `id` 与 `htmlFor`
-
-- 页面级表单字段：`id` 使用稳定字面量（便于 `label[for=...]` 与 a11y）
-  - 示例：`id="literature-max-results"`
-- 组件级（可复用多实例）：使用 `idBase + useId()` 派生，确保不冲突
-
----
-
-## 3. 推荐模式（可复制）
-
-### 3.1 表单 Label + Input
+### 4.1 表单：Label + Input
 
 推荐：
+- `<label htmlFor="x">...</label>` + `<input id="x" ... />`
 
-- `<label htmlFor="...">...` 与 `<input id="...">` 作为主定位点
-- 无可见 label 时：提供 `aria-label="..."`（建议使用稳定、可读的短语）
-- 如果必须拿到“外层容器”：优先先定位 input/label，再用 `closest('[data-style="input"]')` 回溯到需要的容器，避免依赖 Tailwind/class 组合
+常用 selector：
+- `label[for="x"]`
+- `#x`
+- 必要时：`document.querySelector('#x')?.closest('[data-style="input"]')`
 
-选择器示例：
+### 4.2 Tabs：`data-tabs` + 可选 `data-cta*`
 
-- `label[for="literature-max-results"]`
-- `#literature-max-results`
-- `input[aria-label="max results input"]`
-- `document.querySelector('#literature-max-results')?.closest('[data-style="input"]')`
+推荐输出/定位锚点（见 `docs/tabs_ui_component_spec.md`）：
+- Tablist：`data-tabs="menu"`
+- Tab：`data-tabs="tab"`（可选附带 `data-cta*`）
+- Panel：`data-tabs="panel"`
 
-### 3.2 UI 组件（Input / Tabs）
+示例 selector（当 CTA token 设计为稳定时）：
 
-- `ui-*` class 只负责样式
-- `id/htmlFor` + `aria-label` 用于稳定定位
-- `data-ui` 仅用于遗留兼容（不再新增）
-- `data-testid` 只在开发环境输出（如果项目既有此策略）
+```css
+[data-tabs="menu"] [data-tabs="tab"][data-cta="Literature research"][data-cta-position="source"][data-cta-copy="science"]
+```
 
----
+### 4.3 重复/列表项：稳定业务标识
 
-## 4. 迁移规则
+推荐：
+- 给列表容器一个稳定 `id`
+- 给每个 item 输出稳定业务字段（例如 `data-item-id`）
 
-- 新增页面/新组件：必须遵守本规范。
-- 发现超长 selector：优先补 `id/htmlFor` + `aria-label`，然后替换 selector。
-- 旧的 `data-ui`：允许保留一段时间，但不要再为“定位方便”新增；替代完成后可移除。
-- 不要为了“省事”把 Tailwind 类当选择器锚点。
+示例 selector：
+
+```css
+#results-list [data-item-id="doi:10.1234/abcd"]
+```
+
+## 5. 迁移规则（建议）
+
+- 新增页面：优先补齐稳定 `id` 与必要的 `aria-*`（命名/可访问性）
+- 发现超长 selector：优先加稳定锚点，再替换 selector
+

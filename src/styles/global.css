@@ -183,54 +183,49 @@ body {
     @apply text-text-tertiary inline-flex;
   }
 
-  /* Action buttons (new: `action-btn*`, legacy alias: `click_btn*`) */
-  .action-btn,
-  .click_btn {
+  /* Button / action-btn* */
+
+  /* Base / Sizes */
+  .action-btn {
     @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm font-medium transition-all;
   }
 
-  .action-btn--sm,
-  .click_btn--sm {
+  .action-btn--sm {
     @apply h-8 px-3 text-xs;
   }
 
-  .action-btn--md,
-  .click_btn--md {
+  .action-btn--md {
     @apply h-[38px];
   }
 
-  .action-btn--lg,
-  .click_btn--lg {
+  .action-btn--lg {
     @apply h-[42px] px-5 text-sm;
   }
 
-  .action-btn--control,
-  .click_btn--control {
+  .action-btn--control {
     @apply h-[38px] px-3 text-xs;
   }
 
-  .action-btn--icon-md,
-  .click_btn--icon-md {
+  .action-btn--icon-md {
     @apply w-[38px] px-0;
   }
 
   /* Visual match for 38px inputs when using `action-btn--fx` ring (shadow adds 1px on each side) */
-  .action-btn--icon-md-tight,
-  .click_btn--icon-md-tight {
+  .action-btn--icon-md-tight {
     @apply w-[36px] h-[36px] px-0;
   }
 
   /* Icon-only buttons (e.g. remove row actions) */
-  .action-btn--icon,
-  .click_btn--icon {
+  .action-btn--icon {
     @apply h-[42px] w-[42px] px-0;
   }
 
-  .action-btn__content,
-  .click_btn_content {
+  /* Content */
+  .action-btn__content {
     @apply relative z-10 flex items-center gap-2;
   }
 
+  /* FX */
   /* FX: Claude-like "scale" illusion via box-shadow spread (no transform)
      Two-layer shadow:
        - layer 1 uses background color to "fill" the edge
@@ -241,8 +236,7 @@ body {
        --click-fx-border: border / ring color
        --click-fx-border-hover: hover border / ring color (defaults to --click-fx-border)
   */
-  .action-btn--fx,
-  .click_btn--fx {
+  .action-btn--fx {
     @apply relative;
     --click-fx-bg: transparent;
     --click-fx-border: currentColor;
@@ -259,92 +253,71 @@ body {
     transform-origin: center;
   }
 
-  .action-btn--fx:not(:disabled):not(.action-btn--disabled):hover,
-  .click_btn--fx:not(:disabled):not(.click_btn--disabled):hover {
+  .action-btn--fx:not(:disabled):not(.action-btn--disabled):hover {
     box-shadow: 0 0 0 1px var(--click-fx-bg),
       0 0 0 2px var(--click-fx-border-hover);
   }
 
   .action-btn--fx:disabled,
-  .action-btn--fx.action-btn--disabled,
-  .click_btn--fx:disabled,
-  .click_btn--fx.click_btn--disabled {
+  .action-btn--fx.action-btn--disabled {
     box-shadow: none;
   }
 
-  .action-btn--fx:not(:disabled):not(.action-btn--disabled):active,
-  .click_btn--fx:not(:disabled):not(.click_btn--disabled):active {
+  .action-btn--fx:not(:disabled):not(.action-btn--disabled):active {
     transform: scale(0.98);
   }
 
-  .ui-seed-url-check {
-    @apply transition-all duration-300 opacity-0 scale-0;
-  }
-
-  button[aria-pressed="true"] .ui-seed-url-check {
-    @apply opacity-100 scale-100;
-  }
-
-  /* Common muted ring for FX buttons outside toolbars */
-  .action-btn--fx-muted,
-  .click_btn--fx-muted {
+  /* FX muted: common ring vars outside toolbars */
+  .action-btn--fx-muted {
     --click-fx-bg: rgb(250, 249, 245);
     --click-fx-border: #d1d1d1;
     --click-fx-border-hover: #d1d1d1;
   }
 
-	  /* Keep semantic variants for colors/typography */
-	  .action-btn--primary,
-	  .click_btn--primary {
-	    @apply text-white bg-accent border border-transparent;
-	  }
+  /* Variants */
+  /* Keep semantic variants for colors/typography */
+  .action-btn--primary {
+    @apply text-white bg-accent border border-transparent;
+  }
 
-    .action-btn--secondary,
-    .click_btn--secondary {
+    .action-btn--secondary {
       @apply text-text-primary bg-white border border-border-subtle hover:bg-bg-subtle;
     }
 
-    .action-btn--text,
-    .click_btn--text {
+    .action-btn--text {
       @apply text-text-secondary hover:text-text-primary bg-transparent border border-transparent hover:bg-black/5;
     }
 
   /* Primary + FX: fixed dark ring (Claude-like), consistent across pages */
-  .action-btn--primary.action-btn--fx,
-  .click_btn--primary.click_btn--fx {
+  .action-btn--primary.action-btn--fx {
     --click-fx-bg: rgb(20, 20, 19);
     --click-fx-border: rgb(48, 48, 46);
     --click-fx-border-hover: rgb(48, 48, 46);
   }
 
-  .toolbar_group .action-btn--ghost.action-btn--fx,
-  .toolbar_group .click_btn--ghost.click_btn--fx {
+  .toolbar_group .action-btn--ghost.action-btn--fx {
     --click-fx-bg: rgb(250, 249, 245);
     --click-fx-border: #d1d1d1;
     --click-fx-border-hover: #d1d1d1;
   }
 
-  .action-btn--ghost,
-  .click_btn--ghost {
+  .action-btn--ghost {
     @apply text-text-secondary hover:text-text-primary bg-transparent border border-border;
     /* Avoid hard-coupling border to text color so demos can set borderColor independently */
   }
 
-  .action-btn--danger,
-  .click_btn--danger {
+  .action-btn--danger {
     @apply text-text-tertiary hover:text-red-500;
   }
 
   /* If ghost is combined with FX, let FX's ring (box-shadow) be the only visible border */
-  .action-btn--ghost.action-btn--fx,
-  .click_btn--ghost.click_btn--fx {
+  .action-btn--ghost.action-btn--fx {
     border-color: transparent;
     border-width: 0;
   }
 
   /* Secondary also renders a real border; prefer FX ring-only */
-  .action-btn--secondary.action-btn--fx,
-  .click_btn--secondary.click_btn--fx {
+  .action-btn--secondary.action-btn--fx {
     border-color: transparent;
     border-width: 0;
   }
@@ -354,8 +327,7 @@ body {
     border-width: 0 !important;
   }
 
-  .action-btn--disabled,
-  .click_btn--disabled {
+  .action-btn--disabled {
     @apply text-text-secondary cursor-not-allowed bg-bg-200 border border-transparent;
   }
 
@@ -375,8 +347,7 @@ body {
   }
 
   /* Claude-like "scale" illusion: hover uses box-shadow spread, not transform */
-  .action-btn--claude-shadow,
-  .click_btn--claude-shadow {
+  .action-btn--claude-shadow {
     @apply inline-flex items-center justify-center px-4 h-[38px] rounded-lg text-sm;
     color: rgb(250, 249, 245);
     background-color: rgb(20, 20, 19);
@@ -385,10 +356,34 @@ body {
       background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   }
 
-  .action-btn--claude-shadow:hover,
-  .click_btn--claude-shadow:hover {
+  .action-btn--claude-shadow:hover {
     /* two-layer spread creates the "bigger" feel */
     box-shadow: 0 0 0 1px rgb(20, 20, 19), 0 0 0 2px rgb(48, 48, 46);
+  }
+
+  /* Checkbox */
+  .ui-seed-url-check {
+    @apply transition-all duration-300 opacity-0 scale-0;
+  }
+
+  button[aria-pressed="true"] .ui-seed-url-check {
+    @apply opacity-100 scale-100;
+  }
+
+  .ui-checkbox {
+    @apply w-[18px] h-[18px] rounded border-2 flex items-center justify-center transition-all;
+  }
+
+  .ui-checkbox[data-state="checked"] {
+    @apply bg-terracotta border-terracotta;
+  }
+
+  .ui-checkbox[data-state="unchecked"] {
+    @apply bg-white border-gray-300;
+  }
+
+  .group:hover .ui-checkbox[data-state="unchecked"] {
+    @apply border-terracotta/50;
   }
 
   /* Preferred (no ui- prefix, underscore style) */
@@ -453,6 +448,11 @@ body {
   .ui-input_field--lg,
   .input_field--lg {
     @apply h-[42px] text-sm;
+  }
+
+  .ui-input_field--xl,
+  .input_field--xl {
+    @apply h-[47.6px] text-sm;
   }
 
   .ui-input_field[data-state="enable"],

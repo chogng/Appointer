@@ -7,14 +7,14 @@ Targets:
 - `src/features/literature-research/components/JournalLinksCard.jsx`
 - `src/features/literature-research/components/ResultsCard.jsx`
 
-General rule (see `docs/stable_selectors_spec_v2.md`):
+General rule (see `docs/stable_selectors_spec.md`):
 - **Unique UI:** prefer `id`
 - **Repeated/list UI:** use `data-ui` + `data-*` (e.g. `data-item-id`, `data-seed-index`)
 
 ## Header / Filters
 
 - Source tabs:
-  - Prefer `data-tabs` + `data-cta*` selectors (see `docs/stable_selectors_spec_v2.md`)
+  - Prefer `data-tabs` + `data-cta*` selectors (see `docs/stable_selectors_spec.md`)
 - Start date DatePicker trigger: `#literature-start-date`
 - End date DatePicker trigger: `#literature-end-date`
 - Max results input: `#literature-max-results`
@@ -56,4 +56,3 @@ Group view (repeated by group):
 
 - Select all / deselect all toggle: `#literature-selection-toggle`
   - Current action token: `[data-action="select-all|deselect-all"]`
-

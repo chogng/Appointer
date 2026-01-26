@@ -5,7 +5,7 @@ This doc defines the clickable "DateButton" area inside
 
 Related:
 - `docs/stable_selectors_spec.md`
-- `docs/stable_selectors_spec_v2.md`
+- `docs/stable_selectors_spec.md`
 
 ## Scope
 
@@ -63,4 +63,3 @@ Core styles are defined in `src/styles/global.css` (`@layer components`):
   textClassName="hidden sm:block"
 />
 ```
-

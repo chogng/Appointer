@@ -120,6 +120,8 @@ const DeviceAnalysis = () => {
   const processingQueueRef = useRef([]);
   const processingStopOnErrorRef = useRef(false);
 
+  const [deviceAnalysisSettings, setDeviceAnalysisSettings] = useState(null);
+
   const deferredSelectedPreviewFileId = useDeferredValue(selectedPreviewFileId);
   const rawDataById = useMemo(() => {
     const map = new Map();
@@ -352,6 +354,8 @@ const DeviceAnalysis = () => {
         const settings = await apiService.getDeviceAnalysisSettings();
         if (cancelled) return;
 
+        setDeviceAnalysisSettings(settings ?? null);
+
         const method = settings?.ssMethodDefault;
         if (
           method === "auto" ||
@@ -380,6 +384,18 @@ const DeviceAnalysis = () => {
       cancelled = true;
     };
   }, [setSsDiagnosticsEnabled, setSsIdWindow, setSsMethod]);
+
+  const handleUpdateDeviceAnalysisSettings = useCallback(
+    async (updates) => {
+      const patch = updates && typeof updates === "object" ? updates : null;
+      if (!patch) return null;
+
+      const updated = await apiService.updateDeviceAnalysisSettings(patch);
+      setDeviceAnalysisSettings((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+      return updated;
+    },
+    [setDeviceAnalysisSettings],
+  );
 
 
 
@@ -1295,6 +1311,8 @@ Note:
           onTemplateApplied={handleTemplateApplied}
           subscribePreviewRowsVersion={subscribePreviewRowsVersion}
           getPreviewRowsVersion={getPreviewRowsVersion}
+          deviceAnalysisSettings={deviceAnalysisSettings}
+          onUpdateDeviceAnalysisSettings={handleUpdateDeviceAnalysisSettings}
         />
 
         {extractionErrors.length > 0 && (

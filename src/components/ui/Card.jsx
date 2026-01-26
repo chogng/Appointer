@@ -10,7 +10,6 @@ const Card = forwardRef(
       children,
       className = "",
       variant = "default",
-      dataUi,
       cta,
       ctaPosition,
       ctaCopy,
@@ -18,15 +17,19 @@ const Card = forwardRef(
     },
     ref
   ) => {
+    const { dataUi, ...restProps } = props;
+    if (import.meta.env.DEV && dataUi != null) {
+      console.warn(
+        "[Card] `dataUi` is deprecated and ignored. Use `id` / `data-cta*` / `aria-*` instead.",
+      );
+    }
+
     const variants = {
       default: "card",
       panel: "card card--panel",
       glass: "card card--glass",
       flat: "card card--flat",
     };
-
-    const uiMarker =
-      typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
 
     const ctaMarker = normalizeCtaName(cta);
     const ctaPositionMarker = normalizeCtaToken(ctaPosition);
@@ -39,12 +42,10 @@ const Card = forwardRef(
       {
         ref,
         className: cardClasses,
-        "data-ui": uiMarker,
         "data-cta": ctaMarker,
         "data-cta-position": ctaPositionMarker,
         "data-cta-copy": ctaCopyMarker,
-        "data-card": "card",
-        ...props,
+        ...restProps,
       },
       children,
     );

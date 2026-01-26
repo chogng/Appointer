@@ -1,45 +1,45 @@
 import React from "react";
+import { useLanguage } from "../hooks/useLanguage";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 
 const ButtonFxDemo = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="w-full min-h-screen">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-medium text-text-primary mb-2">
-          Button FX Demo
+          {t("button_fx_demo_title")}
         </h1>
-        <p className="text-text-secondary">
-          用于单独验证 `action-btn--fx` 的 hover 效果：当前已替换为 Claude-like
-          的 `box-shadow` spread 外扩（不再使用 `::before` 的 `transform:
-          scale(...)`）。
-        </p>
+        <p className="text-text-secondary">{t("button_fx_demo_desc")}</p>
       </div>
 
-      <section className="bg-bg-surface border border-border rounded-2xl p-6 shadow-sm">
+      <Card
+        as="section"
+        id="demo-button-fx"
+        cta="demo"
+        ctaPosition="button-fx"
+        ctaCopy="container"
+        aria-label={t("button_fx_demo_title")}
+      >
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="action-btn action-btn--md action-btn--fx action-btn--primary"
-          >
-            <span className="action-btn__content">Primary + FX</span>
-          </button>
+          <Button fx variant="primary" id="demo-btn-primary-fx">
+            {t("button_fx_demo_primary_fx")}
+          </Button>
 
-          <button
-            type="button"
-            className="action-btn action-btn--md action-btn--fx action-btn--ghost"
-          >
-            <span className="action-btn__content">Ghost + FX（透明底）</span>
-          </button>
+          <Button fx variant="ghost" id="demo-btn-ghost-fx">
+            {t("button_fx_demo_ghost_fx")}
+          </Button>
 
-          <button
-            type="button"
-            className="action-btn action-btn--md action-btn--ghost"
-          >
-            <span className="action-btn__content">Ghost（无 FX，对照）</span>
-          </button>
+          <Button variant="ghost" id="demo-btn-ghost-no-fx">
+            {t("button_fx_demo_ghost_no_fx")}
+          </Button>
 
-          <button
-            type="button"
-            className="action-btn action-btn--md action-btn--fx action-btn--ghost"
+          <Button
+            fx
+            variant="ghost"
+            id="demo-btn-ghost-fx-light"
             style={{
               backgroundColor: "rgb(250, 249, 245)",
               color: "rgb(20, 20, 19)",
@@ -49,14 +49,14 @@ const ButtonFxDemo = () => {
               "--click-fx-border-hover": "#d1d1d1",
             }}
           >
-            <span className="action-btn__content">
-              Ghost + FX（浅底示例 / 可能双圈）
-            </span>
-          </button>
+            {t("button_fx_demo_ghost_fx_light")}
+          </Button>
 
-          <button
-            type="button"
-            className="action-btn action-btn--md action-btn--fx action-btn--ghost demo_no-border"
+          <Button
+            fx
+            variant="ghost"
+            id="demo-btn-ghost-fx-light-no-border"
+            className="demo_no-border"
             style={{
               backgroundColor: "rgb(250, 249, 245)",
               color: "rgb(20, 20, 19)",
@@ -66,27 +66,98 @@ const ButtonFxDemo = () => {
               "--click-fx-border-hover": "#d1d1d1",
             }}
           >
-            <span className="action-btn__content">
-              Ghost + FX（浅底 / 强制无 border）
-            </span>
-          </button>
+            {t("button_fx_demo_ghost_fx_light_no_border")}
+          </Button>
 
-          <button type="button" className="action-btn action-btn--claude-shadow">
-            Claude-shadow（固定深色）
-          </button>
+          <Button variant="dark" id="demo-btn-claude-shadow">
+            {t("button_fx_demo_claude_shadow")}
+          </Button>
 
-          <button
-            type="button"
-            disabled
-            className="action-btn action-btn--md action-btn--fx action-btn--disabled"
-          >
-            <span className="action-btn__content">Disabled</span>
-          </button>
+          <Button disabled id="demo-btn-disabled">
+            {t("button_fx_demo_disabled")}
+          </Button>
         </div>
 
         <div className="mt-4 text-sm text-text-tertiary">
-          说明：当前 `action-btn--fx` 的“变大感”来自 `box-shadow` 的 spread
-          外扩； 按钮本体 computed `transform` 通常仍是 none。
+          {t("button_fx_demo_note")}
+        </div>
+      </Card>
+
+      <section className="mt-10" aria-label={t("card_demo_title")}>
+        <div className="mb-4">
+          <h2 className="section_title">{t("card_demo_title")}</h2>
+          <p className="text-sm text-text-secondary">{t("card_demo_desc")}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card
+            as="section"
+            id="button-fx-demo-card-demo-default"
+            cta="button-fx-demo"
+            ctaPosition="card-demo"
+            ctaCopy="default"
+            aria-label={t("card_demo_default_aria")}
+          >
+            <div className="text-sm font-semibold">
+              {t("card_demo_default")}
+            </div>
+            <div className="mt-1 text-xs text-text-secondary">
+              <span id="button-fx-demo-card-demo-default-marker">
+                {t("card_demo_marker")}
+              </span>
+            </div>
+          </Card>
+
+          <Card
+            as="section"
+            id="button-fx-demo-card-demo-panel"
+            variant="panel"
+            cta="button-fx-demo"
+            ctaPosition="card-demo"
+            ctaCopy="panel"
+            aria-label={t("card_demo_panel_aria")}
+          >
+            <div className="text-sm font-semibold">{t("card_demo_panel")}</div>
+            <div className="mt-1 text-xs text-text-secondary">
+              <span id="button-fx-demo-card-demo-panel-marker">
+                {t("card_demo_marker")}
+              </span>
+            </div>
+          </Card>
+
+          <Card
+            as="section"
+            id="button-fx-demo-card-demo-flat"
+            variant="flat"
+            cta="button-fx-demo"
+            ctaPosition="card-demo"
+            ctaCopy="flat"
+            aria-label={t("card_demo_flat_aria")}
+          >
+            <div className="text-sm font-semibold">{t("card_demo_flat")}</div>
+            <div className="mt-1 text-xs text-text-secondary">
+              <span id="button-fx-demo-card-demo-flat-marker">
+                {t("card_demo_marker")}
+              </span>
+            </div>
+          </Card>
+
+          <Card
+            as="section"
+            id="button-fx-demo-card-demo-glass"
+            variant="glass"
+            cta="button-fx-demo"
+            ctaPosition="card-demo"
+            ctaCopy="glass"
+            aria-label={t("card_demo_glass_aria")}
+          >
+            <div className="text-sm font-semibold">{t("card_demo_glass")}</div>
+            <div className="mt-1 text-xs text-text-secondary">
+              <span id="button-fx-demo-card-demo-glass-marker">
+                {t("card_demo_marker")}
+              </span>
+            </div>
+          </Card>
         </div>
       </section>
     </div>

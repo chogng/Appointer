@@ -43,7 +43,7 @@ const Input = forwardRef(
       name,
       type = "text",
       autoComplete,
-      size = "md", // "sm" | "md" | "lg"
+      size = "md", // "sm" | "md" | "lg" | "xl"
       className = "",
       fieldClassName = "",
       inputClassName = "",
@@ -80,7 +80,9 @@ const Input = forwardRef(
         ? "input_field--sm"
         : size === "lg"
           ? "input_field--lg"
-          : "input_field--md";
+          : size === "xl"
+            ? "input_field--xl"
+            : "input_field--md";
     const uiMarker =
       typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
     const resolvedLabelPlacement =

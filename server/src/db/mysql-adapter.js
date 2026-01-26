@@ -226,6 +226,8 @@ async function ensureSchema(db) {
       ssDiagnosticsEnabled TINYINT(1) NOT NULL DEFAULT 1,
       ssIdLow DOUBLE NOT NULL DEFAULT 1e-11,
       ssIdHigh DOUBLE NOT NULL DEFAULT 1e-9,
+      lastTemplateId VARCHAR(64) NULL,
+      stopOnErrorDefault TINYINT(1) NOT NULL DEFAULT 0,
       updatedAt VARCHAR(30) NOT NULL,
       INDEX device_analysis_settings_updatedAt_idx (updatedAt)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -262,6 +264,16 @@ async function ensureSchema(db) {
     "device_analysis_settings",
     "ssIdHigh",
     "DOUBLE NOT NULL DEFAULT 1e-9",
+  );
+  await ensureColumn(
+    "device_analysis_settings",
+    "lastTemplateId",
+    "VARCHAR(64) NULL",
+  );
+  await ensureColumn(
+    "device_analysis_settings",
+    "stopOnErrorDefault",
+    "TINYINT(1) NOT NULL DEFAULT 0",
   );
 
   await db.query(`

@@ -193,6 +193,21 @@ function sanitizeDeviceAnalysisSettings(input) {
     else patch.ssIdHigh = n;
   }
 
+  if (has("stopOnErrorDefault")) {
+    patch.stopOnErrorDefault = src.stopOnErrorDefault ? 1 : 0;
+  }
+
+  if (has("lastTemplateId")) {
+    const raw = src.lastTemplateId;
+    if (raw == null || raw === "") {
+      patch.lastTemplateId = null;
+    } else {
+      const value = String(raw).trim();
+      if (!value || value.length > 64) errors.push("lastTemplateId");
+      else patch.lastTemplateId = value;
+    }
+  }
+
   return { patch, errors };
 }
 
@@ -2995,7 +3010,7 @@ app.get(
   authenticateToken,
   asyncHandler(async (req, res) => {
     const row = await db.queryOne(
-      "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt FROM device_analysis_settings WHERE userId = ?",
+      "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, lastTemplateId, stopOnErrorDefault, updatedAt FROM device_analysis_settings WHERE userId = ?",
       [req.user.id],
     );
 
@@ -3019,6 +3034,14 @@ app.get(
             : Boolean(row.ssDiagnosticsEnabled),
       ssIdLow: Number.isFinite(Number(row?.ssIdLow)) ? Number(row.ssIdLow) : 1e-11,
       ssIdHigh: Number.isFinite(Number(row?.ssIdHigh)) ? Number(row.ssIdHigh) : 1e-9,
+      lastTemplateId:
+        typeof row?.lastTemplateId === "string" && row.lastTemplateId.trim()
+          ? row.lastTemplateId.trim()
+          : null,
+      stopOnErrorDefault:
+        typeof row?.stopOnErrorDefault === "number"
+          ? Boolean(row.stopOnErrorDefault)
+          : Boolean(row?.stopOnErrorDefault),
       updatedAt: row?.updatedAt || null,
     });
   }),
@@ -3038,7 +3061,7 @@ app.patch(
 
     const now = new Date().toISOString();
     const existing = await db.queryOne(
-      "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh FROM device_analysis_settings WHERE userId = ?",
+      "SELECT yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, lastTemplateId, stopOnErrorDefault FROM device_analysis_settings WHERE userId = ?",
       [req.user.id],
     );
 
@@ -3065,6 +3088,14 @@ app.patch(
     const ssIdHighExisting = Number.isFinite(Number(existing?.ssIdHigh))
       ? Number(existing.ssIdHigh)
       : 1e-9;
+    const lastTemplateExisting =
+      typeof existing?.lastTemplateId === "string" && existing.lastTemplateId.trim()
+        ? existing.lastTemplateId.trim()
+        : null;
+    const stopOnErrorDefaultExisting =
+      typeof existing?.stopOnErrorDefault === "number"
+        ? Boolean(existing.stopOnErrorDefault)
+        : Boolean(existing?.stopOnErrorDefault);
 
     const next = {
       yUnit: patch.yUnit ?? yUnitExisting,
@@ -3075,6 +3106,12 @@ app.patch(
           : Boolean(patch.ssDiagnosticsEnabled),
       ssIdLow: patch.ssIdLow ?? ssIdLowExisting,
       ssIdHigh: patch.ssIdHigh ?? ssIdHighExisting,
+      lastTemplateId:
+        patch.lastTemplateId === undefined ? lastTemplateExisting : patch.lastTemplateId,
+      stopOnErrorDefault:
+        patch.stopOnErrorDefault == null
+          ? stopOnErrorDefaultExisting
+          : Boolean(patch.stopOnErrorDefault),
     };
 
     if (next.ssIdLow > next.ssIdHigh) {
@@ -3085,20 +3122,22 @@ app.patch(
 
     if (existing) {
       await db.execute(
-        "UPDATE device_analysis_settings SET yUnit = ?, ssMethodDefault = ?, ssDiagnosticsEnabled = ?, ssIdLow = ?, ssIdHigh = ?, updatedAt = ? WHERE userId = ?",
+        "UPDATE device_analysis_settings SET yUnit = ?, ssMethodDefault = ?, ssDiagnosticsEnabled = ?, ssIdLow = ?, ssIdHigh = ?, lastTemplateId = ?, stopOnErrorDefault = ?, updatedAt = ? WHERE userId = ?",
         [
           next.yUnit,
           next.ssMethodDefault,
           next.ssDiagnosticsEnabled ? 1 : 0,
           next.ssIdLow,
           next.ssIdHigh,
+          next.lastTemplateId,
+          next.stopOnErrorDefault ? 1 : 0,
           now,
           req.user.id,
         ],
       );
     } else {
       await db.execute(
-        "INSERT INTO device_analysis_settings (userId, yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO device_analysis_settings (userId, yUnit, ssMethodDefault, ssDiagnosticsEnabled, ssIdLow, ssIdHigh, lastTemplateId, stopOnErrorDefault, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           req.user.id,
           next.yUnit,
@@ -3106,6 +3145,8 @@ app.patch(
           next.ssDiagnosticsEnabled ? 1 : 0,
           next.ssIdLow,
           next.ssIdHigh,
+          next.lastTemplateId,
+          next.stopOnErrorDefault ? 1 : 0,
           now,
         ],
       );

@@ -307,7 +307,7 @@ const MainLayout = () => {
     },
     {
       icon: BookOpen,
-      label: "Button FX Demo",
+      label: t("button_fx_demo_title"),
       path: "/button-fx-demo",
     },
     { icon: DevicesIcon, label: t("devices"), path: "/devices" },

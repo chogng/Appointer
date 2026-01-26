@@ -22,6 +22,7 @@ import { apiService } from "../../../services/apiService";
 import { useAuth } from "../../../hooks/useAuth";
 import { useLanguage } from "../../../hooks/useLanguage";
 import Toast from "../../../components/ui/Toast";
+import Input from "../../../components/ui/Input";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
@@ -208,11 +209,15 @@ const TemplateManager = ({
   onTemplateApplied,
   subscribePreviewRowsVersion,
   getPreviewRowsVersion,
+  deviceAnalysisSettings,
+  onUpdateDeviceAnalysisSettings,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [templates, setTemplates] = useState([]);
   const [, setInputSources] = useState({}); // { [fieldName]: 'manual' | 'picked' }
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const didInitConfigFromSettingsRef = useRef(false);
 
   // Default config
   const [config, setConfig] = useState({
@@ -244,6 +249,15 @@ const TemplateManager = ({
   const [templateMode, setTemplateMode] = useState("select"); // "select" | "save"
   const dropdownRef = useRef(null);
   const isSelectMode = templateMode === "select";
+
+  useEffect(() => {
+    if (didInitConfigFromSettingsRef.current) return;
+    if (!deviceAnalysisSettings) return;
+    didInitConfigFromSettingsRef.current = true;
+
+    const nextStopOnError = Boolean(deviceAnalysisSettings?.stopOnErrorDefault);
+    setConfig((prev) => ({ ...prev, stopOnError: nextStopOnError }));
+  }, [deviceAnalysisSettings]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -539,6 +553,12 @@ const TemplateManager = ({
     try {
       await apiService.deleteDeviceAnalysisTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));
+      if (selectedTemplateId === id) {
+        setSelectedTemplateId(null);
+        if (typeof onUpdateDeviceAnalysisSettings === "function") {
+          void onUpdateDeviceAnalysisSettings({ lastTemplateId: null });
+        }
+      }
     } catch (err) {
       showToast(err.message || "Failed to delete template", "warning");
     }
@@ -561,7 +581,7 @@ const TemplateManager = ({
   }, [config.xDataEnd, config.xDataStart]);
 
   const loadTemplate = useCallback(
-    (template) => {
+    (template, { persist } = {}) => {
       setInputSources({});
 
       const rest = {
@@ -604,12 +624,38 @@ const TemplateManager = ({
           ? rest.selectedColumns
           : prev.selectedColumns,
       }));
+      setSelectedTemplateId(template?.id ?? null);
       setIsDropdownOpen(false);
+
+      if (persist !== false && typeof onUpdateDeviceAnalysisSettings === "function") {
+        void onUpdateDeviceAnalysisSettings({
+          lastTemplateId: template?.id ?? null,
+          stopOnErrorDefault: Boolean(template?.stopOnError),
+        });
+      }
     },
-    [],
+    [onUpdateDeviceAnalysisSettings],
   );
 
   // No auto-load from browser storage.
+
+  useEffect(() => {
+    if (!isSelectMode) return;
+    const lastId = deviceAnalysisSettings?.lastTemplateId;
+    if (!lastId) return;
+    if (!Array.isArray(templates) || templates.length === 0) return;
+    if (selectedTemplateId) return;
+
+    const found = templates.find((t) => t?.id === lastId);
+    if (!found) return;
+    loadTemplate(found, { persist: false });
+  }, [
+    deviceAnalysisSettings?.lastTemplateId,
+    isSelectMode,
+    loadTemplate,
+    selectedTemplateId,
+    templates,
+  ]);
 
   const applyConfiguration = () => {
     const validation = validateTemplateForApply(config, t);
@@ -1398,11 +1444,11 @@ const TemplateManager = ({
                 />
               </div>
               <label className="block text-sm font-medium text-text-secondary mb-2">
-                General Template
+                {t("da_general_template")}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1 min-w-0" ref={dropdownRef}>
-                  <div className="flex items-center p-1 bg-bg-page border border-border rounded-lg shadow-sm transition-all relative z-10">
+                  <div className="input_field input_field--xl relative" data-state="enable">
                     <input
                       type="text"
                       name="templateName"
@@ -1421,7 +1467,7 @@ const TemplateManager = ({
                         if (templateMode === "select") setIsDropdownOpen(true);
                       }}
                       placeholder={t("da_template_name")}
-                      className={`flex-1 min-w-0 pl-2 py-1.5 bg-transparent border-none text-text-primary text-sm focus:outline-none focus:ring-0 placeholder:text-text-secondary no-focus-outline ${templateMode === "select" ? "pr-8" : "pr-2"}`}
+                      className={`input_native no-focus-outline ${templateMode === "select" ? "pr-8" : "pr-2"}`}
                     />
 
                     {templateMode === "select" && (
@@ -1461,6 +1507,10 @@ const TemplateManager = ({
                         onClick={() => {
                           setTemplateMode("save");
                           setIsDropdownOpen(false);
+                          setSelectedTemplateId(null);
+                          if (typeof onUpdateDeviceAnalysisSettings === "function") {
+                            void onUpdateDeviceAnalysisSettings({ lastTemplateId: null });
+                          }
                           setInputSources({});
                           setConfig({
                             name: "",
@@ -1472,7 +1522,7 @@ const TemplateManager = ({
                             yPoints: "",
                             yCount: "",
                             yStep: "",
-                            stopOnError: false,
+                            stopOnError: Boolean(deviceAnalysisSettings?.stopOnErrorDefault),
                             bottomTitle: "",
                             leftTitle: "",
                             legendPrefix: "",
@@ -1525,37 +1575,28 @@ const TemplateManager = ({
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <input
-                      type="text"
-                      name="xDataStart"
-                      autoComplete="off"
-                      spellCheck={false}
+                    <Input
                       value={config.xDataStart}
                       disabled={isSelectMode}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, xDataStart: next }));
                         markFieldSource("xDataStart", "manual");
                       }}
                       placeholder="Start"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      name="xDataStart"
+                      autoComplete="off"
                     />
                   </div>
                   <div>
-                    <input
-                      type="text"
-                      name="xDataEnd"
-                      autoComplete="off"
-                      spellCheck={false}
+                    <Input
                       value={config.xDataEnd}
                       disabled={isSelectMode}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, xDataEnd: next }));
                         markFieldSource("xDataEnd", "manual");
                       }}
                       onBlur={(e) => {
-                        const value = String(e.target.value ?? "").trim();
+                        const value = String(e?.target?.value ?? "").trim();
                         if (!value) {
                           const startCell = String(
                             config.xDataStart ?? "",
@@ -1571,24 +1612,22 @@ const TemplateManager = ({
                         }
                       }}
                       placeholder="End"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      name="xDataEnd"
+                      autoComplete="off"
                     />
                   </div>
                   <div>
-                    <input
-                      type="text"
-                      name="xPoints"
-                      autoComplete="off"
-                      spellCheck={false}
+                    <Input
                       value={config.xPoints}
                       disabled={isSelectMode}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, xPoints: next }));
                         markFieldSource("xPoints", "manual");
                       }}
                       placeholder="Points"
-                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      name="xPoints"
+                      autoComplete="off"
+                      inputClassName="no-spinner"
                     />
                   </div>
                 </div>
@@ -1599,62 +1638,47 @@ const TemplateManager = ({
               <div className="mt-2">
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">
-                      Var1
-                    </label>
-                    <input
-                      type="text"
+                    <Input
+                      label="Var1"
                       value={config.bottomTitle || ""}
                       name="bottomTitle"
                       autoComplete="off"
                       disabled={disableVarInputs}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, bottomTitle: next }));
                         markFieldSource("bottomTitle", "manual");
                       }}
                       onBlur={toastVarPairIfInvalid}
                       placeholder="Curve type"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">
-                      Var2
-                    </label>
-                    <input
-                      type="text"
+                    <Input
+                      label="Var2"
                       value={config.legendPrefix || ""}
                       name="legendPrefix"
                       autoComplete="off"
                       disabled={disableVarInputs}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, legendPrefix: next }));
                         markFieldSource("legendPrefix", "manual");
                       }}
                       onBlur={toastVarPairIfInvalid}
                       placeholder="Legend"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
                     />
 
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">
-                      Var3
-                    </label>
-                    <input
-                      type="text"
+                    <Input
+                      label="Var3"
                       value={config.leftTitle || ""}
                       name="leftTitle"
                       autoComplete="off"
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, leftTitle: next }));
                         markFieldSource("leftTitle", "manual");
                       }}
                       placeholder="Left Title"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all no-focus-outline"
                     />
                   </div>
                 </div>
@@ -1665,14 +1689,12 @@ const TemplateManager = ({
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <input
-                        type="text"
+                      <Input
                         value={config.fileNameVgKeywords || ""}
                         name="fileNameVgKeywords"
                         autoComplete="off"
                         disabled={disableFileNameInputs}
-                        onChange={(e) => {
-                          const next = e.target.value;
+                        onChange={(next) => {
                           setConfig((prev) => ({
                             ...prev,
                             fileNameVgKeywords: next,
@@ -1680,18 +1702,15 @@ const TemplateManager = ({
                           markFieldSource("fileNameVgKeywords", "manual");
                         }}
                         placeholder="Transfer"
-                        className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
                       />
                     </div>
                     <div>
-                      <input
-                        type="text"
+                      <Input
                         value={config.fileNameVdKeywords || ""}
                         name="fileNameVdKeywords"
                         autoComplete="off"
                         disabled={disableFileNameInputs}
-                        onChange={(e) => {
-                          const next = e.target.value;
+                        onChange={(next) => {
                           setConfig((prev) => ({
                             ...prev,
                             fileNameVdKeywords: next,
@@ -1699,7 +1718,6 @@ const TemplateManager = ({
                           markFieldSource("fileNameVdKeywords", "manual");
                         }}
                         placeholder="Output"
-                        className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
                       />
                     </div>
                   </div>
@@ -1720,10 +1738,7 @@ const TemplateManager = ({
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
                   <div className="sm:col-span-2">
-                    <input
-                      type="text"
-                      readOnly
-                      disabled
+                    <Input
                       value={
                         config.selectedColumns.length > 0
                           ? config.selectedColumns
@@ -1734,75 +1749,63 @@ const TemplateManager = ({
                           : ""
                       }
                       placeholder="Check columns"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm focus:outline-none disabled:opacity-70 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                      disabled
+                      readOnly
                     />
                   </div>
                   <div>
-                    <input
-                      type="text"
-                      name="yPoints"
+                    <Input
                       value={config.xPoints || config.yPoints}
+                      name="yPoints"
                       autoComplete="off"
-                      spellCheck={false}
                       disabled={isSelectMode || !!config.xPoints}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, yPoints: next }));
                         markFieldSource("yPoints", "manual");
                       }}
                       placeholder="Points"
-                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      inputClassName="no-spinner"
                     />
                   </div>
                   <div>
-                    <input
-                      type="text"
+                    <Input
+                      value={config.yDataStart}
                       name="yDataStart"
                       autoComplete="off"
-                      spellCheck={false}
-                      value={config.yDataStart}
                       disabled={isSelectMode}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, yDataStart: next }));
                         markFieldSource("yDataStart", "manual");
                       }}
                       placeholder="Start"
-                      className="w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
                     />
                   </div>
                   <div>
-                    <input
-                      type="text"
-                      name="yCount"
+                    <Input
                       value={config.yCount}
+                      name="yCount"
                       autoComplete="off"
-                      spellCheck={false}
                       disabled={isSelectMode}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, yCount: next }));
                         markFieldSource("yCount", "manual");
                       }}
                       placeholder="Count"
-                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      inputClassName="no-spinner"
                     />
                   </div>
                   <div>
-                    <input
-                      type="text"
-                      name="yStep"
+                    <Input
                       value={config.yStep}
+                      name="yStep"
                       autoComplete="off"
-                      spellCheck={false}
                       disabled={isSelectMode}
-                      onChange={(e) => {
-                        const next = e.target.value;
+                      onChange={(next) => {
                         setConfig((prev) => ({ ...prev, yStep: next }));
                         markFieldSource("yStep", "manual");
                       }}
                       placeholder="Step"
-                      className="no-spinner w-full bg-bg-page border border-border rounded-lg px-3 py-2 text-sm text-text-primary shadow-sm hover:border-gray-300 focus:outline-none focus-visible:outline-none focus:ring-1 focus:ring-black transition-all disabled:opacity-50 disabled:cursor-not-allowed no-focus-outline"
+                      inputClassName="no-spinner"
                     />
                   </div>
                 </div>
@@ -1822,19 +1825,27 @@ const TemplateManager = ({
             {templateMode === "select" && (
               <div
                 onClick={() =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    stopOnError: !prev.stopOnError,
-                  }))
+                  setConfig((prev) => {
+                    const nextStopOnError = !prev.stopOnError;
+                    if (typeof onUpdateDeviceAnalysisSettings === "function") {
+                      void onUpdateDeviceAnalysisSettings({
+                        stopOnErrorDefault: nextStopOnError,
+                      });
+                    }
+                    return {
+                      ...prev,
+                      stopOnError: nextStopOnError,
+                    };
+                  })
                 }
                 className="mt-3 flex items-center gap-2 text-sm text-text-secondary select-none cursor-pointer group w-fit"
               >
                 {config.stopOnError ? (
-                  <div className="w-[18px] h-[18px] rounded bg-terracotta border-2 border-terracotta flex items-center justify-center transition-all">
+                  <div className="ui-checkbox" data-state="checked">
                     <Check size={14} className="text-white" strokeWidth={3} />
                   </div>
                 ) : (
-                  <div className="w-[18px] h-[18px] rounded border-2 border-gray-300 group-hover:border-terracotta/50 transition-colors bg-white" />
+                  <div className="ui-checkbox" data-state="unchecked" />
                 )}
                 <span>{t("da_stop_on_first_invalid_file")}</span>
               </div>

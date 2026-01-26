@@ -8,7 +8,7 @@
 ## UI 组件规范（Components）
 
 - [`button_component_spec.md`](./button_component_spec.md)：基础 Button（点击按钮）DOM/A11y/类名约定
-- [`card_ui_component_spec.md`](./card_ui_component_spec.md)：Card（最小规范）
+- [`card_ui_component_spec_v2.md`](./card_ui_component_spec_v2.md)：Card（v2）
 - [`input_ui_component_spec.md`](./input_ui_component_spec.md)：Input（UI）规范
 - [`textarea_ui_component_spec.md`](./textarea_ui_component_spec.md)：Textarea（UI）规范（复用 Input 体系）
 - [`dropdown_ui_component_spec.md`](./dropdown_ui_component_spec.md)：Dropdown（UI）规范

@@ -164,6 +164,8 @@ async function createTables() {
       ssDiagnosticsEnabled INTEGER NOT NULL DEFAULT 1,
       ssIdLow REAL NOT NULL DEFAULT 1e-11,
       ssIdHigh REAL NOT NULL DEFAULT 1e-9,
+      lastTemplateId TEXT,
+      stopOnErrorDefault INTEGER NOT NULL DEFAULT 0,
       updatedAt TEXT NOT NULL
     );
   `);
@@ -232,6 +234,12 @@ async function migrateSchema() {
     "device_analysis_settings",
     "ssIdHigh",
     "REAL NOT NULL DEFAULT 1e-9",
+  );
+  ensureColumn("device_analysis_settings", "lastTemplateId", "TEXT");
+  ensureColumn(
+    "device_analysis_settings",
+    "stopOnErrorDefault",
+    "INTEGER NOT NULL DEFAULT 0",
   );
 
   db.run(`
