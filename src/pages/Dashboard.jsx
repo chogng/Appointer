@@ -161,26 +161,26 @@ const Dashboard = () => {
     try {
       if (msg.msgType === "USER_REGISTRATION") {
         await apiService.updateUser(msg.id, { status: "ACTIVE" });
-        showToast("User approved successfully", "success");
+        showToast(t("dashboard_user_approved_success"), "success");
         fetchPendingUsers();
       } else if (msg.msgType === "INVENTORY_REQUEST") {
         await apiService.approveRequest(msg.id);
-        showToast("Request approved successfully", "success");
+        showToast(t("dashboard_request_approved_success"), "success");
         fetchRequests();
       }
       if (selectedMessage?.id === msg.id) setSelectedMessage(null);
     } catch {
-      showToast("Failed to approve", "error");
+      showToast(t("dashboard_failed_approve"), "error");
     }
   };
 
   const handleReject = async (msg) => {
     const confirmMsg =
       msg.msgType === "USER_REGISTRATION"
-        ? "Are you sure you want to reject and delete this user?"
-        : "Are you sure you want to reject this request?";
+        ? t("dashboard_confirm_reject_user")
+        : t("dashboard_confirm_reject_request");
 
-    showToast(confirmMsg, "warning", "Reject", async () => {
+    showToast(confirmMsg, "warning", t("dashboard_reject"), async () => {
       try {
         closeToast();
         if (msg.msgType === "USER_REGISTRATION") {
@@ -190,28 +190,28 @@ const Dashboard = () => {
           await apiService.rejectRequest(msg.id);
           fetchRequests();
         }
-        showToast("Rejected successfully", "success");
+        showToast(t("dashboard_rejected_success"), "success");
         if (selectedMessage?.id === msg.id) setSelectedMessage(null);
       } catch {
-        showToast("Failed to reject", "error");
+        showToast(t("dashboard_failed_reject"), "error");
       }
     });
   };
 
   const handleRevoke = async (msg) => {
     showToast(
-      "Are you sure you want to revoke this request?",
+      t("dashboard_confirm_revoke_request"),
       "warning",
-      "Revoke",
+      t("dashboard_revoke"),
       async () => {
         try {
           closeToast();
           await apiService.deleteRequest(msg.id);
           fetchRequests();
-          showToast("Request revoked successfully", "success");
+          showToast(t("dashboard_request_revoked_success"), "success");
           if (selectedMessage?.id === msg.id) setSelectedMessage(null);
         } catch {
-          showToast("Failed to revoke request", "error");
+          showToast(t("dashboard_failed_revoke_request"), "error");
         }
       },
     );

@@ -178,7 +178,7 @@ const Inventory = () => {
               quantity: parseInt(currentItem.quantity),
             },
           });
-          showToast("Request submitted successfully!", "success");
+          showToast(t("inventory_request_submitted_success"), "success");
         } else {
           // Direct Update (Admin)
           const updated = await apiService.updateInventory(currentItem.id, {
@@ -206,7 +206,7 @@ const Inventory = () => {
               quantity: parseInt(currentItem.quantity),
             },
           });
-          showToast("Request submitted successfully!", "success");
+          showToast(t("inventory_request_submitted_success"), "success");
           await loadInventory();
         } else {
           const newItem = await apiService.createInventory({
