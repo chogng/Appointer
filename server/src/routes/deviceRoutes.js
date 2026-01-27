@@ -14,6 +14,7 @@ export default function createDeviceRoutes({ broadcast } = {}) {
 
   router.get(
     "/",
+    authenticateToken,
     asyncHandler(async (_req, res) => {
       const devices = await db.query("SELECT * FROM devices");
       const parsed = devices.map((device) => ({
@@ -32,6 +33,7 @@ export default function createDeviceRoutes({ broadcast } = {}) {
 
   router.get(
     "/:id",
+    authenticateToken,
     asyncHandler(async (req, res) => {
       const device = await db.queryOne("SELECT * FROM devices WHERE id = ?", [
         req.params.id,
@@ -268,4 +270,3 @@ export default function createDeviceRoutes({ broadcast } = {}) {
 
   return router;
 }
-

@@ -195,6 +195,10 @@ async function migrateSchema() {
   ensureColumn("reservations", "description", `TEXT DEFAULT ''`);
   ensureColumn("reservations", "color", `TEXT DEFAULT 'default'`);
 
+  // Older databases may have reduced logs table (missing retention fields).
+  ensureColumn("logs", "details", "TEXT");
+  ensureColumn("logs", "timestamp", "TEXT NOT NULL DEFAULT ''");
+
   // Inventory requester fields.
   ensureColumn("inventory", "requesterName", "TEXT");
   ensureColumn("inventory", "requesterId", "TEXT");

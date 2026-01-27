@@ -13,6 +13,12 @@ export function errorMiddleware(error, req, res, next) {
   const isProd = process.env.NODE_ENV === "production";
   const status = isHttpError(error) ? error.status : 500;
 
+  if (!isProd && status >= 500) {
+    const method = req?.method || "UNKNOWN";
+    const url = req?.originalUrl || req?.url || "";
+    console.error(`[error] ${method} ${url}`, error);
+  }
+
   const message = isHttpError(error)
     ? error.message
     : isProd

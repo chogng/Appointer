@@ -9,6 +9,15 @@ import { requirePlainObject, requireString } from "../utils/validation.js";
 const genericError = { error: "Invalid credentials" };
 const makeId = (prefix) => `${prefix}_${randomUUID()}`;
 
+function isRequestSecure(req) {
+  if (req?.secure) return true;
+  const proto = req?.get?.("x-forwarded-proto");
+  if (typeof proto === "string" && proto) {
+    return proto.split(",")[0].trim().toLowerCase() === "https";
+  }
+  return false;
+}
+
 export async function login(req, res) {
   const body = requirePlainObject(req.body, "body");
   const username = requireString(body.username, "username", { maxLength: 64 });
@@ -59,9 +68,15 @@ export async function login(req, res) {
     { expiresIn: "24h" },
   );
 
+  // Only mark cookies as Secure when the request is actually HTTPS.
+  // This prevents "login succeeds but session isn't kept" when NODE_ENV is set to production
+  // while running over http://localhost or other non-TLS dev setups.
+  const secureCookie =
+    process.env.NODE_ENV === "production" ? isRequestSecure(req) : false;
+
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookie,
     sameSite: "lax",
     maxAge: 24 * 60 * 60 * 1000,
   });
@@ -71,7 +86,9 @@ export async function login(req, res) {
 }
 
 export function logout(req, res) {
-  res.clearCookie("token");
+  const secureCookie =
+    process.env.NODE_ENV === "production" ? isRequestSecure(req) : false;
+  res.clearCookie("token", { httpOnly: true, secure: secureCookie, sameSite: "lax" });
   res.json({ success: true });
 }
 

@@ -246,11 +246,34 @@ async function ensureSchema(db) {
     }
   };
 
+  const ensureIndex = async (table, indexName, definition) => {
+    try {
+      await db.query(`CREATE INDEX ${indexName} ON ${table} (${definition})`);
+      return true;
+    } catch (error) {
+      if (error?.code === "ER_DUP_KEYNAME") return false;
+      throw error;
+    }
+  };
+
   await ensureColumn(
     "users",
     "avatarUrl",
     "TEXT NULL",
   );
+
+  // Older schemas may have a reduced logs table (missing retention fields).
+  await ensureColumn(
+    "logs",
+    "details",
+    "TEXT NULL",
+  );
+  await ensureColumn(
+    "logs",
+    "timestamp",
+    "VARCHAR(30) NOT NULL DEFAULT ''",
+  );
+  await ensureIndex("logs", "logs_timestamp_idx", "timestamp");
 
   await ensureColumn(
     "device_analysis_settings",

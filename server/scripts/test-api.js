@@ -24,17 +24,7 @@ async function readErrorBody(res) {
 async function test() {
   console.log("Running API smoke test...");
 
-  console.log("1) Fetch devices");
-  const devicesRes = await fetch(`${API_BASE}/devices`);
-  if (!devicesRes.ok) {
-    throw new Error(
-      `GET /devices failed (${devicesRes.status}): ${await readErrorBody(devicesRes)}`,
-    );
-  }
-  const devices = await devicesRes.json();
-  console.log(`   OK: ${devices.length} device(s)`);
-
-  console.log("2) Login (admin/123)");
+  console.log("1) Login (admin/123)");
   const loginRes = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -51,6 +41,18 @@ async function test() {
   }
   const user = await loginRes.json();
   console.log(`   OK: logged in as ${user.username} (${user.role})`);
+
+  console.log("2) Fetch devices (auth required)");
+  const devicesRes = await fetch(`${API_BASE}/devices`, {
+    headers: { Cookie: authCookie },
+  });
+  if (!devicesRes.ok) {
+    throw new Error(
+      `GET /devices failed (${devicesRes.status}): ${await readErrorBody(devicesRes)}`,
+    );
+  }
+  const devices = await devicesRes.json();
+  console.log(`   OK: ${devices.length} device(s)`);
 
   console.log("3) Toggle first device isEnabled=false (admin-only)");
   const deviceId = devices?.[0]?.id;
@@ -70,7 +72,9 @@ async function test() {
   console.log(`   OK: ${updated.name} -> isEnabled=${updated.isEnabled}`);
 
   console.log("4) Verify device state");
-  const verifyRes = await fetch(`${API_BASE}/devices/${deviceId}`);
+  const verifyRes = await fetch(`${API_BASE}/devices/${deviceId}`, {
+    headers: { Cookie: authCookie },
+  });
   if (!verifyRes.ok) {
     throw new Error(
       `GET /devices/:id failed (${verifyRes.status}): ${await readErrorBody(verifyRes)}`,
