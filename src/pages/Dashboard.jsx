@@ -24,6 +24,7 @@ import {
   X,
   User,
   Package,
+  Inbox,
 } from "lucide-react";
 
 import { useLanguage } from "../hooks/useLanguage";
@@ -351,8 +352,7 @@ const Dashboard = () => {
                     variant="ghost"
                     size="sm"
                     fx
-                    fxMuted
-                    className="action-btn--icon-md-tight text-text-tertiary hover:text-red-500 hover:bg-red-500/10"
+                    className="action-btn--icon-md-tight text-text-tertiary hover:text-red-500"
                     title={t("clearLogs")}
                     aria-label={t("clearLogs")}
                     cta="Dashboard"
@@ -520,7 +520,7 @@ const Dashboard = () => {
                                   e.stopPropagation();
                                   handleApprove(msg);
                                 }}
-                                className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                                className="action-btn action-btn--icon-md-tight action-btn--ghost"
                                 title={t("dashboard_approve")}
                               >
                                 <span className="action-btn__content">
@@ -534,7 +534,7 @@ const Dashboard = () => {
                                   e.stopPropagation();
                                   handleReject(msg);
                                 }}
-                                className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                                className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
                                 title={t("dashboard_reject")}
                               >
                                 <span className="action-btn__content">
@@ -550,7 +550,7 @@ const Dashboard = () => {
                                 e.stopPropagation();
                                 handleRevoke(msg);
                               }}
-                              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                              className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
                               title={t("dashboard_revoke_request")}
                             >
                               <span className="action-btn__content">
@@ -563,9 +563,12 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-text-secondary text-center py-8">
-                    {t("noPendingRequests")}
-                  </p>
+                  <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2 py-8">
+                    <div className="w-12 h-12 rounded-full bg-bg-200/50 flex items-center justify-center">
+                      <Inbox size={20} className="opacity-50" />
+                    </div>
+                    <p className="text-sm">{t("noPendingRequests")}</p>
+                  </div>
                 )}
               </div>
             </Card>

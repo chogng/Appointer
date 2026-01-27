@@ -308,7 +308,7 @@ const Register = () => {
                     <div className="flex flex-col gap-2 mt-2">
                       <Button
                         type="submit"
-                        variant="dark"
+                        variant="primary"
                         className="w-full h-11 rounded-[0.6rem] text-base"
                         cta="Auth"
                         ctaPosition="register-form"

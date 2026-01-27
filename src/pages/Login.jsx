@@ -68,13 +68,12 @@ const Login = () => {
               </div>
                <div className="hidden sm:flex items-center gap-3">
                 <Button
-                  size="sm"
-                  variant="ghost"
-                  fx
-                  fxMuted
-                  onClick={() =>
-                    navigate("/docs", { state: { from: "login" } })
-                  }
+                   size="sm"
+                   variant="ghost"
+                   fx
+                   onClick={() =>
+                     navigate("/docs", { state: { from: "login" } })
+                   }
                   className="min-w-[7rem] h-9"
                   cta="Auth"
                   ctaPosition="login-nav"
@@ -84,7 +83,7 @@ const Login = () => {
                 </Button>
                 <Button
                   size="sm"
-                  variant="dark"
+                  variant="primary"
                   onClick={() =>
                     navigate("/register", { state: { from: "login" } })
                   }
@@ -170,7 +169,7 @@ const Login = () => {
                         <div className="flex flex-col gap-2 mt-2">
                           <Button
                             type="submit"
-                            variant="dark"
+                            variant="primary"
                             className="w-full h-11 rounded-[0.6rem] text-base"
                             cta="Auth"
                             ctaPosition="login-form"

@@ -316,7 +316,7 @@ const DeviceCard = ({
 
       <div className="mt-auto pt-[0.75rem] sm:pt-[1rem] border-t border-border-subtle flex gap-[0.75rem]">
         <Button
-          variant="dark"
+          variant="primary"
           className={`flex-1 text-[0.875rem] sm:text-base whitespace-nowrap overflow-hidden ${isBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
           disabled={!device.isEnabled || isBlocked}
           onClick={() => onBook(device.id)}

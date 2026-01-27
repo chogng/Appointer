@@ -220,7 +220,7 @@ const Users = () => {
             id="users-add-user-btn"
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="action-btn action-btn--md action-btn--fx action-btn--primary"
+            className="action-btn action-btn--md action-btn--primary"
           >
             <span className="action-btn__content">
               <Plus size={20} />
@@ -307,7 +307,7 @@ const Users = () => {
                       data-ui="users-edit-btn"
                       data-item-key={`user-${u.id}`}
                       onClick={() => handleEditClick(u)}
-                      className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                      className="action-btn action-btn--icon-md-tight action-btn--ghost"
                       title={t("edit")}
                     >
                       <span className="action-btn__content">
@@ -321,7 +321,7 @@ const Users = () => {
                         data-ui="users-delete-btn"
                         data-item-key={`user-${u.id}`}
                         onClick={() => setDeleteConfirm(u)}
-                        className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                        className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
                         title={t("delete")}
                       >
                         <span className="action-btn__content">
@@ -517,7 +517,7 @@ const Users = () => {
                                 );
                               }
                             }}
-                            className={`action-btn action-btn--sm action-btn--fx action-btn--ghost ${isBlocked ? "action-btn--danger" : ""}`}
+                            className={`action-btn action-btn--sm action-btn--ghost ${isBlocked ? "action-btn--danger" : ""}`}
                           >
                             <span className="action-btn__content">
                               {isBlocked ? t("blocked") : t("allowed")}
@@ -541,7 +541,7 @@ const Users = () => {
                 id="users-edit-cancel-btn"
                 type="button"
                 onClick={() => setEditingUser(null)}
-                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
+                className="action-btn action-btn--md action-btn--ghost"
               >
                 <span className="action-btn__content">{t("cancel")}</span>
               </button>
@@ -549,7 +549,7 @@ const Users = () => {
                 id="users-edit-save-btn"
                 type="button"
                 onClick={handleUpdate}
-                className="action-btn action-btn--md action-btn--fx action-btn--primary"
+                className="action-btn action-btn--md action-btn--primary"
               >
                 <span className="action-btn__content">{t("saveChanges")}</span>
               </button>
@@ -705,7 +705,7 @@ const Users = () => {
                 id="users-create-cancel-btn"
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
+                className="action-btn action-btn--md action-btn--ghost"
               >
                 <span className="action-btn__content">{t("cancel")}</span>
               </button>
@@ -713,7 +713,7 @@ const Users = () => {
                 id="users-create-submit-btn"
                 type="button"
                 onClick={handleCreate}
-                className="action-btn action-btn--md action-btn--fx action-btn--primary"
+                className="action-btn action-btn--md action-btn--primary"
               >
                 <span className="action-btn__content">{t("createUser")}</span>
               </button>
@@ -737,7 +737,7 @@ const Users = () => {
                 id="users-delete-cancel-btn"
                 type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
+                className="action-btn action-btn--md action-btn--ghost"
               >
                 <span className="action-btn__content">{t("cancel")}</span>
               </button>
@@ -745,7 +745,7 @@ const Users = () => {
                 id="users-delete-confirm-btn"
                 type="button"
                 onClick={() => handleDelete(deleteConfirm.id)}
-                className="action-btn action-btn--md action-btn--fx action-btn--ghost action-btn--danger"
+                className="action-btn action-btn--md action-btn--ghost action-btn--danger"
               >
                 <span className="action-btn__content">{t("delete")}</span>
               </button>

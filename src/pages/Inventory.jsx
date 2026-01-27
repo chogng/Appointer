@@ -298,7 +298,7 @@ const Inventory = () => {
             id="inventory-add-item-btn"
             type="button"
             onClick={handleAddItem}
-            className="action-btn action-btn--md action-btn--fx action-btn--primary"
+            className="action-btn action-btn--md action-btn--primary"
           >
             <span className="action-btn__content">
               <Plus size={20} />
@@ -385,7 +385,7 @@ const Inventory = () => {
                               type="button"
                               aria-label={t("edit")}
                               onClick={() => handleEditItem(item)}
-                              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                              className="action-btn action-btn--icon-md-tight action-btn--ghost"
                               title={t("edit")}
                             >
                               <span className="action-btn__content">
@@ -396,7 +396,7 @@ const Inventory = () => {
                               type="button"
                               aria-label={t("delete")}
                               onClick={() => handleDeleteItem(item.id)}
-                              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--danger"
+                              className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
                               title={t("delete")}
                             >
                               <span className="action-btn__content">
@@ -409,7 +409,7 @@ const Inventory = () => {
                             type="button"
                             aria-label={t("requestModification")}
                             onClick={() => handleRequestModification(item)}
-                            className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                            className="action-btn action-btn--icon-md-tight action-btn--ghost"
                             title={t("requestModification")}
                           >
                             <span className="action-btn__content">
@@ -459,7 +459,7 @@ const Inventory = () => {
                 type="button"
                 aria-label={t("common_close")}
                 onClick={() => setIsModalOpen(false)}
-                className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+                className="action-btn action-btn--icon-md-tight action-btn--ghost"
               >
                 <span className="action-btn__content">
                   <X size={24} />
@@ -522,14 +522,14 @@ const Inventory = () => {
                   id="inventory-modal-cancel-btn"
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="action-btn action-btn--md action-btn--fx action-btn--ghost"
+                  className="action-btn action-btn--md action-btn--ghost"
                 >
                   <span className="action-btn__content">{t("cancel")}</span>
                 </button>
                 <button
                   id="inventory-modal-submit-btn"
                   type="submit"
-                  className="action-btn action-btn--md action-btn--fx action-btn--primary"
+                  className="action-btn action-btn--md action-btn--primary"
                 >
                   <span className="action-btn__content">
                     <Check size={18} />

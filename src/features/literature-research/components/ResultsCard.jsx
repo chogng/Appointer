@@ -83,7 +83,7 @@ const ResultsCard = ({
               className={`action-btn action-btn--md action-btn--icon-md ${
                 isExportingDocx || statusState === "loading" || visibleResultsLength === 0
                   ? "action-btn--disabled"
-                  : "action-btn--ghost action-btn--fx action-btn--fx-muted"
+                  : "action-btn--ghost"
               }`}
               title={
                 selectionToggleAction === "deselect-all"
@@ -115,7 +115,7 @@ const ResultsCard = ({
               type="button"
               onClick={onExportDocx}
               disabled={isExportingDocx || selectedCount === 0}
-              className={`action-btn action-btn--md action-btn--fx ${
+              className={`action-btn action-btn--md ${
                 isExportingDocx || selectedCount === 0 ? "action-btn--disabled" : "action-btn--primary"
               }`}
               title={exportDocxLabel}
@@ -140,7 +140,7 @@ const ResultsCard = ({
               type="button"
               onClick={onExportJson}
               disabled={isExportingDocx || selectedCount === 0}
-              className={`action-btn action-btn--md action-btn--fx ${
+              className={`action-btn action-btn--md ${
                 isExportingDocx || selectedCount === 0 ? "action-btn--disabled" : "action-btn--primary"
               }`}
               title={t("literature_export_json")}
@@ -164,7 +164,7 @@ const ResultsCard = ({
               className={`action-btn action-btn--md action-btn--icon-md ${
                 isExportingDocx || statusState === "loading" || isAnyTranslationInFlight
                   ? "action-btn--disabled"
-                  : "action-btn--ghost action-btn--fx action-btn--fx-muted"
+                  : "action-btn--ghost"
               }`}
               title={t("literature_clear_session")}
               aria-label={t("literature_clear_session")}
@@ -227,7 +227,7 @@ const ResultsCard = ({
                     type="button"
                     onClick={() => onExportDocx({ seedKey: group.key })}
                     disabled={groupExportDisabled}
-                    className={`action-btn action-btn--md action-btn--fx ${
+                    className={`action-btn action-btn--md ${
                       groupExportDisabled ? "action-btn--disabled" : "action-btn--primary"
                     }`}
                     title={exportDocxLabel}

@@ -1185,7 +1185,7 @@ const Settings = () => {
                         String(translationProviderInput || "").trim().toLowerCase() ===
                           String(translationProvider || "").trim().toLowerCase()
                         ? "action-btn--disabled"
-                        : "action-btn--fx action-btn--primary"
+                        : "action-btn--primary"
                         }`}
                     >
                       <span className="action-btn__content">
@@ -1266,7 +1266,7 @@ const Settings = () => {
                   className={`action-btn action-btn--lg ${userTranslationProviderSync.state === "saving" ||
                     !String(userTranslationProviderInput || "").trim()
                     ? "action-btn--disabled"
-                    : "action-btn--fx action-btn--primary"
+                    : "action-btn--primary"
                     }`}
                 >
                   <span className="action-btn__content">
@@ -1285,7 +1285,7 @@ const Settings = () => {
                     disabled={userTranslationProviderSync.state === "saving"}
                     className={`action-btn action-btn--lg ${userTranslationProviderSync.state === "saving"
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--ghost action-btn--danger"
+                      : "action-btn--ghost action-btn--danger"
                       }`}
                   >
                     <span className="action-btn__content">{t("literature_clear")}</span>
@@ -1346,7 +1346,7 @@ const Settings = () => {
                     className={`action-btn action-btn--lg ${defaultTranslationApiKeySync.state === "saving" ||
                       !defaultTranslationApiKeyInput.trim()
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--primary"
+                      : "action-btn--primary"
                       }`}
                   >
                     <span className="action-btn__content">
@@ -1365,7 +1365,7 @@ const Settings = () => {
                       disabled={defaultTranslationApiKeySync.state === "saving"}
                       className={`action-btn action-btn--lg ${defaultTranslationApiKeySync.state === "saving"
                         ? "action-btn--disabled"
-                        : "action-btn--fx action-btn--ghost action-btn--danger"
+                        : "action-btn--ghost action-btn--danger"
                         }`}
                     >
                       <span className="action-btn__content">{t("literature_clear")}</span>
@@ -1419,7 +1419,7 @@ const Settings = () => {
                     className={`action-btn action-btn--lg ${defaultTranslationModelSync.state === "saving" ||
                       !defaultTranslationModelInput.trim()
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--primary"
+                      : "action-btn--primary"
                       }`}
                   >
                     <span className="action-btn__content">
@@ -1488,7 +1488,7 @@ const Settings = () => {
                     className={`action-btn action-btn--lg ${defaultTranslationBaseUrlSync.state === "saving" ||
                       !defaultTranslationBaseUrlInput.trim()
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--primary"
+                      : "action-btn--primary"
                       }`}
                   >
                     <span className="action-btn__content">
@@ -1507,7 +1507,7 @@ const Settings = () => {
                       disabled={defaultTranslationBaseUrlSync.state === "saving"}
                       className={`action-btn action-btn--lg ${defaultTranslationBaseUrlSync.state === "saving"
                         ? "action-btn--disabled"
-                        : "action-btn--fx action-btn--ghost action-btn--danger"
+                        : "action-btn--ghost action-btn--danger"
                         }`}
                     >
                       <span className="action-btn__content">{t("literature_clear")}</span>
@@ -1564,7 +1564,7 @@ const Settings = () => {
                   className={`action-btn action-btn--lg ${translationApiKeySync.state === "saving" ||
                     !translationApiKeyInput.trim()
                     ? "action-btn--disabled"
-                    : "action-btn--fx action-btn--primary"
+                    : "action-btn--primary"
                     }`}
                 >
                   <span className="action-btn__content">
@@ -1583,7 +1583,7 @@ const Settings = () => {
                     disabled={translationApiKeySync.state === "saving"}
                     className={`action-btn action-btn--lg ${translationApiKeySync.state === "saving"
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--ghost action-btn--danger"
+                      : "action-btn--ghost action-btn--danger"
                       }`}
                   >
                     <span className="action-btn__content">{t("literature_clear")}</span>
@@ -1641,7 +1641,7 @@ const Settings = () => {
                     className={`action-btn action-btn--lg ${translationBaseUrlSync.state === "saving" ||
                       !translationBaseUrlInput.trim()
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--primary"
+                      : "action-btn--primary"
                       }`}
                   >
                     <span className="action-btn__content">
@@ -1660,7 +1660,7 @@ const Settings = () => {
                       disabled={translationBaseUrlSync.state === "saving"}
                       className={`action-btn action-btn--lg ${translationBaseUrlSync.state === "saving"
                         ? "action-btn--disabled"
-                        : "action-btn--fx action-btn--ghost action-btn--danger"
+                        : "action-btn--ghost action-btn--danger"
                         }`}
                     >
                       <span className="action-btn__content">{t("literature_clear")}</span>
@@ -1713,7 +1713,7 @@ const Settings = () => {
                   className={`action-btn action-btn--lg ${translationModelSync.state === "saving" ||
                     !translationModelInput.trim()
                     ? "action-btn--disabled"
-                    : "action-btn--fx action-btn--primary"
+                    : "action-btn--primary"
                     }`}
                 >
                   <span className="action-btn__content">
@@ -1732,7 +1732,7 @@ const Settings = () => {
                     disabled={translationModelSync.state === "saving"}
                     className={`action-btn action-btn--lg ${translationModelSync.state === "saving"
                       ? "action-btn--disabled"
-                      : "action-btn--fx action-btn--ghost action-btn--danger"
+                      : "action-btn--ghost action-btn--danger"
                       }`}
                   >
                     <span className="action-btn__content">{t("literature_clear")}</span>
@@ -1758,7 +1758,7 @@ const Settings = () => {
                   disabled={translateTest.state === "loading"}
                   className={`action-btn action-btn--md ${translateTest.state === "loading"
                     ? "action-btn--disabled"
-                    : "action-btn--fx action-btn--primary"
+                    : "action-btn--primary"
                     }`}
                 >
                   <span className="action-btn__content">
@@ -1969,7 +1969,7 @@ const Settings = () => {
             </div>
             <button
               type="submit"
-              className="action-btn action-btn--md action-btn--fx action-btn--primary w-full"
+              className="action-btn action-btn--md action-btn--primary w-full"
             >
               <span className="action-btn__content">{t("saveChanges")}</span>
             </button>
@@ -2083,7 +2083,7 @@ const Settings = () => {
                       onClick={handleRetentionSave}
                       className={`action-btn action-btn--md ${retentionLoading || retentionSaving || retentionRunning
                         ? "action-btn--disabled"
-                        : "action-btn--fx action-btn--primary"
+                        : "action-btn--primary"
                         }`}
                       disabled={
                         retentionLoading || retentionSaving || retentionRunning
@@ -2101,7 +2101,7 @@ const Settings = () => {
                       onClick={handleRetentionRunNow}
                       className={`action-btn action-btn--md ${retentionLoading || retentionSaving || retentionRunning
                         ? "action-btn--disabled"
-                        : "action-btn--fx action-btn--ghost"
+                        : "action-btn--ghost"
                         }`}
                       disabled={
                         retentionLoading || retentionSaving || retentionRunning

@@ -268,7 +268,7 @@ const DeviceBooking = () => {
             <button
               type="button"
               onClick={handlePrev}
-              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+              className="action-btn action-btn--icon-md-tight action-btn--ghost"
               aria-label={t("prevWeek")}
             >
               <span className="action-btn__content">
@@ -278,7 +278,7 @@ const DeviceBooking = () => {
             <button
               type="button"
               onClick={handleNext}
-              className="action-btn action-btn--icon-md-tight action-btn--fx action-btn--ghost"
+              className="action-btn action-btn--icon-md-tight action-btn--ghost"
               aria-label={t("nextWeek")}
             >
               <span className="action-btn__content">

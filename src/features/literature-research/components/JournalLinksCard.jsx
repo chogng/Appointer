@@ -146,7 +146,7 @@ const JournalLinksCard = ({
                 data-cta-copy="add url"
                 type="button"
                 onClick={onAddSeedUrl}
-                className="action-btn action-btn--md action-btn--fx action-btn--ghost"
+                className="action-btn action-btn--md action-btn--ghost"
                 aria-label="add url"
               >
                 <span className="action-btn__content">
@@ -164,7 +164,7 @@ const JournalLinksCard = ({
                 type="button"
                 onClick={onSearch}
                 disabled={status.state === "loading"}
-                className={`action-btn action-btn--md action-btn--fx ${
+                className={`action-btn action-btn--md ${
                   status.state === "loading" ? "action-btn--disabled" : "action-btn--primary"
                 }`}
                 aria-label="fetch"
@@ -201,7 +201,7 @@ const JournalLinksCard = ({
                     onClick={() =>
                       onToggleSeedUrlSelectedAt(index, seedUrlSelected[index] === false)
                     }
-                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--fx action-btn--ghost action-btn--fx-muted bg-bg-page"
+                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--ghost bg-bg-page"
                     title={seedUrlSelected[index] !== false ? "Include (Enabled)" : "Exclude (Disabled)"}
                     aria-label={`Include seed url ${index + 1}`}
                     aria-pressed={seedUrlSelected[index] !== false}
@@ -265,7 +265,7 @@ const JournalLinksCard = ({
                     data-cta-position="seed-urls"
                     data-cta-copy="remove url"
                     data-seed-index={index}
-                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--fx action-btn--fx-muted action-btn--danger"
+                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--danger"
                   >
                     <span className="action-btn__content">
                       <Trash2 size={16} />

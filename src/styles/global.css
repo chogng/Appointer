@@ -231,6 +231,26 @@ body {
   /* Base / Sizes */
   .action-btn {
     @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm font-medium transition-all;
+
+    /* Claude-like "scale" illusion via box-shadow spread (no transform)
+       Two-layer shadow:
+         - layer 1 uses background color to "fill" the edge
+         - layer 2 is the visible border that expands on hover
+
+       Defaults can be overridden per-button via CSS variables:
+         --click-fx-bg: background color
+         --click-fx-border: border / ring color
+         --click-fx-border-hover: hover border / ring color (defaults to --click-fx-border)
+    */
+    --click-fx-bg: theme("colors.bg.ghost");
+    --click-fx-border: theme("colors.border.200");
+    --click-fx-border-hover: var(--click-fx-border);
+
+    box-shadow: 0 0 0 0 var(--click-fx-bg), 0 0 0 1px var(--click-fx-border);
+    transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
+      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
+      transform 0.08s ease-out;
+    transform-origin: center;
   }
 
   .action-btn--sm {
@@ -253,7 +273,7 @@ body {
     @apply w-[38px] px-0;
   }
 
-  /* Visual match for 38px inputs when using `action-btn--fx` ring (shadow adds 1px on each side) */
+  /* Visual match for 38px inputs when using the default ring (shadow adds 1px on each side) */
   .action-btn--icon-md-tight {
     @apply w-[36px] h-[36px] px-0;
   }
@@ -268,106 +288,70 @@ body {
     @apply relative z-10 flex items-center gap-2;
   }
 
-  /* FX */
-  /* FX: Claude-like "scale" illusion via box-shadow spread (no transform)
-     Two-layer shadow:
-       - layer 1 uses background color to "fill" the edge
-       - layer 2 is the visible border that expands on hover
-
-     Defaults can be overridden per-button via CSS variables:
-       --click-fx-bg: background color
-       --click-fx-border: border / ring color
-       --click-fx-border-hover: hover border / ring color (defaults to --click-fx-border)
-  */
-  .action-btn--fx {
-    @apply relative;
-    --click-fx-bg: transparent;
-    --click-fx-border: currentColor;
-    --click-fx-border-hover: var(--click-fx-border);
-
-    /* When combined with variants that already render a real border (e.g. ghost),
-       use shadow-only ring by default to avoid a visible double-stroke. */
-    border-color: transparent;
-
-    box-shadow: 0 0 0 0 var(--click-fx-bg), 0 0 0 1px var(--click-fx-border);
-    transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
-      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
-      transform 0.08s ease-out;
-    transform-origin: center;
-  }
-
-  .action-btn--fx:not(:disabled):not(.action-btn--disabled):hover {
+  /* FX (default for all buttons) */
+  .action-btn:not(:disabled):not(.action-btn--disabled):hover {
     box-shadow: 0 0 0 1px var(--click-fx-bg),
       0 0 0 2px var(--click-fx-border-hover);
   }
 
-  .action-btn--fx:disabled,
-  .action-btn--fx.action-btn--disabled {
+  .action-btn:disabled,
+  .action-btn.action-btn--disabled {
     box-shadow: none;
+    transform: none;
   }
 
-  .action-btn--fx:not(:disabled):not(.action-btn--disabled):active {
+  .action-btn:not(:disabled):not(.action-btn--disabled):active {
     transform: scale(0.98);
-  }
-
-  /* FX muted: common ring vars outside toolbars */
-  .action-btn--fx-muted {
-    --click-fx-bg: rgb(250, 249, 245);
-    --click-fx-border: #d1d1d1;
-    --click-fx-border-hover: #d1d1d1;
   }
 
   /* Variants */
   /* Keep semantic variants for colors/typography */
   .action-btn--primary {
-    @apply text-white bg-accent border border-transparent;
+    @apply text-white bg-bg-primary border border-transparent;
+    --click-fx-bg: theme("colors.bg.primary");
+    --click-fx-border: theme("colors.border.300");
+    --click-fx-border-hover: theme("colors.border.300");
   }
 
   .action-btn--secondary {
-    @apply text-text-primary bg-white border border-border-subtle hover:bg-bg-subtle;
+    @apply text-text-primary bg-white border border-transparent hover:bg-bg-subtle;
   }
 
   .action-btn--text {
     @apply text-text-secondary hover:text-text-primary bg-transparent border border-transparent hover:bg-black/5;
   }
 
-  /* Primary + FX: fixed dark ring (Claude-like), consistent across pages */
-  .action-btn--primary.action-btn--fx {
-    --click-fx-bg: rgb(20, 20, 19);
-    --click-fx-border: rgb(48, 48, 46);
-    --click-fx-border-hover: rgb(48, 48, 46);
-  }
-
-  .toolbar_group .action-btn--ghost.action-btn--fx {
+  .toolbar_group .action-btn--ghost {
     --click-fx-bg: rgb(250, 249, 245);
-    --click-fx-border: #d1d1d1;
-    --click-fx-border-hover: #d1d1d1;
+    --click-fx-border: theme("colors.border.200");
+    --click-fx-border-hover: theme("colors.border.200");
   }
 
   .action-btn--ghost {
-    @apply text-text-secondary hover:text-text-primary bg-transparent border border-border;
+    @apply text-text-secondary hover:text-text-primary bg-bg-ghost border border-transparent;
     /* Avoid hard-coupling border to text color so demos can set borderColor independently */
+    --click-fx-bg: theme("colors.bg.ghost");
+    --click-fx-border: theme("colors.border.200");
+    --click-fx-border-hover: theme("colors.border.200");
   }
 
   .action-btn--danger {
-    @apply text-text-tertiary hover:text-red-500;
-  }
-
-  /* If ghost is combined with FX, let FX's ring (box-shadow) be the only visible border */
-  .action-btn--ghost.action-btn--fx {
-    border-color: transparent;
-    border-width: 0;
-  }
-
-  /* Secondary also renders a real border; prefer FX ring-only */
-  .action-btn--secondary.action-btn--fx {
-    border-color: transparent;
-    border-width: 0;
+    @apply text-text-tertiary hover:text-text-danger;
   }
 
   /* Demo helper: force remove real border so only the FX shadow ring remains */
   .demo_no-border {
     border-width: 0 !important;
+  }
+
+  /* Demo helper: force disable default FX ring/spread */
+  .demo_no-fx,
+  .demo_no-fx:hover {
+    box-shadow: none !important;
+  }
+
+  .demo_no-fx:active {
+    transform: none !important;
   }
 
   .action-btn--disabled {
@@ -387,21 +371,6 @@ body {
   /* Push trailing items to the far right within `.toolbar_row` */
   .toolbar_spacer {
     @apply ml-auto;
-  }
-
-  /* Claude-like "scale" illusion: hover uses box-shadow spread, not transform */
-  .action-btn--claude-shadow {
-    @apply inline-flex items-center justify-center px-4 h-[38px] rounded-lg text-sm;
-    color: rgb(250, 249, 245);
-    background-color: rgb(20, 20, 19);
-    box-shadow: rgb(20, 20, 19) 0 0 0 0, rgb(48, 48, 46) 0 0 0 1px;
-    transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
-      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  }
-
-  .action-btn--claude-shadow:hover {
-    /* two-layer spread creates the "bigger" feel */
-    box-shadow: 0 0 0 1px rgb(20, 20, 19), 0 0 0 2px rgb(48, 48, 46);
   }
 
   /* Checkbox */

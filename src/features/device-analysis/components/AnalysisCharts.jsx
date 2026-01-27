@@ -2899,7 +2899,6 @@ How to use (manual fallback):
             variant="ghost"
             size="control"
             fx
-            fxMuted
             disabled={originBusy || !focusedSeries}
             onClick={handleDownloadOriginPackage}
             type="button"

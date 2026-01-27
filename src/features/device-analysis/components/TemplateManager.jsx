@@ -1816,7 +1816,7 @@ const TemplateManager = ({
               <button
                 type="button"
                 onClick={applyConfiguration}
-                className="action-btn action-btn--md action-btn--fx action-btn--primary w-full mt-4"
+                className="action-btn action-btn--md action-btn--primary w-full mt-4"
               >
                 <span className="action-btn__content">{t("da_apply_to_all_files")}</span>
               </button>

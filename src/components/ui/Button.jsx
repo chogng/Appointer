@@ -10,31 +10,32 @@ const cx = (...parts) => parts.filter(Boolean).join(" ");
  */
 const Button = forwardRef(
   (
-    {
-      children,
-      type = "button",
-      variant = "primary", // primary | secondary | ghost | text | danger | dark (outline/premium aliases supported)
-      size = "md", // sm | md | lg | control
-      fullWidth = false,
-      className = "",
-      disabled = false,
-      fx = false,
-      fxMuted = false,
-      withScale = false, // legacy alias -> `fx`
-      dataUi,
-      testId,
-      dataStyle,
-      dataIcon,
-      cta,
-      ctaPosition,
-      ctaCopy,
-      ...props
-    },
-    ref,
-  ) => {
-    const isDisabled = !!disabled;
-    const uiMarker =
-      typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
+      {
+        children,
+        type = "button",
+        variant = "primary", // primary | secondary | ghost | text | danger
+        size = "md", // sm | md | lg | control
+        fullWidth = false,
+       className = "",
+       disabled = false,
+       fx = true,
+       withScale = false, // legacy alias -> `fx` (deprecated; FX is always on)
+       dataUi,
+        testId,
+        dataStyle,
+        dataIcon,
+        cta,
+        ctaPosition,
+        ctaCopy,
+        ...props
+      },
+      ref,
+    ) => {
+    void fx;
+    void withScale;
+      const isDisabled = !!disabled;
+      const uiMarker =
+        typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
     const devTestId = import.meta.env.DEV && testId ? testId : undefined;
     const styleMarker =
       typeof dataStyle === "string" && dataStyle.trim()
@@ -43,9 +44,7 @@ const Button = forwardRef(
 
     const resolvedVariant = (() => {
       if (isDisabled) return "disabled";
-      if (variant === "outline") return "ghost";
       if (variant === "ghost") return "ghost";
-      if (variant === "premium") return "primary";
       return variant;
     })();
 
@@ -55,24 +54,15 @@ const Button = forwardRef(
       if (resolvedVariant === "ghost") return "action-btn--ghost";
       if (resolvedVariant === "text") return "action-btn--text";
       if (resolvedVariant === "danger") return "action-btn--danger";
-      if (resolvedVariant === "dark") return "action-btn--claude-shadow";
       return "action-btn--primary";
     })();
 
-    const sizeClass = (() => {
-      if (size === "sm") return "action-btn--sm";
-      if (size === "lg") return "action-btn--lg";
-      if (size === "control") return "action-btn--control";
-      return "action-btn--md";
-    })();
-
-    const shouldFx =
-      (fx || withScale) && !isDisabled && resolvedVariant !== "dark";
-    const shouldFxMuted =
-      fxMuted &&
-      shouldFx &&
-      resolvedVariant !== "primary" &&
-      resolvedVariant !== "danger";
+       const sizeClass = (() => {
+         if (size === "sm") return "action-btn--sm";
+         if (size === "lg") return "action-btn--lg";
+         if (size === "control") return "action-btn--control";
+         return "action-btn--md";
+       })();
 
     return (
       <button
@@ -86,12 +76,10 @@ const Button = forwardRef(
         data-cta={normalizeCtaName(cta)}
         data-cta-position={normalizeCtaToken(ctaPosition)}
         data-cta-copy={normalizeCtaToken(ctaCopy)}
-        className={cx(
+          className={cx(
           "action-btn",
           sizeClass,
           variantClass,
-          shouldFx && "action-btn--fx",
-          shouldFxMuted && "action-btn--fx-muted",
           fullWidth && "w-full",
           className,
         )}

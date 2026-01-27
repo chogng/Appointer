@@ -24,15 +24,19 @@ const ButtonFxDemo = () => {
         aria-label={t("button_fx_demo_title")}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <Button fx variant="primary" id="demo-btn-primary-fx">
+          <Button variant="primary" id="demo-btn-primary-fx">
             {t("button_fx_demo_primary_fx")}
           </Button>
 
-          <Button fx variant="ghost" id="demo-btn-ghost-fx">
+          <Button variant="ghost" id="demo-btn-ghost-fx">
             {t("button_fx_demo_ghost_fx")}
           </Button>
 
-          <Button variant="ghost" id="demo-btn-ghost-no-fx">
+          <Button
+            variant="ghost"
+            id="demo-btn-ghost-no-fx"
+            className="demo_no-fx"
+          >
             {t("button_fx_demo_ghost_no_fx")}
           </Button>
 
@@ -43,7 +47,6 @@ const ButtonFxDemo = () => {
             style={{
               backgroundColor: "rgb(250, 249, 245)",
               color: "rgb(20, 20, 19)",
-              borderColor: "#d1d1d1",
               "--click-fx-bg": "rgb(250, 249, 245)",
               "--click-fx-border": "#d1d1d1",
               "--click-fx-border-hover": "#d1d1d1",
@@ -55,22 +58,34 @@ const ButtonFxDemo = () => {
           <Button
             fx
             variant="ghost"
-            id="demo-btn-ghost-fx-light-no-border"
-            className="demo_no-border"
+            id="demo-btn-ghost-fx-light-forced-border"
             style={{
               backgroundColor: "rgb(250, 249, 245)",
               color: "rgb(20, 20, 19)",
+              borderWidth: 1,
               borderColor: "#d1d1d1",
               "--click-fx-bg": "rgb(250, 249, 245)",
               "--click-fx-border": "#d1d1d1",
               "--click-fx-border-hover": "#d1d1d1",
             }}
           >
-            {t("button_fx_demo_ghost_fx_light_no_border")}
+            {t("button_fx_demo_ghost_fx_forced_border")}
           </Button>
 
-          <Button variant="dark" id="demo-btn-claude-shadow">
-            {t("button_fx_demo_claude_shadow")}
+          <Button
+            fx
+            variant="ghost"
+            id="demo-btn-ghost-fx-light-no-border"
+            className="demo_no-border"
+            style={{
+              backgroundColor: "rgb(250, 249, 245)",
+              color: "rgb(20, 20, 19)",
+              "--click-fx-bg": "rgb(250, 249, 245)",
+              "--click-fx-border": "#d1d1d1",
+              "--click-fx-border-hover": "#d1d1d1",
+            }}
+          >
+            {t("button_fx_demo_ghost_fx_light_no_border")}
           </Button>
 
           <Button disabled id="demo-btn-disabled">

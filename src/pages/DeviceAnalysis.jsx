@@ -1261,7 +1261,7 @@ Note:
                 data-cta="Device analysis"
                 data-cta-position="import"
                 data-cta-copy="import csv"
-                className="action-btn action-btn--md action-btn--fx action-btn--primary"
+                className="action-btn action-btn--md action-btn--primary"
                 aria-label={t("da_import_csv")}
               >
                 <span className="action-btn__content">
@@ -1284,7 +1284,7 @@ Note:
                 data-cta-position="import"
                 data-cta-copy="reset session"
                 className={`toolbar_spacer action-btn action-btn--md action-btn--icon-md-tight ${
-                  hasSessionData ? "action-btn--fx action-btn--fx-muted action-btn--danger" : "action-btn--disabled"
+                  hasSessionData ? "action-btn--danger" : "action-btn--disabled"
                 }`}
               >
                 <span className="action-btn__content">

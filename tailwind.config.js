@@ -16,9 +16,11 @@ export default {
           page: '#F5F4EF',
           surface: '#ffffff',
           'surface-hover': '#FAF9F5',
+          ghost: '#FAF9F5',
+          primary: '#222222',
           subtle: '#F0F0F0',
-          50: '#FAF9F5',
           0: '#FFFFFF', // Claude bg-000
+          50: '#FAF9F5',
           100: '#F0EEE6', // Claude bg-100
           150: '#E8E6DC',
           200: '#F0F0F0', // Claude bg-200 (approx)
@@ -29,13 +31,14 @@ export default {
           subtle: '#E5E5E5',
           100: '#E5E5E5',
           200: '#D1D1D1',
-          300: '#1F1E1D26', // #B0B0B0
+          300: '#30302E',
           400: '#999999',
         },
         text: {
           primary: '#222222',
           secondary: '#666666',
           tertiary: '#999999',
+          danger: '#EF4444', // Tailwind red-500
           0: '#222222', // Claude text-000 (approx main text)
           100: '#333333', // Claude text-100
           200: '#555555', // Claude text-200

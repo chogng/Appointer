@@ -68,13 +68,14 @@ const translations = {
     common_close: 'Close',
     button_fx_demo_title: 'Button FX Demo',
     button_fx_demo_desc:
-      'Standalone visual sandbox for `action-btn--fx` hover behavior (Claude-like box-shadow spread).',
+      'Standalone visual sandbox for the button hover ring behavior (two-ring box-shadow spread).',
     button_fx_demo_primary_fx: 'Primary + FX',
     button_fx_demo_ghost_fx: 'Ghost + FX (transparent)',
     button_fx_demo_ghost_no_fx: 'Ghost (no FX)',
     button_fx_demo_ghost_fx_light: 'Ghost + FX (light bg / may show double ring)',
+    button_fx_demo_ghost_fx_forced_border:
+      'Ghost + FX (light bg / force real border — double stroke)',
     button_fx_demo_ghost_fx_light_no_border: 'Ghost + FX (light bg / remove border)',
-    button_fx_demo_claude_shadow: 'Claude-shadow (fixed dark)',
     button_fx_demo_disabled: 'Disabled',
     button_fx_demo_note:
       'Note: The "scale" feel comes from box-shadow spread; computed transform is usually none.',
@@ -293,6 +294,7 @@ const translations = {
     recentActivity: 'Recent Activity',
     recentMessages: 'Recent Messages',
     noActivity: 'No recent activity',
+    noPendingRequests: 'No pending requests',
     systemUser: 'System',
     dashboard_approve: 'Approve',
     dashboard_reject: 'Reject',
@@ -512,13 +514,14 @@ const translations = {
   zh: {
     button_fx_demo_title: 'Button FX Demo',
     button_fx_demo_desc:
-      '用于单独验证 `action-btn--fx` 的 hover 效果（Claude-like box-shadow spread）。',
+      '用于单独验证按钮 hover 的 ring 效果（两圈 box-shadow 的 spread 外扩）。',
     button_fx_demo_primary_fx: 'Primary + FX',
+    button_fx_demo_ghost_fx_forced_border:
+      'Ghost + FX（浅底 / 强制真实 border，会出现双描边）',
     button_fx_demo_ghost_fx: 'Ghost + FX（透明底）',
     button_fx_demo_ghost_no_fx: 'Ghost（无 FX，对照）',
     button_fx_demo_ghost_fx_light: 'Ghost + FX（浅底 / 可能双圈）',
     button_fx_demo_ghost_fx_light_no_border: 'Ghost + FX（浅底 / 强制无 border）',
-    button_fx_demo_claude_shadow: 'Claude-shadow（固定深色）',
     button_fx_demo_disabled: 'Disabled',
     button_fx_demo_note:
       '说明：当前“变大感”来自 box-shadow 的 spread 外扩，按钮本体 computed transform 通常是 none。',
@@ -774,6 +777,7 @@ const translations = {
     completed: '已完成',
     recentActivity: '最近活动',
     noActivity: '暂无最近活动',
+    noPendingRequests: '暂无待处理请求',
     systemUser: '系统',
     dashboard_approve: '通过',
     dashboard_reject: '拒绝',
