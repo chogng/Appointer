@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Server runtime data
+server/uploads/
+server/.tmp/
+
 # Env files
 .env
 .env.*
