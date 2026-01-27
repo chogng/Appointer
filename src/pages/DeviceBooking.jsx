@@ -259,7 +259,6 @@ const DeviceBooking = () => {
             variant="ghost"
             onClick={handleToday}
             size="md"
-            fx
           >
             {t("today")}
           </Button>
@@ -267,9 +266,9 @@ const DeviceBooking = () => {
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={handlePrev}
-              className="action-btn action-btn--icon-md-tight action-btn--ghost"
+              className="action-btn action-btn--control action-btn--ghost"
               aria-label={t("prevWeek")}
+              onClick={handlePrev}
             >
               <span className="action-btn__content">
                 <ChevronLeft size={20} className="text-text-secondary" />
@@ -277,9 +276,9 @@ const DeviceBooking = () => {
             </button>
             <button
               type="button"
-              onClick={handleNext}
-              className="action-btn action-btn--icon-md-tight action-btn--ghost"
+              className="action-btn action-btn--control action-btn--ghost"
               aria-label={t("nextWeek")}
+              onClick={handleNext}
             >
               <span className="action-btn__content">
                 <ChevronRight size={20} className="text-text-secondary" />

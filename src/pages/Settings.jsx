@@ -1068,7 +1068,6 @@ const Settings = () => {
                     onClick={handleNameSave}
                     variant="primary"
                     size="md"
-                    fx
                   >
                     {t("saveChanges")}
                     <ArrowUp size={16} />

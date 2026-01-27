@@ -13,6 +13,7 @@ import Tabs from "../../../components/ui/Tabs";
 import DatePicker from "../../../components/ui/DatePicker";
 import Input from "../../../components/ui/Input";
 import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
 
 const JournalLinksCard = ({
   sourceType,
@@ -139,15 +140,15 @@ const JournalLinksCard = ({
           <div className="ui-button_warp">
             <div className="ui-button_row">
               <button
+                type="button"
                 id="literature-add-url"
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="toolbar"
                 data-cta-copy="add url"
-                type="button"
-                onClick={onAddSeedUrl}
                 className="action-btn action-btn--md action-btn--ghost"
                 aria-label="add url"
+                onClick={onAddSeedUrl}
               >
                 <span className="action-btn__content">
                   <Plus size={16} />
@@ -156,18 +157,18 @@ const JournalLinksCard = ({
               </button>
 
               <button
+                type="button"
                 id="literature-fetch"
                 data-icon="with"
                 data-cta="Literature research"
                 data-cta-position="toolbar"
                 data-cta-copy="fetch"
-                type="button"
-                onClick={onSearch}
-                disabled={status.state === "loading"}
                 className={`action-btn action-btn--md ${
                   status.state === "loading" ? "action-btn--disabled" : "action-btn--primary"
                 }`}
                 aria-label="fetch"
+                onClick={onSearch}
+                disabled={status.state === "loading"}
               >
                 <span className="action-btn__content">
                   <Search size={16} />
@@ -198,17 +199,17 @@ const JournalLinksCard = ({
                 >
                   <button
                     type="button"
-                    onClick={() =>
-                      onToggleSeedUrlSelectedAt(index, seedUrlSelected[index] === false)
-                    }
-                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--ghost bg-bg-page"
-                    title={seedUrlSelected[index] !== false ? "Include (Enabled)" : "Exclude (Disabled)"}
-                    aria-label={`Include seed url ${index + 1}`}
-                    aria-pressed={seedUrlSelected[index] !== false}
                     id={`literature-seed-url-select-${index}`}
                     data-cta="Literature research"
                     data-cta-position="seed-urls"
                     data-cta-copy="toggle include"
+                    onClick={() =>
+                      onToggleSeedUrlSelectedAt(index, seedUrlSelected[index] === false)
+                    }
+                    className="action-btn action-btn--control action-btn--ghost bg-bg-page"
+                    aria-label={`Include seed url ${index + 1}`}
+                    aria-pressed={seedUrlSelected[index] !== false}
+                    title={seedUrlSelected[index] !== false ? "Include (Enabled)" : "Exclude (Disabled)"}
                     data-seed-index={index}
                   >
                     <span className="action-btn__content">
@@ -254,23 +255,22 @@ const JournalLinksCard = ({
                     data-seed-index={index}
                   />
 
-                  <button
+                  <Button
+                    id={`literature-seed-url-remove-${index}`}
                     type="button"
                     onClick={() => onRemoveSeedUrlAt(index)}
                     title={t("literature_remove_url")}
                     aria-label={t("literature_remove_url")}
-                    id={`literature-seed-url-remove-${index}`}
-                    data-icon="with"
-                    data-cta="Literature research"
-                    data-cta-position="seed-urls"
-                    data-cta-copy="remove url"
+                    variant="danger"
+                    size="control"
+                    dataIcon="with"
+                    cta="Literature research"
+                    ctaPosition="seed-urls"
+                    ctaCopy="remove url"
                     data-seed-index={index}
-                    className="action-btn action-btn--md action-btn--icon-md-tight action-btn--danger"
                   >
-                    <span className="action-btn__content">
-                      <Trash2 size={16} />
-                    </span>
-                  </button>
+                    <Trash2 size={16} />
+                  </Button>
                 </div>
               ))}
             </div>

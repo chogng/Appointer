@@ -41,22 +41,20 @@ const ButtonFxDemo = () => {
           </Button>
 
           <Button
-            fx
             variant="ghost"
             id="demo-btn-ghost-fx-light"
             style={{
               backgroundColor: "rgb(250, 249, 245)",
               color: "rgb(20, 20, 19)",
-              "--click-fx-bg": "rgb(250, 249, 245)",
-              "--click-fx-border": "#d1d1d1",
-              "--click-fx-border-hover": "#d1d1d1",
+              "--btn-ring-inner": "rgb(250, 249, 245)",
+              "--btn-ring-outer": "#d1d1d1",
+              "--btn-ring-outer-hover": "#d1d1d1",
             }}
           >
             {t("button_fx_demo_ghost_fx_light")}
           </Button>
 
           <Button
-            fx
             variant="ghost"
             id="demo-btn-ghost-fx-light-forced-border"
             style={{
@@ -64,25 +62,24 @@ const ButtonFxDemo = () => {
               color: "rgb(20, 20, 19)",
               borderWidth: 1,
               borderColor: "#d1d1d1",
-              "--click-fx-bg": "rgb(250, 249, 245)",
-              "--click-fx-border": "#d1d1d1",
-              "--click-fx-border-hover": "#d1d1d1",
+              "--btn-ring-inner": "rgb(250, 249, 245)",
+              "--btn-ring-outer": "#d1d1d1",
+              "--btn-ring-outer-hover": "#d1d1d1",
             }}
           >
             {t("button_fx_demo_ghost_fx_forced_border")}
           </Button>
 
           <Button
-            fx
             variant="ghost"
             id="demo-btn-ghost-fx-light-no-border"
             className="demo_no-border"
             style={{
               backgroundColor: "rgb(250, 249, 245)",
               color: "rgb(20, 20, 19)",
-              "--click-fx-bg": "rgb(250, 249, 245)",
-              "--click-fx-border": "#d1d1d1",
-              "--click-fx-border-hover": "#d1d1d1",
+              "--btn-ring-inner": "rgb(250, 249, 245)",
+              "--btn-ring-outer": "#d1d1d1",
+              "--btn-ring-outer-hover": "#d1d1d1",
             }}
           >
             {t("button_fx_demo_ghost_fx_light_no_border")}

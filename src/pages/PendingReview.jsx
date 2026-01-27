@@ -27,7 +27,6 @@ const PendingReview = () => {
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    fx
                                     onClick={() => navigate('/docs')}
                                     className="h-9 min-w-[7rem]"
                                 >
@@ -37,7 +36,6 @@ const PendingReview = () => {
                                     type="button"
                                     variant="primary"
                                     size="sm"
-                                    fx
                                     onClick={() => navigate('/login')}
                                     className="h-9 min-w-[7rem]"
                                 >
@@ -72,7 +70,6 @@ const PendingReview = () => {
                                                 type="button"
                                                 variant="primary"
                                                 size="lg"
-                                                fx
                                                 onClick={() => navigate('/login')}
                                                 fullWidth
                                             >

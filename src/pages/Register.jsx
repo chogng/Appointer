@@ -171,7 +171,6 @@ const Register = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  fx
                   onClick={() =>
                     navigate("/docs", { state: { from: "register" } })
                   }
@@ -183,7 +182,6 @@ const Register = () => {
                   type="button"
                   variant="primary"
                   size="sm"
-                  fx
                   onClick={() =>
                     navigate("/login", { state: { from: "register" } })
                   }

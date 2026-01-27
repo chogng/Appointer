@@ -346,18 +346,17 @@ const Dashboard = () => {
                 </div>
                 {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
                   <Button
-                    id="dashboard-clear-logs-btn"
                     type="button"
-                    onClick={handleClearLogs}
-                    variant="ghost"
-                    size="sm"
-                    fx
-                    className="action-btn--icon-md-tight text-text-tertiary hover:text-red-500"
-                    title={t("clearLogs")}
-                    aria-label={t("clearLogs")}
+                    id="dashboard-clear-logs-btn"
+                    variant="danger"
+                    size="control"
+                    dataIcon="with"
                     cta="Dashboard"
                     ctaPosition="recent-activity"
                     ctaCopy="clear-logs"
+                    aria-label={t("clearLogs")}
+                    title={t("clearLogs")}
+                    onClick={handleClearLogs}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -515,13 +514,13 @@ const Dashboard = () => {
                             <>
                               <button
                                 type="button"
+                                className="action-btn action-btn--control action-btn--ghost"
                                 aria-label={t("dashboard_approve")}
+                                title={t("dashboard_approve")}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleApprove(msg);
                                 }}
-                                className="action-btn action-btn--icon-md-tight action-btn--ghost"
-                                title={t("dashboard_approve")}
                               >
                                 <span className="action-btn__content">
                                   <Check size={18} />
@@ -529,13 +528,13 @@ const Dashboard = () => {
                               </button>
                               <button
                                 type="button"
+                                className="action-btn action-btn--control action-btn--ghost action-btn--danger"
                                 aria-label={t("dashboard_reject")}
+                                title={t("dashboard_reject")}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleReject(msg);
                                 }}
-                                className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
-                                title={t("dashboard_reject")}
                               >
                                 <span className="action-btn__content">
                                   <X size={18} />
@@ -545,13 +544,13 @@ const Dashboard = () => {
                           ) : (
                             <button
                               type="button"
+                              className="action-btn action-btn--control action-btn--ghost action-btn--danger"
                               aria-label={t("dashboard_revoke_request")}
+                              title={t("dashboard_revoke_request")}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleRevoke(msg);
                               }}
-                              className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
-                              title={t("dashboard_revoke_request")}
                             >
                               <span className="action-btn__content">
                                 <Trash2 size={18} />
@@ -593,7 +592,6 @@ const Dashboard = () => {
                   onClick={() => handleReject(selectedMessage)}
                   variant="ghost"
                   size="md"
-                  fx
                   className="action-btn--danger"
                 >
                   {t("dashboard_reject")}
@@ -602,7 +600,6 @@ const Dashboard = () => {
                   onClick={() => handleApprove(selectedMessage)}
                   variant="primary"
                   size="md"
-                  fx
                 >
                   {t("dashboard_approve")}
                 </Button>
@@ -612,7 +609,6 @@ const Dashboard = () => {
                 onClick={() => handleRevoke(selectedMessage)}
                 variant="ghost"
                 size="md"
-                fx
                 className="action-btn--danger"
               >
                 {t("dashboard_revoke_request")}

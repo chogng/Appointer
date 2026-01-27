@@ -303,12 +303,12 @@ const Users = () => {
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
+                      className="action-btn action-btn--control action-btn--ghost"
                       aria-label={t("edit")}
+                      title={t("edit")}
+                      onClick={() => handleEditClick(u)}
                       data-ui="users-edit-btn"
                       data-item-key={`user-${u.id}`}
-                      onClick={() => handleEditClick(u)}
-                      className="action-btn action-btn--icon-md-tight action-btn--ghost"
-                      title={t("edit")}
                     >
                       <span className="action-btn__content">
                         <Edit2 size={16} />
@@ -317,12 +317,12 @@ const Users = () => {
                     {u.id !== currentUser?.id && (
                       <button
                         type="button"
+                        className="action-btn action-btn--control action-btn--ghost action-btn--danger"
                         aria-label={t("delete")}
+                        title={t("delete")}
+                        onClick={() => setDeleteConfirm(u)}
                         data-ui="users-delete-btn"
                         data-item-key={`user-${u.id}`}
-                        onClick={() => setDeleteConfirm(u)}
-                        className="action-btn action-btn--icon-md-tight action-btn--ghost action-btn--danger"
-                        title={t("delete")}
                       >
                         <span className="action-btn__content">
                           <Trash2 size={16} />

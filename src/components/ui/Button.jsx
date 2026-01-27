@@ -14,15 +14,11 @@ const Button = forwardRef(
         children,
         type = "button",
         variant = "primary", // primary | secondary | ghost | text | danger
-        size = "md", // sm | md | lg | control
+       size = "md", // sm | md | lg | control
         fullWidth = false,
        className = "",
        disabled = false,
-       fx = true,
-       withScale = false, // legacy alias -> `fx` (deprecated; FX is always on)
-       dataUi,
         testId,
-        dataStyle,
         dataIcon,
         cta,
         ctaPosition,
@@ -31,16 +27,8 @@ const Button = forwardRef(
       },
       ref,
     ) => {
-    void fx;
-    void withScale;
       const isDisabled = !!disabled;
-      const uiMarker =
-        typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
     const devTestId = import.meta.env.DEV && testId ? testId : undefined;
-    const styleMarker =
-      typeof dataStyle === "string" && dataStyle.trim()
-        ? dataStyle.trim()
-        : undefined;
 
     const resolvedVariant = (() => {
       if (isDisabled) return "disabled";
@@ -69,9 +57,7 @@ const Button = forwardRef(
         ref={ref}
         type={type}
         disabled={isDisabled}
-        data-style={styleMarker}
         data-icon={dataIcon}
-        data-ui={uiMarker}
         data-testid={devTestId}
         data-cta={normalizeCtaName(cta)}
         data-cta-position={normalizeCtaToken(ctaPosition)}

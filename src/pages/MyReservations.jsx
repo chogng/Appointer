@@ -191,7 +191,6 @@ const MyReservations = () => {
                 variant="ghost"
                 size="sm"
                 onClick={handleBulkCancel}
-                fx
                 className="action-btn--danger"
               >
                 <Trash2 size={16} />

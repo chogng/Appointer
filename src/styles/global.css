@@ -238,15 +238,15 @@ body {
          - layer 2 is the visible border that expands on hover
 
        Defaults can be overridden per-button via CSS variables:
-         --click-fx-bg: background color
-         --click-fx-border: border / ring color
-         --click-fx-border-hover: hover border / ring color (defaults to --click-fx-border)
+         --btn-ring-inner: inner ring color
+         --btn-ring-outer: outer ring color
+         --btn-ring-outer-hover: outer ring hover color (defaults to --btn-ring-outer)
     */
-    --click-fx-bg: theme("colors.bg.ghost");
-    --click-fx-border: theme("colors.border.200");
-    --click-fx-border-hover: var(--click-fx-border);
+    --btn-ring-inner: theme("colors.bg.ghost");
+    --btn-ring-outer: theme("colors.border.200");
+    --btn-ring-outer-hover: var(--btn-ring-outer);
 
-    box-shadow: 0 0 0 0 var(--click-fx-bg), 0 0 0 1px var(--click-fx-border);
+    box-shadow: 0 0 0 0 var(--btn-ring-inner), 0 0 0 1px var(--btn-ring-outer);
     transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
       background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
       transform 0.08s ease-out;
@@ -266,21 +266,7 @@ body {
   }
 
   .action-btn--control {
-    @apply h-[38px] px-3 text-xs;
-  }
-
-  .action-btn--icon-md {
-    @apply w-[38px] px-0;
-  }
-
-  /* Visual match for 38px inputs when using the default ring (shadow adds 1px on each side) */
-  .action-btn--icon-md-tight {
-    @apply w-[36px] h-[36px] px-0;
-  }
-
-  /* Icon-only buttons (e.g. remove row actions) */
-  .action-btn--icon {
-    @apply h-[42px] w-[42px] px-0;
+    @apply w-[37px] h-[37px] px-0;
   }
 
   /* Content */
@@ -290,8 +276,8 @@ body {
 
   /* FX (default for all buttons) */
   .action-btn:not(:disabled):not(.action-btn--disabled):hover {
-    box-shadow: 0 0 0 1px var(--click-fx-bg),
-      0 0 0 2px var(--click-fx-border-hover);
+    box-shadow: 0 0 0 1px var(--btn-ring-inner),
+      0 0 0 2px var(--btn-ring-outer-hover);
   }
 
   .action-btn:disabled,
@@ -308,9 +294,9 @@ body {
   /* Keep semantic variants for colors/typography */
   .action-btn--primary {
     @apply text-white bg-bg-primary border border-transparent;
-    --click-fx-bg: theme("colors.bg.primary");
-    --click-fx-border: theme("colors.border.300");
-    --click-fx-border-hover: theme("colors.border.300");
+    --btn-ring-inner: theme("colors.bg.primary");
+    --btn-ring-outer: theme("colors.border.300");
+    --btn-ring-outer-hover: theme("colors.border.300");
   }
 
   .action-btn--secondary {
@@ -322,17 +308,17 @@ body {
   }
 
   .toolbar_group .action-btn--ghost {
-    --click-fx-bg: rgb(250, 249, 245);
-    --click-fx-border: theme("colors.border.200");
-    --click-fx-border-hover: theme("colors.border.200");
+    --btn-ring-inner: rgb(250, 249, 245);
+    --btn-ring-outer: theme("colors.border.200");
+    --btn-ring-outer-hover: theme("colors.border.200");
   }
 
   .action-btn--ghost {
     @apply text-text-secondary hover:text-text-primary bg-bg-ghost border border-transparent;
     /* Avoid hard-coupling border to text color so demos can set borderColor independently */
-    --click-fx-bg: theme("colors.bg.ghost");
-    --click-fx-border: theme("colors.border.200");
-    --click-fx-border-hover: theme("colors.border.200");
+    --btn-ring-inner: theme("colors.bg.ghost");
+    --btn-ring-outer: theme("colors.border.200");
+    --btn-ring-outer-hover: theme("colors.border.200");
   }
 
   .action-btn--danger {

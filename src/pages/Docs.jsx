@@ -49,7 +49,6 @@ const Docs = () => {
                 type="button"
                 variant="ghost"
                 size="sm"
-                fx
                 onClick={() => navigate("/login", { state: { from: "docs" } })}
                 className="h-9 min-w-[7rem]"
               >
@@ -59,7 +58,6 @@ const Docs = () => {
                 type="button"
                 variant="primary"
                 size="sm"
-                fx
                 onClick={() => navigate("/register", { state: { from: "docs" } })}
                 className="h-9 min-w-[7rem]"
               >

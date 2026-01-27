@@ -70,7 +70,6 @@ const Login = () => {
                 <Button
                    size="sm"
                    variant="ghost"
-                   fx
                    onClick={() =>
                      navigate("/docs", { state: { from: "login" } })
                    }

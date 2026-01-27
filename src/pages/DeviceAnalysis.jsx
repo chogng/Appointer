@@ -1254,15 +1254,15 @@ Note:
           <Card>
             <div className="toolbar_row">
               <button
-                id="device-analysis-import-csv-btn"
                 type="button"
-                onClick={() => importerRef.current?.openFileDialog()}
+                id="device-analysis-import-csv-btn"
                 data-icon="with"
                 data-cta="Device analysis"
                 data-cta-position="import"
                 data-cta-copy="import csv"
                 className="action-btn action-btn--md action-btn--primary"
                 aria-label={t("da_import_csv")}
+                onClick={() => importerRef.current?.openFileDialog()}
               >
                 <span className="action-btn__content">
                   <Upload size={16} />
@@ -1273,19 +1273,19 @@ Note:
                 {t("da_loaded_csv_files", { count: rawData.length })}
               </span>
               <button
-                id="device-analysis-clear-session-btn"
                 type="button"
-                onClick={handleClearSession}
-                disabled={!hasSessionData}
-                title={t("da_reset_session")}
-                aria-label={t("da_reset_session")}
+                id="device-analysis-clear-session-btn"
                 data-icon="with"
                 data-cta="Device analysis"
                 data-cta-position="import"
                 data-cta-copy="reset session"
-                className={`toolbar_spacer action-btn action-btn--md action-btn--icon-md-tight ${
+                className={`toolbar_spacer action-btn action-btn--control ${
                   hasSessionData ? "action-btn--danger" : "action-btn--disabled"
                 }`}
+                aria-label={t("da_reset_session")}
+                title={t("da_reset_session")}
+                onClick={handleClearSession}
+                disabled={!hasSessionData}
               >
                 <span className="action-btn__content">
                   <RefreshCw size={16} className="transition-transform duration-500 hover:rotate-180" />
