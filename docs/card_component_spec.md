@@ -4,6 +4,7 @@ This doc defines `src/components/ui/Card.jsx` behavior and recommended markers f
 
 Related:
 - Stable selectors: `docs/stable_selectors_spec.md`
+- Buttons: `docs/button_component_spec.md`
 
 ## Responsibilities
 
@@ -20,7 +21,16 @@ Related:
   - emits: `data-cta`, `data-cta-position`, `data-cta-copy`
 - `...props`: forwarded to the root element (including `aria-*`, events, `id`, etc.)
 
-## Output Markers
+## Attribute Order (JSX)
+
+For consistency (and easier diff/review), follow this attribute order:
+
+`as` → `id` → `variant` → `cta*` → `className` → `aria-*` → `title` → `onClick` → other props
+
+Notes:
+- Prefer `id` for stable anchors; avoid `data-ui`/`dataUi` (deprecated in `Card.jsx`).
+
+## Output Markers (DOM)
 
 On the root element:
 
@@ -51,8 +61,8 @@ Pick one of the two naming patterns below.
 ```jsx
 <Card
   as="section"
-  id="button-fx-demo-card-demo-default"
-  cta="button-fx-demo"
+  id="button-demo-card-demo-default"
+  cta="button-demo"
   ctaPosition="card-demo"
   ctaCopy="default"
   aria-label={t("card_demo_default_aria")}
@@ -73,13 +83,13 @@ Rules:
 ```jsx
 <Card
   as="section"
-  id="button-fx-demo-card-demo-default"
-  cta="button-fx-demo"
+  id="button-demo-card-demo-default"
+  cta="button-demo"
   ctaPosition="card-demo"
   ctaCopy="default"
-  aria-labelledby="button-fx-demo-card-demo-default-title"
+  aria-labelledby="button-demo-card-demo-default-title"
 >
-  <h2 id="button-fx-demo-card-demo-default-title">
+  <h2 id="button-demo-card-demo-default-title">
     {t("card_demo_default")}
   </h2>
   ...
@@ -96,6 +106,15 @@ Rules:
 Notes:
 - Prefer `variant="panel"` instead of `className="card card--panel"` to avoid duplicated classes.
 - Keep `ctaPosition` / `ctaCopy` in `kebab-case` so emitted `data-cta-*` stays predictable.
+
+## Buttons Inside Cards (Alignment)
+
+When placing action buttons inside a Card (especially icon-only actions in a header/toolbar):
+
+- Prefer the shared `Button` component (`src/components/ui/Button.jsx`) over raw `<button>`.
+- Icon-only actions: use `size="control"` and provide `aria-label`; add a stable `id` for unique CTAs.
+- If you need explicit DOM markers for debugging/comparisons, pass `dataIcon="with"` / `dataIcon="without"` (renders `data-icon="with|without"`).
+- Follow the attribute order convention defined in `docs/button_component_spec.md` for consistency.
 
 ## Layout Template: Fill + Inner Scroll
 

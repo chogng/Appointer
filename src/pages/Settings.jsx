@@ -68,8 +68,7 @@ const Settings = () => {
   const [retentionRunning, setRetentionRunning] = useState(false);
   const [retention, setRetention] = useState(null);
   const [retentionForm, setRetentionForm] = useState({
-    logsDays: "",
-    requestsDays: "",
+    logsMaxCount: "",
   });
 
   const [hasDefaultTranslationApiKey, setHasDefaultTranslationApiKey] = useState(false);
@@ -856,8 +855,7 @@ const Settings = () => {
         if (cancelled) return;
         setRetention(data);
         setRetentionForm({
-          logsDays: String(data.logsDays),
-          requestsDays: String(data.requestsDays),
+          logsMaxCount: String(data.logsMaxCount),
         });
       } catch {
         if (!cancelled) showToast(t("retentionLoadFailed"), "error");
@@ -934,13 +932,11 @@ const Settings = () => {
     try {
       setRetentionSaving(true);
       const updated = await apiService.updateRetentionSettings({
-        logsDays: Number(retentionForm.logsDays),
-        requestsDays: Number(retentionForm.requestsDays),
+        logsMaxCount: Number(retentionForm.logsMaxCount),
       });
       setRetention(updated);
       setRetentionForm({
-        logsDays: String(updated.logsDays),
-        requestsDays: String(updated.requestsDays),
+        logsMaxCount: String(updated.logsMaxCount),
       });
       showToast(t("updateSuccess"), "success");
     } catch (error) {
@@ -956,8 +952,7 @@ const Settings = () => {
       const result = await apiService.runRetentionCleanup();
       setRetention(result);
       setRetentionForm({
-        logsDays: String(result.logsDays),
-        requestsDays: String(result.requestsDays),
+        logsMaxCount: String(result.logsMaxCount),
       });
       showToast(t("updateSuccess"), "success");
     } catch (error) {
@@ -1989,44 +1984,19 @@ const Settings = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-text-secondary mb-1">
-                        {t("logsRetentionDays")}
+                        {t("logsMaxCount")}
                       </label>
                       <input
-                        id="settings-retention-logs-days"
-                        name="logsRetentionDays"
+                        id="settings-retention-logs-max-count"
+                        name="logsMaxCount"
                         type="number"
                         min="1"
-                        max="3650"
-                        value={retentionForm.logsDays}
+                        max="1000000"
+                        value={retentionForm.logsMaxCount}
                         onChange={(e) =>
                           setRetentionForm((prev) => ({
                             ...prev,
-                            logsDays: e.target.value,
-                          }))
-                        }
-                        className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                        disabled={
-                          retentionLoading ||
-                          retentionSaving ||
-                          retentionRunning
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-1">
-                        {t("requestsRetentionDays")}
-                      </label>
-                      <input
-                        id="settings-retention-requests-days"
-                        name="requestsRetentionDays"
-                        type="number"
-                        min="1"
-                        max="3650"
-                        value={retentionForm.requestsDays}
-                        onChange={(e) =>
-                          setRetentionForm((prev) => ({
-                            ...prev,
-                            requestsDays: e.target.value,
+                            logsMaxCount: e.target.value,
                           }))
                         }
                         className="w-full px-4 py-2 bg-bg-page border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
@@ -2039,26 +2009,14 @@ const Settings = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-text-secondary">
-                    <div>
-                      <div className="text-xs text-text-tertiary mb-1">
-                        {t("lastCleanupAt")}
-                      </div>
-                      <div className="text-text-primary">
-                        {retention?.lastCleanupAt
-                          ? new Date(retention.lastCleanupAt).toLocaleString()
-                          : "-"}
-                      </div>
+                  <div className="text-sm text-text-secondary">
+                    <div className="text-xs text-text-tertiary mb-1">
+                      {t("lastCleanupAt")}
                     </div>
-                    <div>
-                      <div className="text-xs text-text-tertiary mb-1">
-                        {t("nextCleanupAt")}
-                      </div>
-                      <div className="text-text-primary">
-                        {retention?.nextCleanupAt
-                          ? new Date(retention.nextCleanupAt).toLocaleString()
-                          : "-"}
-                      </div>
+                    <div className="text-text-primary">
+                      {retention?.lastCleanupAt
+                        ? new Date(retention.lastCleanupAt).toLocaleString()
+                        : "-"}
                     </div>
                   </div>
 
@@ -2071,7 +2029,6 @@ const Settings = () => {
                       </div>
                       <div className="flex flex-wrap gap-4">
                         <span>Logs: {retention.deleted.logs}</span>
-                        <span>Requests: {retention.deleted.requests}</span>
                       </div>
                     </div>
                   )}

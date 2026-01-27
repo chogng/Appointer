@@ -228,31 +228,31 @@ body {
 
   /* Button / action-btn* */
 
-  /* Base / Sizes */
+  /* Base */
   .action-btn {
     @apply relative inline-flex items-center justify-center px-4 rounded-lg text-sm font-medium transition-all;
 
-    /* Claude-like "scale" illusion via box-shadow spread (no transform)
-       Two-layer shadow:
-         - layer 1 uses background color to "fill" the edge
-         - layer 2 is the visible border that expands on hover
-
-       Defaults can be overridden per-button via CSS variables:
-         --btn-ring-inner: inner ring color
-         --btn-ring-outer: outer ring color
-         --btn-ring-outer-hover: outer ring hover color (defaults to --btn-ring-outer)
-    */
+    /* Two-ring illusion via box-shadow spread (no layout shift).
+       Override per variant or inline style via:
+         - --btn-ring-inner
+         - --btn-ring-outer
+         - --btn-ring-outer-hover (defaults to --btn-ring-outer)
+     */
     --btn-ring-inner: theme("colors.bg.ghost");
     --btn-ring-outer: theme("colors.border.200");
     --btn-ring-outer-hover: var(--btn-ring-outer);
 
     box-shadow: 0 0 0 0 var(--btn-ring-inner), 0 0 0 1px var(--btn-ring-outer);
-    transition: color 0.1s ease-in-out, opacity 0.2s ease-in-out,
-      background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out,
+    transition:
+      color 0.1s ease-in-out,
+      opacity 0.2s ease-in-out,
+      background-color 0.2s ease-in-out,
+      box-shadow 0.2s ease-in-out,
       transform 0.08s ease-out;
     transform-origin: center;
   }
 
+  /* Sizes */
   .action-btn--sm {
     @apply h-8 px-3 text-xs;
   }
@@ -274,7 +274,7 @@ body {
     @apply relative z-10 flex items-center gap-2;
   }
 
-  /* FX (default for all buttons) */
+  /* Ring behavior (default for all buttons) */
   .action-btn:not(:disabled):not(.action-btn--disabled):hover {
     box-shadow: 0 0 0 1px var(--btn-ring-inner),
       0 0 0 2px var(--btn-ring-outer-hover);
@@ -291,7 +291,6 @@ body {
   }
 
   /* Variants */
-  /* Keep semantic variants for colors/typography */
   .action-btn--primary {
     @apply text-white bg-bg-primary border border-transparent;
     --btn-ring-inner: theme("colors.bg.primary");
@@ -321,23 +320,15 @@ body {
     --btn-ring-outer-hover: theme("colors.border.200");
   }
 
+  /* Context override: ghost inside toolbars */
+  .toolbar_group .action-btn--ghost {
+    --btn-ring-inner: rgb(250, 249, 245);
+    --btn-ring-outer: theme("colors.border.200");
+    --btn-ring-outer-hover: theme("colors.border.200");
+  }
+
   .action-btn--danger {
     @apply text-text-tertiary hover:text-text-danger;
-  }
-
-  /* Demo helper: force remove real border so only the FX shadow ring remains */
-  .demo_no-border {
-    border-width: 0 !important;
-  }
-
-  /* Demo helper: force disable default FX ring/spread */
-  .demo_no-fx,
-  .demo_no-fx:hover {
-    box-shadow: none !important;
-  }
-
-  .demo_no-fx:active {
-    transform: none !important;
   }
 
   .action-btn--disabled {

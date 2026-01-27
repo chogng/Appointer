@@ -14,7 +14,7 @@ export default {
       colors: {
         bg: {
           page: '#F5F4EF',
-          surface: '#ffffff',
+          surface: '#FFFFFF',
           'surface-hover': '#FAF9F5',
           ghost: '#FAF9F5',
           primary: '#222222',

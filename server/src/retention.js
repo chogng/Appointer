@@ -1,18 +1,11 @@
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 const SETTINGS_KEYS = {
-  logsDays: "retention.logsDays",
-  requestsDays: "retention.requestsDays",
+  logsMaxCount: "retention.logsMaxCount",
   lastCleanupAt: "retention.lastCleanupAt",
 };
 
 const DEFAULTS = {
-  logsDays: 90,
-  requestsDays: 180,
-  maxDays: 3650,
-  minDays: 1,
-  scheduleMonths: 1,
-  checkIntervalMs: 6 * 60 * 60 * 1000,
+  logsMaxCount: 100,
+  maxCount: 1_000_000,
 };
 
 function toUtcIso(date) {
@@ -23,31 +16,6 @@ function parseIsoDate(value) {
   if (typeof value !== "string" || !value.trim()) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function addUtcMonths(date, months) {
-  const source = new Date(date);
-  const year = source.getUTCFullYear();
-  const month = source.getUTCMonth();
-  const day = source.getUTCDate();
-
-  const hours = source.getUTCHours();
-  const minutes = source.getUTCMinutes();
-  const seconds = source.getUTCSeconds();
-  const ms = source.getUTCMilliseconds();
-
-  const firstOfTarget = new Date(
-    Date.UTC(year, month + months, 1, hours, minutes, seconds, ms),
-  );
-  const lastDayOfTargetMonth = new Date(
-    Date.UTC(
-      firstOfTarget.getUTCFullYear(),
-      firstOfTarget.getUTCMonth() + 1,
-      0,
-    ),
-  ).getUTCDate();
-  firstOfTarget.setUTCDate(Math.min(day, lastDayOfTargetMonth));
-  return firstOfTarget;
 }
 
 async function getSetting(db, key) {
@@ -75,145 +43,105 @@ async function setSetting(db, key, value, nowIso) {
   );
 }
 
-function parseRetentionDays(value, fallback, label) {
+function parseRetentionCount(value, fallback, label) {
   if (value === undefined || value === null || value === "") return fallback;
   const asNumber = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(asNumber) || !Number.isInteger(asNumber)) {
     throw new Error(`${label} must be an integer`);
   }
-  if (asNumber < DEFAULTS.minDays || asNumber > DEFAULTS.maxDays) {
-    throw new Error(
-      `${label} must be between ${DEFAULTS.minDays} and ${DEFAULTS.maxDays}`,
-    );
+  if (asNumber < 1 || asNumber > DEFAULTS.maxCount) {
+    throw new Error(`${label} must be between 1 and ${DEFAULTS.maxCount}`);
   }
   return asNumber;
 }
 
+export async function enforceLogsMaxCount(db) {
+  const logsMaxCountRaw = await getSetting(db, SETTINGS_KEYS.logsMaxCount);
+  const logsMaxCount = parseRetentionCount(
+    logsMaxCountRaw,
+    DEFAULTS.logsMaxCount,
+    "logsMaxCount",
+  );
+
+  const total = Number(
+    (await db.queryOne("SELECT COUNT(*) AS count FROM logs"))?.count || 0,
+  );
+  const excess = total - logsMaxCount;
+  if (excess <= 0) return { logsMaxCount, deleted: 0 };
+
+  if (db.dialect === "mysql") {
+    await db.execute(
+      `
+        DELETE FROM logs
+        WHERE id IN (
+          SELECT id FROM (
+            SELECT id
+            FROM logs
+            ORDER BY timestamp ASC
+            LIMIT ?
+          ) AS t
+        )
+      `,
+      [excess],
+    );
+  } else {
+    await db.execute(
+      `
+        DELETE FROM logs
+        WHERE id IN (
+          SELECT id
+          FROM logs
+          ORDER BY timestamp ASC
+          LIMIT ?
+        )
+      `,
+      [excess],
+    );
+  }
+
+  return { logsMaxCount, deleted: excess };
+}
+
 export async function getRetentionSettings(db) {
-  const logsDaysRaw = await getSetting(db, SETTINGS_KEYS.logsDays);
-  const requestsDaysRaw = await getSetting(db, SETTINGS_KEYS.requestsDays);
+  const logsMaxCountRaw = await getSetting(db, SETTINGS_KEYS.logsMaxCount);
   const lastCleanupAtRaw = await getSetting(db, SETTINGS_KEYS.lastCleanupAt);
 
-  const logsDays = parseRetentionDays(logsDaysRaw, DEFAULTS.logsDays, "logsDays");
-  const requestsDays = parseRetentionDays(
-    requestsDaysRaw,
-    DEFAULTS.requestsDays,
-    "requestsDays",
+  const logsMaxCount = parseRetentionCount(
+    logsMaxCountRaw,
+    DEFAULTS.logsMaxCount,
+    "logsMaxCount",
   );
 
   const lastCleanupDate = parseIsoDate(lastCleanupAtRaw);
   const lastCleanupAt = lastCleanupDate ? toUtcIso(lastCleanupDate) : null;
-  const nextCleanupAt = lastCleanupDate
-    ? toUtcIso(addUtcMonths(lastCleanupDate, DEFAULTS.scheduleMonths))
-    : null;
 
   return {
-    logsDays,
-    requestsDays,
+    logsMaxCount,
     lastCleanupAt,
-    nextCleanupAt,
-    scheduleMonths: DEFAULTS.scheduleMonths,
   };
 }
 
 export async function updateRetentionSettings(db, updates, now = new Date()) {
   const current = await getRetentionSettings(db);
-  const nextLogsDays = parseRetentionDays(
-    updates?.logsDays,
-    current.logsDays,
-    "logsDays",
-  );
-  const nextRequestsDays = parseRetentionDays(
-    updates?.requestsDays,
-    current.requestsDays,
-    "requestsDays",
+  const nextLogsMaxCount = parseRetentionCount(
+    updates?.logsMaxCount,
+    current.logsMaxCount,
+    "logsMaxCount",
   );
 
   const nowIso = toUtcIso(now);
-  await setSetting(db, SETTINGS_KEYS.logsDays, nextLogsDays, nowIso);
-  await setSetting(db, SETTINGS_KEYS.requestsDays, nextRequestsDays, nowIso);
+  await setSetting(db, SETTINGS_KEYS.logsMaxCount, nextLogsMaxCount, nowIso);
 
   return getRetentionSettings(db);
 }
 
-export async function runRetentionCleanup(db, now = new Date()) {
-  const settings = await getRetentionSettings(db);
+export async function runRetentionTrim(db, now = new Date()) {
   const nowIso = toUtcIso(now);
-
-  const logsCutoffIso = toUtcIso(
-    new Date(now.getTime() - settings.logsDays * DAY_MS),
-  );
-  const requestsCutoffIso = toUtcIso(
-    new Date(now.getTime() - settings.requestsDays * DAY_MS),
-  );
-
-  const logsToDelete = Number(
-    (await db.queryOne("SELECT COUNT(*) AS count FROM logs WHERE timestamp < ?", [
-      logsCutoffIso,
-    ]))?.count || 0,
-  );
-
-  const requestsToDelete = Number(
-    (
-      await db.queryOne(
-        "SELECT COUNT(*) AS count FROM requests WHERE status IN ('APPROVED', 'REJECTED') AND createdAt < ?",
-        [requestsCutoffIso],
-      )
-    )?.count || 0,
-  );
-
-  await db.execute("DELETE FROM logs WHERE timestamp < ?", [logsCutoffIso]);
-  await db.execute(
-    "DELETE FROM requests WHERE status IN ('APPROVED', 'REJECTED') AND createdAt < ?",
-    [requestsCutoffIso],
-  );
-
+  const result = await enforceLogsMaxCount(db);
   await setSetting(db, SETTINGS_KEYS.lastCleanupAt, nowIso, nowIso);
-
   return {
     ...(await getRetentionSettings(db)),
     ranAt: nowIso,
-    logsCutoff: logsCutoffIso,
-    requestsCutoff: requestsCutoffIso,
-    deleted: {
-      logs: logsToDelete,
-      requests: requestsToDelete,
-    },
+    deleted: { logs: result.deleted },
   };
-}
-
-export async function isRetentionCleanupDue(db, now = new Date()) {
-  const settings = await getRetentionSettings(db);
-  if (!settings.lastCleanupAt) return true;
-
-  const lastCleanup = parseIsoDate(settings.lastCleanupAt);
-  if (!lastCleanup) return true;
-
-  const dueAt = addUtcMonths(lastCleanup, DEFAULTS.scheduleMonths);
-  return now.getTime() >= dueAt.getTime();
-}
-
-export function startRetentionScheduler(
-  db,
-  { checkIntervalMs = DEFAULTS.checkIntervalMs } = {},
-) {
-  const runIfDue = async () => {
-    try {
-      if (!(await isRetentionCleanupDue(db, new Date()))) return;
-      const result = await runRetentionCleanup(db, new Date());
-      console.log("[retention] cleanup completed", {
-        ranAt: result.ranAt,
-        deleted: result.deleted,
-        logsDays: result.logsDays,
-        requestsDays: result.requestsDays,
-      });
-    } catch (error) {
-      console.error("[retention] cleanup failed", error);
-    }
-  };
-
-  void runIfDue();
-  const timer = setInterval(() => void runIfDue(), checkIntervalMs);
-  timer.unref?.();
-  return timer;
 }

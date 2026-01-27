@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import { db } from "../config/db.js";
 import { JWT_SECRET } from "../config/env.js";
+import { enforceLogsMaxCount } from "../retention.js";
 import { requirePlainObject, requireString } from "../utils/validation.js";
 
 const genericError = { error: "Invalid credentials" };
@@ -50,6 +51,7 @@ export async function login(req, res) {
       new Date().toISOString(),
     ],
   );
+  await enforceLogsMaxCount(db);
 
   const token = jwt.sign(
     { id: user.id, role: user.role, username: user.username },

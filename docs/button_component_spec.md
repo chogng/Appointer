@@ -30,7 +30,7 @@ Related:
 - `title`: forwarded via `...props` (hover tooltip; for icon-only buttons it can match `aria-label`)
 - `...props`: forwarded to the `<button>` (including `id`, `aria-*`, events, etc.)
 
-## Output (DOM)
+## Output Markers (DOM)
 
 The component renders:
 
@@ -132,17 +132,17 @@ Token rules (as implemented today):
 ```jsx
 <Button
   type="button"
-  id="button-fx-demo-primary"
+  id="button-ring-demo-primary"
   variant="primary"
   size="md"
   dataIcon="with"
-  cta="button-fx-demo"
+  cta="button-ring-demo"
   ctaPosition="card-demo"
   ctaCopy={t("some_copy")}
   className="min-w-[7rem]"
   aria-label={t("some_label")}
   title={t("some_label")}
-  onClick={() => console.log("button-fx-demo-primary")}
+  onClick={() => console.log("button-ring-demo-primary")}
 >
   {t("some_copy")}
 </Button>

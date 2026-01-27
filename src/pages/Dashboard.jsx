@@ -365,7 +365,10 @@ const Dashboard = () => {
               <div className="mx-2 h-px bg-border-subtle/50" />
               <div className="overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                 {logs.length > 0 ? (
-                  <div className="flex flex-col">
+                  <ul
+                    id="dashboard-recent-activity-list"
+                    className="flex flex-col m-0 p-0 list-none"
+                  >
                     {logs.map((log) => {
                       const isLogin = log.action === "LOGIN";
                       const normalizedRole = (
@@ -387,7 +390,7 @@ const Dashboard = () => {
                         : getActionLabel(log.action);
 
                       return (
-                        <ListRow key={log.id}>
+                        <ListRow as="li" key={log.id}>
                           <div className="flex items-center gap-3.5">
                             <Avatar
                               fallback={log.userName || t("systemUser")}
@@ -417,7 +420,7 @@ const Dashboard = () => {
                         </ListRow>
                       );
                     })}
-                  </div>
+                  </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2">
                     <div className="w-12 h-12 rounded-full bg-bg-200/50 flex items-center justify-center">

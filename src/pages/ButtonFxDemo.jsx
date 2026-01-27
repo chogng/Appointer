@@ -32,13 +32,6 @@ const ButtonFxDemo = () => {
             {t("button_fx_demo_ghost_fx")}
           </Button>
 
-          <Button
-            variant="ghost"
-            id="demo-btn-ghost-no-fx"
-            className="demo_no-fx"
-          >
-            {t("button_fx_demo_ghost_no_fx")}
-          </Button>
 
           <Button
             variant="ghost"
@@ -68,21 +61,6 @@ const ButtonFxDemo = () => {
             }}
           >
             {t("button_fx_demo_ghost_fx_forced_border")}
-          </Button>
-
-          <Button
-            variant="ghost"
-            id="demo-btn-ghost-fx-light-no-border"
-            className="demo_no-border"
-            style={{
-              backgroundColor: "rgb(250, 249, 245)",
-              color: "rgb(20, 20, 19)",
-              "--btn-ring-inner": "rgb(250, 249, 245)",
-              "--btn-ring-outer": "#d1d1d1",
-              "--btn-ring-outer-hover": "#d1d1d1",
-            }}
-          >
-            {t("button_fx_demo_ghost_fx_light_no_border")}
           </Button>
 
           <Button disabled id="demo-btn-disabled">

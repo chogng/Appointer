@@ -511,8 +511,50 @@ class ApiService {
     if (endpoint.startsWith("/reservations"))
       return [...MOCK_DATA.reservations];
     if (endpoint === "/users" && method === "GET") return [...MOCK_DATA.users];
-    if (endpoint === "/logs" || endpoint.startsWith("/logs?"))
-      return [...MOCK_DATA.logs];
+    if (endpoint === "/logs" || endpoint.startsWith("/logs?")) {
+      if (method === "DELETE") {
+        MOCK_DATA.logs = [];
+        return { success: true };
+      }
+
+      const saved = getMockUser();
+      const isAdmin =
+        saved?.role === "ADMIN" || saved?.role === "SUPER_ADMIN";
+
+      const [path, queryString = ""] = endpoint.split("?", 2);
+      if (path !== "/logs") throw new Error("Unexpected logs endpoint");
+
+      const params = new URLSearchParams(queryString);
+      const search = (params.get("search") || "").trim();
+      const limitRaw = params.get("limit");
+      const defaultLimit = isAdmin ? 100 : 20;
+      const maxLimit = isAdmin ? 100 : 20;
+      const limitParsed = limitRaw === null ? defaultLimit : Number(limitRaw);
+      const limit = Number.isFinite(limitParsed)
+        ? Math.max(1, Math.min(maxLimit, Math.trunc(limitParsed)))
+        : defaultLimit;
+
+      let logs = [...MOCK_DATA.logs];
+      if (!isAdmin && saved?.id) {
+        logs = logs.filter((log) => log.userId === saved.id);
+      }
+      if (search) {
+        const lowered = search.toLowerCase();
+        logs = logs.filter((log) => {
+          const action = String(log.action || "").toLowerCase();
+          const details = String(log.details || "").toLowerCase();
+          const userName = String(log.userName || "").toLowerCase();
+          return (
+            action.includes(lowered) ||
+            details.includes(lowered) ||
+            userName.includes(lowered)
+          );
+        });
+      }
+
+      logs.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+      return logs.slice(0, limit);
+    }
     if (endpoint.startsWith("/inventory")) return [...MOCK_DATA.inventory];
     if (endpoint.startsWith("/requests")) return [...MOCK_DATA.requests];
     if (endpoint === "/device-analysis/templates")
@@ -520,8 +562,39 @@ class ApiService {
     if (endpoint === "/device-analysis/settings")
       return { defaultTemplate: null };
     if (endpoint === "/admin/leaderboard") return [];
-    if (endpoint === "/admin/retention")
-      return { logsRetentionDays: 90, reservationsRetentionDays: 365 };
+    if (endpoint === "/admin/retention") {
+      if (method === "PATCH") {
+        let parsed = null;
+        try {
+          parsed = options?.body ? JSON.parse(options.body) : null;
+        } catch {
+          parsed = null;
+        }
+
+        const updates = parsed && typeof parsed === "object" ? parsed : {};
+        return {
+          logsMaxCount:
+            typeof updates.logsMaxCount === "number"
+              ? updates.logsMaxCount
+              : 100,
+          lastCleanupAt: null,
+        };
+      }
+
+      return {
+        logsMaxCount: 100,
+        lastCleanupAt: null,
+      };
+    }
+
+    if (endpoint === "/admin/retention/run" && method === "POST") {
+      return {
+        logsMaxCount: 100,
+        lastCleanupAt: new Date().toISOString(),
+        ranAt: new Date().toISOString(),
+        deleted: { logs: 0 },
+      };
+    }
 
     if (endpoint === "/literature/settings" && method === "GET") {
       return {
