@@ -24,7 +24,7 @@ Related:
 - `icon`: a React component (e.g. Lucide icon) used as a placeholder when no `src`
 - `size`: `"sm" | "md" | "lg" | "xl"` (default: `"md"`)
 - `groupHover`: boolean (default: `false`)
-  - When `true`, applies `avatar_warp--group_hover_accent` so the avatar reacts to a parent `.group` hover.
+  - When `true`, applies `avatar--primary` so the avatar reacts to a parent `.group` hover.
 - `className`: extra classes appended to the root container
 - `imageClassName`: extra classes appended to the inner `<img>`
 - `cta` / `ctaPosition` / `ctaCopy`: optional markers (analytics)
@@ -60,14 +60,14 @@ Token rules (as implemented today):
 
 Root base classes (owned by the component):
 
-- `avatar_warp`
+- `avatar`
 
 Size map (owned by the component):
 
-- `sm`: `avatar_warp--sm`
-- `md`: `avatar_warp--md`
-- `lg`: `avatar_warp--lg`
-- `xl`: `avatar_warp--xl`
+- `sm`: `avatar--sm`
+- `md`: `avatar--md`
+- `lg`: `avatar--lg`
+- `xl`: `avatar--xl`
 
 ## 6. Icon Sizing Rule (Why 60%)
 
@@ -96,7 +96,6 @@ Example (parent row hover drives avatar color):
   <Avatar
     icon={Package}
     groupHover
-    className="bg-bg-200"
   />
 </li>
 ```
@@ -130,6 +129,10 @@ Example (parent row hover drives avatar color):
   icon={Package}
   fallback={t("systemUser")}
   size="md"
-  className="bg-bg-200 text-text-secondary"
+  cta="Dashboard"
+  ctaPosition="pending-approvals-inbox"
+  ctaCopy="message-avatar"
+  groupHover
+  className="text-text-secondary"
 />
 ```

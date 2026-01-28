@@ -54,7 +54,9 @@ body {
     @apply p-0 overflow-hidden flex-1 min-h-0 flex flex-col;
   }
 
-  .card_head_warp {
+  .card_head_warp,
+  .activity_card_head_warp,
+  .message_card_head_warp {
     @apply p-4 flex items-center justify-between gap-4;
   }
 
@@ -118,45 +120,50 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   }
 
-  .ui-tabs__menu {
+  /* Tabs */
+  .ui-tabs__menu,
+  .tab_menu {
     @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
   }
 
-  .ui-tabs__btn {
+  .ui-tabs__btn,
+  .tab_btn {
     @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
   }
 
-  .ui-tabs__btn--sm {
+  .ui-tabs__btn--sm,
+  .tab_btn--sm {
     @apply h-6 text-xs;
   }
 
-  .ui-tabs__btn--md {
+  .ui-tabs__btn--md,
+  .tab_btn--md {
     @apply h-[38px] text-sm;
   }
 
-  .ui-tabs__btn--control {
+  .ui-tabs__btn--control,
+  .tab_btn--control {
     @apply h-[30px] text-xs px-3 py-1.5;
   }
 
-  .ui-tabs__btn--active {
+  .ui-tabs__btn--active,
+  .tab_btn--active {
     @apply bg-white text-black shadow-sm;
   }
 
-  .ui-tabs__btn--inactive {
+  .ui-tabs__btn--inactive,
+  .tab_btn--inactive {
     @apply text-gray-500 hover:text-gray-900;
   }
 
-  .ui-tabs__btn-icon {
+  .ui-tabs__btn-icon,
+  .tab_btn_icon {
     @apply inline-flex;
   }
 
-  .ui-tabs__btn-text {
+  .ui-tabs__btn-text,
+  .tab_btn_text {
     @apply inline-flex;
-  }
-
-  /* Preferred (no ui- prefix, underscore style) */
-  .tab_menu {
-    @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
   }
 
   .toolbar_group {
@@ -182,36 +189,136 @@ body {
     @apply flex items-center gap-2;
   }
 
-  .avatar_warp {
+  .avatar {
     @apply relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-200 text-text-primary font-medium transition-colors;
   }
 
-  .avatar_warp--sm {
+  .avatar--sm {
     @apply w-8 h-8 text-xs;
   }
 
-  .avatar_warp--md {
+  .avatar--md {
     @apply w-10 h-10 text-sm;
   }
 
-  .avatar_warp--lg {
+  .avatar--lg {
     @apply w-12 h-12 text-base;
   }
 
-  .avatar_warp--xl {
+  .avatar--xl {
     @apply w-16 h-16 text-2xl;
   }
 
-  .avatar_warp--group_hover_accent {
+  .avatar--primary {
     @apply group-hover:bg-accent/10 group-hover:text-accent;
   }
 
+  /* List row base: shared hover/padding/radius for list items (paired with `.list_item` grid layout on Dashboard). */
   .list-row {
     @apply p-3 mx-2 my-1 rounded-lg flex items-center justify-between hover:bg-bg-surface-hover transition-all duration-200 border border-transparent;
   }
 
-  .dashboard_message_item {
-    @apply p-3 mx-2 my-1 rounded-lg flex items-center justify-between hover:bg-bg-surface-hover transition-all duration-200 border border-transparent cursor-pointer;
+  /* Dashboard: Activity list layout */
+  .activity_list :is(.activity_left, .activity_middle, .activity_right) {
+    @apply min-w-0;
+  }
+
+  .activity_list .activity_middle {
+    @apply text-center;
+  }
+
+  .activity_list .activity_right {
+    @apply text-right;
+  }
+
+  .activity_list .list_item {
+    @apply grid grid-cols-3 gap-x-6 items-center;
+  }
+
+  .activity_list .list_item .activity_left {
+    @apply flex items-center gap-3;
+  }
+
+  .activity_list .list_item .activity_right {
+    @apply justify-self-end;
+  }
+
+  /* Activity list (Dashboard) */
+  .activity_list .user_name {
+    @apply text-sm font-medium text-text-primary truncate;
+  }
+
+  .activity_list .user_behavior {
+    @apply text-xs text-text-secondary truncate;
+  }
+
+  .activity_list .activity_detail {
+    @apply min-w-0 text-sm text-text-secondary text-center truncate;
+  }
+
+  .activity_list .activity_date {
+    @apply text-sm font-medium text-text-primary;
+  }
+
+  /* Dashboard: Messages list layout */
+  .msg_list .msg_header {
+    @apply mx-4 pt-3 pb-2 grid grid-cols-3 gap-x-6 text-sm font-medium text-text-tertiary;
+  }
+
+  .msg_list :is(.msg_left, .msg_middle, .msg_right) {
+    @apply min-w-0;
+  }
+
+  .msg_list .msg_middle {
+    @apply text-center;
+  }
+
+  .msg_list .msg_right {
+    @apply text-right;
+  }
+
+  .msg_list .list_item {
+    @apply grid grid-cols-3 gap-x-6 items-center;
+  }
+
+  .msg_list .list_item .msg_left {
+    @apply flex items-center gap-3;
+  }
+
+  .msg_list .list_item .msg_right {
+    @apply justify-self-end;
+  }
+
+  .msg_list .user_name {
+    @apply text-sm font-medium text-text-primary transition-colors truncate;
+  }
+
+  .msg_list .list_item:hover .user_name {
+    @apply text-accent;
+  }
+
+  .msg_list .user_behavior {
+    @apply text-xs text-text-secondary truncate;
+  }
+
+  .msg_list .msg_detail {
+    @apply min-w-0 text-sm text-text-secondary text-center;
+  }
+
+  .msg_list .msg_date {
+    @apply text-sm font-medium text-text-primary;
+  }
+
+  .msg_list .msg_pill {
+    @apply flex items-center gap-2 w-fit max-w-full mx-auto;
+  }
+
+  .msg_list .msg_pill_name {
+    @apply font-medium text-text-primary truncate;
+  }
+
+  .msg_list .msg_pill_qty {
+    @apply text-xs px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium;
   }
 
   .ui-filter_warp {
@@ -368,6 +475,10 @@ body {
     @apply text-sm text-text-secondary font-medium;
   }
 
+  .msg_list .user_request_email {
+    @apply text-sm text-text-primary truncate block;
+  }
+
   /* Common toolbar row layout: primary action + meta + trailing actions */
   .toolbar_row {
     @apply flex items-center gap-4 mb-4 flex-wrap;
@@ -401,39 +512,6 @@ body {
 
   .group:hover .ui-checkbox[data-state="unchecked"] {
     @apply border-terracotta/50;
-  }
-
-  /* Preferred (no ui- prefix, underscore style) */
-  .tab_btn {
-    @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
-  }
-
-  .tab_btn--sm {
-    @apply h-6 text-xs;
-  }
-
-  .tab_btn--md {
-    @apply h-[38px] text-sm;
-  }
-
-  .tab_btn--control {
-    @apply h-[30px] text-xs px-3 py-1.5;
-  }
-
-  .tab_btn--active {
-    @apply bg-white text-black shadow-sm;
-  }
-
-  .tab_btn--inactive {
-    @apply text-gray-500 hover:text-gray-900;
-  }
-
-  .tab_btn_icon {
-    @apply inline-flex;
-  }
-
-  .tab_btn_text {
-    @apply inline-flex;
   }
 
   /* Input */

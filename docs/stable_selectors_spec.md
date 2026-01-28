@@ -83,3 +83,20 @@
 - 新增页面：优先补齐稳定 `id` 与必要的 `aria-*`（命名/可访问性）
 - 发现超长 selector：优先加稳定锚点，再替换 selector
 
+## 6. CTA & data-* 规范（补充）
+
+目标：减少 `data-*` 噪音，同时保证自动化/分析需要的标记足够稳定、可维护。
+
+### 6.1 CTA token 命名（推荐）
+
+- `data-cta`：用**稳定的动作/功能**命名，不要用 UI 文案/可翻译内容（否则 i18n 改动会打断 token）
+- `data-cta-position`：标记区域位置，例如 `header` / `toolbar` / `card` / `list-item` / `dialog` / `footer`
+- `data-cta-copy`：仅用于 A/B 或文案版本识别，推荐 `v1` / `v2` / `short` / `long` / `cn` / `en`，不要写原文
+- 风格：统一 `kebab-case`；尽量短；避免拼 UI 原文
+
+### 6.2 data-* 数量控制（推荐）
+
+- 优先：稳定 `id`（页面级/关键区块）+ `label[for]`（表单）
+- `data-cta*`：仅在需要埋点/分析时添加；如果已有稳定 `id` 且不需要分析，可不加
+- 业务 data-*：仅用于可重复 item（列表/表格），例如 `data-item-id` / `data-row-id` / `data-seed-index`
+- 不推荐结构 data-*：`data-row` / `data-col` / `data-slot` 等，除非已写入对应组件 spec 且明确为稳定结构的一部分

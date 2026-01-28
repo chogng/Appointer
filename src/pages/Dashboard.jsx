@@ -11,6 +11,14 @@ import { apiService } from "../services/apiService";
 import { useRealtimeSync } from "../hooks/useRealtimeSync";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import {
+  getDashboardMessageBehaviorLabel,
+  getDashboardMessageTimestampLabel,
+} from "../utils/dashboardMessageFormatters";
+import {
+  buildDeviceNameById,
+  getDashboardActivityDetailLabel,
+} from "../utils/dashboardActivityFormatters";
 
 import {
   Calendar,
@@ -37,6 +45,7 @@ const Dashboard = () => {
   const [logs, setLogs] = useState([]);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [deviceNameById, setDeviceNameById] = useState({});
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState({
@@ -140,6 +149,15 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  const fetchDevices = useCallback(async () => {
+    try {
+      const devices = await apiService.getDevices();
+      setDeviceNameById(buildDeviceNameById(devices));
+    } catch (error) {
+      console.error("Failed to fetch devices:", error);
+    }
+  }, []);
+
   const handleClearLogs = async () => {
     showToast(
       t("confirmClearLogs"),
@@ -225,11 +243,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([fetchLogs(), fetchPendingUsers(), fetchRequests()]);
+      await Promise.all([
+        fetchLogs(),
+        fetchPendingUsers(),
+        fetchRequests(),
+        fetchDevices(),
+      ]);
       setLoading(false);
     };
     loadData();
-  }, [fetchLogs, fetchPendingUsers, fetchRequests]);
+  }, [fetchLogs, fetchPendingUsers, fetchRequests, fetchDevices]);
 
   const logSyncHandlers = useMemo(
     () => ({
@@ -267,6 +290,11 @@ const Dashboard = () => {
   };
 
   const messages = [...pendingUsers, ...requests];
+
+  const getMessageBehaviorLabel = (msg) => getDashboardMessageBehaviorLabel(msg, t);
+
+  const getMessageTimestampLabel = (msg) =>
+    getDashboardMessageTimestampLabel(msg, { locale: zhCN });
 
   return (
     <div
@@ -329,11 +357,13 @@ const Dashboard = () => {
             <Card
               id="dashboard-activity-notifications-card"
               variant="fill"
+              className="activity_list"
               cta="Dashboard"
               ctaPosition="activity-notifications"
               ctaCopy="activity-notifications-card"
+              data-list="activity"
             >
-              <div className="card_head_warp">
+              <div className="activity_card_head_warp">
                 <div className="flex-1 max-w-sm">
                   <Input
                     id="dashboard-search-logs"
@@ -382,62 +412,45 @@ const Dashboard = () => {
                     className="flex flex-col m-0 p-0 list-none"
                   >
                     {logs.map((log) => {
-                      const isLogin = log.action === "LOGIN";
-                      const normalizedRole = (
-                        typeof log.userRole === "string"
-                          ? log.userRole
-                          : typeof log.details === "string"
-                            ? log.details
-                            : ""
-                      ).trim();
-
-                      const roleLabel = ["USER", "ADMIN", "SUPER_ADMIN"].includes(
-                        normalizedRole,
-                      )
-                        ? t(normalizedRole)
-                        : "";
-
                       const behaviorLabel = getBehaviorLabel(log.action, log.details);
+                      const detailLabel = getDashboardActivityDetailLabel(log, {
+                        deviceNameById,
+                      });
 
                       return (
                         <ListRow
                           as="li"
                           key={log.id}
-                          className="grid grid-cols-3 gap-x-6 items-center"
+                          className="list_item"
                         >
-                          <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="activity_left">
                             <Avatar
                               fallback={log.userName || t("systemUser")}
                               className="bg-accent/10 text-accent border border-accent/10 shadow-sm"
                             />
                             <div className="flex flex-col min-w-0">
                               <div
-                                className="text-sm font-medium text-text-primary truncate"
+                                className="user_name"
                                 title={log.userName || t("systemUser")}
                               >
                                 {log.userName || t("systemUser")}
                               </div>
-                              {roleLabel && (
-                                <div className="text-xs text-text-secondary mt-0.5 truncate">
-                                  {roleLabel}
-                                </div>
-                              )}
+                              <div className="user_behavior">{behaviorLabel}</div>
                             </div>
                           </div>
 
-                          <div className="min-w-0 text-center">
-                            <div
-                              className="text-sm text-text-primary line-clamp-1 break-all"
-                              title={!isLogin ? log.details : undefined}
-                            >
-                              {behaviorLabel}
+                          <div className="activity_middle">
+                            <div className="activity_detail" title={detailLabel ? detailLabel : undefined}>
+                              {detailLabel}
                             </div>
                           </div>
 
-                          <div className="text-sm font-medium text-text-primary shrink-0 transition-colors justify-self-end text-right">
-                            {format(new Date(log.timestamp), "MM-dd HH:mm", {
-                              locale: zhCN,
-                            })}
+                          <div className="activity_right">
+                            <div className="activity_date">
+                              {format(new Date(log.timestamp), "MM-dd HH:mm", {
+                                locale: zhCN,
+                              })}
+                            </div>
                           </div>
                         </ListRow>
                       );
@@ -469,14 +482,17 @@ const Dashboard = () => {
             <Card
               id="dashboard-message-notifications-card"
               variant="fill"
+              className="msg_list"
               cta="Dashboard"
               ctaPosition="pending-approvals-inbox"
               ctaCopy="pending-approvals-inbox-card"
+              data-list="messages"
             >
-              <div className="card_head_warp">
-                <div className="flex-1 flex gap-4 text-sm font-medium text-text-tertiary px-4">
-                  <div className="min-w-[200px]">{t("requestUser")}</div>
-                  <div className="flex-1">{t("note")}</div>
+              <div className="message_card_head_warp">
+                <div className="msg_header">
+                  <div className="msg_left">{t("requestUser")}</div>
+                  <div className="msg_middle">{t("note")}</div>
+                  <div className="msg_right">{t("date")}</div>
                 </div>
                 {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") &&
                   messages.length > 0 && (
@@ -538,13 +554,52 @@ const Dashboard = () => {
                     className="flex flex-col m-0 p-0 list-none"
                   >
                     {messages.map((msg) => (
+                      (() => {
+                        const behaviorLabel = getMessageBehaviorLabel(msg);
+                        const tsLabel = getMessageTimestampLabel(msg);
+
+                        const detailsNode = (() => {
+                          if (msg.msgType === "USER_REGISTRATION") {
+                            return msg.email ? (
+                              <span className="user_request_email">
+                                {msg.email}
+                              </span>
+                            ) : (
+                              <span className="user_request_email">
+                                --
+                              </span>
+                            );
+                          }
+                          try {
+                            const data = JSON.parse(msg.newData || "{}");
+                            const itemName = data.name || "Unknown Item";
+                            const quantity = data.quantity || 0;
+                            return (
+                              <span className="msg_pill">
+                                <span className="msg_pill_name">
+                                  {itemName}
+                                </span>
+                                <span className="msg_pill_qty">
+                                  x{quantity}
+                                </span>
+                              </span>
+                            );
+                          } catch {
+                            return (
+                              <span className="user_request_email">
+                                --
+                              </span>
+                            );
+                          }
+                        })();
+
+                        return (
                       <li
                         key={msg.id}
-                        data-msg-type={msg.msgType}
-                        className="dashboard_message_item group"
+                        className="list-row group list_item"
                         onClick={() => setSelectedMessage(msg)}
                       >
-                        <div className="flex items-center gap-3 min-w-[200px]">
+                        <div className="msg_left">
                           <Avatar
                             size="md"
                             fallback={msg.name || "?"}
@@ -555,65 +610,36 @@ const Dashboard = () => {
                                 : undefined
                             }
                           />
-                          <div>
-                            <div className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors">
+                          <div className="min-w-0">
+                            <div
+                              className="user_name"
+                            >
                               {msg.msgType === "USER_REGISTRATION"
                                 ? msg.name
                                 : msg.requesterName}
-                              {msg.msgType === "USER_REGISTRATION" && (
-                                <span className="text-text-tertiary text-xs">
-                                  {" "}
-                                  ({msg.username})
-                                </span>
-                              )}
                             </div>
-                            <div className="text-xs text-text-secondary">
-                              {msg.msgType === "USER_REGISTRATION"
-                                ? t("dashboard_applied_for_account")
-                                : t("dashboard_inventory_request")}
+                            <div
+                              className="user_behavior"
+                            >
+                              {behaviorLabel}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex-1 flex items-center px-4 text-sm text-text-secondary">
-                          {(() => {
-                            if (msg.msgType === "USER_REGISTRATION") {
-                              return msg.email ? (
-                                <span className="text-xs text-text-tertiary">
-                                  {msg.email}
-                                </span>
-                              ) : null;
-                            }
-                            try {
-                              const data = JSON.parse(msg.newData || "{}");
-                              const itemName = data.name || "Unknown Item";
-                              const quantity = data.quantity || 0;
-                              return (
-                                <span className="flex items-center gap-2 bg-bg-200/50 px-3 py-1.5 rounded-lg border border-border/50 w-fit">
-                                  <span className="font-medium text-text-primary">
-                                    {itemName}
-                                  </span>
-                                  <span className="text-xs px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium">
-                                    x{quantity}
-                                  </span>
-                                </span>
-                              );
-                            } catch {
-                              return null;
-                            }
-                          })()}
+                        <div
+                          className="msg_middle msg_detail"
+                        >
+                          {detailsNode}
                         </div>
 
-                        <div className="text-xs font-medium text-text-tertiary/70 shrink-0 transition-colors ml-2">
-                          {format(
-                            new Date(msg.timestamp || new Date()),
-                            "MM-dd HH:mm",
-                            {
-                              locale: zhCN,
-                            },
-                          )}
+                        <div
+                          className="msg_right msg_date"
+                        >
+                          {tsLabel}
                         </div>
                       </li>
+                        );
+                      })()
                     ))}
                   </ul>
                 ) : (

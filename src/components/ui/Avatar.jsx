@@ -19,20 +19,20 @@ const Avatar = ({
     const mode = src ? "image" : Icon ? "icon" : "fallback";
 
     const sizeClasses = {
-        sm: "avatar_warp--sm",
-        md: "avatar_warp--md",
-        lg: "avatar_warp--lg",
-        xl: "avatar_warp--xl",
+        sm: "avatar--sm",
+        md: "avatar--md",
+        lg: "avatar--lg",
+        xl: "avatar--xl",
     };
 
-    const baseClasses = "avatar_warp";
+    const baseClasses = "avatar";
 
     return (
         <div
             className={cx(
                 baseClasses,
                 sizeClasses[size],
-                groupHover && "avatar_warp--group_hover_accent",
+                groupHover && "avatar--primary",
                 className,
             )}
             data-mode={mode}
