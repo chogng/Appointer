@@ -1,4 +1,5 @@
 import React from "react";
+import { normalizeCtaName, normalizeCtaToken } from "../../utils/cta";
 
 const cx = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -7,23 +8,37 @@ const Avatar = ({
     fallback,
     icon: Icon,
     size = "md",
+    groupHover = false,
     className,
     imageClassName,
+    cta,
+    ctaPosition,
+    ctaCopy,
     ...props
 }) => {
+    const mode = src ? "image" : Icon ? "icon" : "fallback";
+
     const sizeClasses = {
-        sm: "w-8 h-8 text-xs",
-        md: "w-10 h-10 text-sm",
-        lg: "w-12 h-12 text-base",
-        xl: "w-16 h-16 text-2xl",
+        sm: "avatar_warp--sm",
+        md: "avatar_warp--md",
+        lg: "avatar_warp--lg",
+        xl: "avatar_warp--xl",
     };
 
-    const baseClasses =
-        "relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-200 text-text-primary font-medium transition-colors";
+    const baseClasses = "avatar_warp";
 
     return (
         <div
-            className={cx(baseClasses, sizeClasses[size], className)}
+            className={cx(
+                baseClasses,
+                sizeClasses[size],
+                groupHover && "avatar_warp--group_hover_accent",
+                className,
+            )}
+            data-mode={mode}
+            data-cta={normalizeCtaName(cta)}
+            data-cta-position={normalizeCtaToken(ctaPosition)}
+            data-cta-copy={normalizeCtaToken(ctaCopy)}
             {...props}
         >
             {src ? (

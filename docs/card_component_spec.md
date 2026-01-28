@@ -6,13 +6,13 @@ Related:
 - Stable selectors: `docs/stable_selectors_spec.md`
 - Buttons: `docs/button_component_spec.md`
 
-## Responsibilities
+## 1. Responsibilities
 
 - Visual container only (background/border/radius/padding/shadow).
 - Semantics come from callers via `as` (e.g. `section`, `article`, `div`).
 - No opinion on inner layout/copy/IDs.
 
-## Props
+## 2. Props
 
 - `as`: root element/component (default: `div`)
 - `variant`: `"default" | "panel" | "glass" | "flat" | "fill"` (default: `"default"`)
@@ -21,7 +21,7 @@ Related:
   - emits: `data-cta`, `data-cta-position`, `data-cta-copy`
 - `...props`: forwarded to the root element (including `aria-*`, events, `id`, etc.)
 
-## Attribute Order (JSX)
+## 3. Attribute Order (JSX)
 
 For consistency (and easier diff/review), follow this attribute order:
 
@@ -30,7 +30,7 @@ For consistency (and easier diff/review), follow this attribute order:
 Notes:
 - Prefer `id` for stable anchors; avoid `data-ui`/`dataUi` (deprecated in `Card.jsx`).
 
-## Output Markers (DOM)
+## 4. Output Markers (DOM)
 
 On the root element:
 
@@ -40,7 +40,7 @@ Token rules (as implemented today):
 - `cta`: trims and collapses whitespace (e.g. `"foo   bar"` -> `"foo bar"`).
 - `ctaPosition` / `ctaCopy`: trims and replaces whitespace with `-` (e.g. `"card demo"` -> `"card-demo"`).
 
-## Variants
+## 5. Variants
 
 - `default`: `card` (includes `p-6 shadow-sm`)
 - `panel`: `card card--panel` (includes `p-4`)
@@ -52,7 +52,7 @@ Notes:
 - `fill` is meant for cards that should expand to consume remaining height in a flex/grid layout (e.g. dashboards).
 - For scrollable content, prefer putting `overflow-y-auto` on an inner content container (not on the `Card` root) so the root can keep clipping (rounded corners) stable.
 
-## Recommended JSX Template (Copy/Paste)
+## 6. Recommended JSX Template (Copy/Paste)
 
 Pick one of the two naming patterns below.
 
@@ -107,7 +107,7 @@ Notes:
 - Prefer `variant="panel"` instead of `className="card card--panel"` to avoid duplicated classes.
 - Keep `ctaPosition` / `ctaCopy` in `kebab-case` so emitted `data-cta-*` stays predictable.
 
-## Buttons Inside Cards (Alignment)
+## 7. Buttons Inside Cards (Alignment)
 
 When placing action buttons inside a Card (especially icon-only actions in a header/toolbar):
 
@@ -116,7 +116,7 @@ When placing action buttons inside a Card (especially icon-only actions in a hea
 - If you need explicit DOM markers for debugging/comparisons, pass `dataIcon="with"` / `dataIcon="without"` (renders `data-icon="with|without"`).
 - Follow the attribute order convention defined in `docs/button_component_spec.md` for consistency.
 
-## Layout Template: Fill + Inner Scroll
+## 8. Layout Template: Fill + Inner Scroll
 
 Use when:
 - The card should stretch to the bottom of the viewport area, and only the card content should scroll (not the whole page).
@@ -135,7 +135,7 @@ Use when:
 </Card>
 ```
 
-## Checklist
+## 9. Checklist
 
 - Semantics: pick the right `as` (`section/article/div`).
 - Accessible name: `aria-labelledby` (or `aria-label`) must resolve to a human-readable name.

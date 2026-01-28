@@ -89,8 +89,8 @@ body {
   }
 
   /* Dashboard: fallback for small viewport heights (e.g. browser zoom). */
-  #dashboard-recent-activity-card,
-  #dashboard-recent-messages-card {
+  #dashboard-activity-notifications-card,
+  #dashboard-message-notifications-card {
     min-height: 360px;
   }
 
@@ -105,8 +105,8 @@ body {
       min-height: auto;
     }
 
-    #dashboard-recent-activity-card,
-    #dashboard-recent-messages-card {
+    #dashboard-activity-notifications-card,
+    #dashboard-message-notifications-card {
       flex: 0 0 auto;
       height: clamp(340px, 56vh, 520px);
     }
@@ -182,8 +182,36 @@ body {
     @apply flex items-center gap-2;
   }
 
+  .avatar_warp {
+    @apply relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-200 text-text-primary font-medium transition-colors;
+  }
+
+  .avatar_warp--sm {
+    @apply w-8 h-8 text-xs;
+  }
+
+  .avatar_warp--md {
+    @apply w-10 h-10 text-sm;
+  }
+
+  .avatar_warp--lg {
+    @apply w-12 h-12 text-base;
+  }
+
+  .avatar_warp--xl {
+    @apply w-16 h-16 text-2xl;
+  }
+
+  .avatar_warp--group_hover_accent {
+    @apply group-hover:bg-accent/10 group-hover:text-accent;
+  }
+
   .list-row {
-    @apply p-3 mx-2 my-1 rounded-xl flex items-center justify-between hover:bg-[#f5f4ef] transition-all duration-200 border border-transparent hover:border-border-subtle/50;
+    @apply p-3 mx-2 my-1 rounded-lg flex items-center justify-between hover:bg-bg-surface-hover transition-all duration-200 border border-transparent;
+  }
+
+  .dashboard_message_item {
+    @apply p-3 mx-2 my-1 rounded-lg flex items-center justify-between hover:bg-bg-surface-hover transition-all duration-200 border border-transparent cursor-pointer;
   }
 
   .ui-filter_warp {
@@ -266,7 +294,7 @@ body {
   }
 
   .action-btn--control {
-    @apply w-[37px] h-[37px] px-0;
+    @apply w-[36px] h-[36px] px-0;
   }
 
   /* Content */

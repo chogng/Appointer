@@ -7,12 +7,12 @@ Related:
 - Styles: `src/styles/global.css` (`action-btn*`)
 - Implementation: `src/components/ui/Button.jsx`
 
-## Responsibilities
+## 1. Responsibilities
 
 - Provide a stable `<button>` structure for app actions.
 - Own visual styling via `action-btn*` classes; callers own semantics (labels, form intent, etc.).
 
-## Props
+## 2. Props
 
 - `children`: button content (rendered inside `span.action-btn__content`)
 - `type`: `"button" | "submit" | "reset"` (default: `"button"`)
@@ -30,7 +30,13 @@ Related:
 - `title`: forwarded via `...props` (hover tooltip; for icon-only buttons it can match `aria-label`)
 - `...props`: forwarded to the `<button>` (including `id`, `aria-*`, events, etc.)
 
-## Output Markers (DOM)
+## 3. Attribute Order (JSX)
+
+When writing icon-only `<button>` or `<Button>` instances, keep attributes in this order for consistency:
+
+`type` → `id` → `variant/size` → `dataIcon` → `cta*` → `className` → `aria-*` → `title` → `onClick` → other
+
+## 4. Output Markers (DOM)
 
 The component renders:
 
@@ -43,7 +49,7 @@ The component renders:
   - Defaults `type="button"` (avoid accidental submits)
 - Inner content: `span.action-btn__content`
 
-## Base Styles (`action-btn`)
+## 5. Base Styles (`action-btn`)
 
 All buttons share the same base styling and interaction model via `.action-btn` in `src/styles/global.css`.
 
@@ -56,7 +62,7 @@ All buttons share the same base styling and interaction model via `.action-btn` 
 - Size classes: `action-btn--sm|md|lg|control`
 - Interaction details: see **Ring Model** and **Disabled State** below.
 
-## Ring Model (Two Rings via Box-Shadow)
+## 6. Ring Model (Two Rings via Box-Shadow)
 
 Buttons use a **two-ring `box-shadow`** to create a "bigger on hover" feel without changing layout:
 
@@ -67,7 +73,7 @@ Buttons use a **two-ring `box-shadow`** to create a "bigger on hover" feel witho
 
 If `--btn-ring-inner` is `transparent`, the inner ring expansion is visually invisible; the only visible change is the outer ring `1px -> 2px`, which can be interpreted as "the border got thicker". The element's real `border-width` does not change.
 
-## Variant Reference: `primary`
+## 7. Variant Reference: `primary`
 
 `primary` is a fully-specified style package (colors + ring variables):
 
@@ -80,7 +86,7 @@ If `--btn-ring-inner` is `transparent`, the inner ring expansion is visually inv
   - `--btn-ring-outer: border.300` (outer ring, `#30302E`)
   - `--btn-ring-outer-hover: border.300` (outer ring hover, `#30302E`)
 
-## Variant Reference: `ghost`
+## 8. Variant Reference: `ghost`
 
 `ghost` is a sibling variant to `primary` and is intended for secondary/utility actions.
 
@@ -95,7 +101,7 @@ If `--btn-ring-inner` is `transparent`, the inner ring expansion is visually inv
     - `--btn-ring-outer-hover: border.200` (outer ring hover, `#D1D1D1`)
   - optional (toolbars): `.toolbar_group .action-btn--ghost` may override the same variables to fit the toolbar background
 
-## Variant Reference: `danger`
+## 9. Variant Reference: `danger`
 
 `danger` is a sibling variant intended for destructive/irreversible actions.
 
@@ -106,7 +112,7 @@ If `--btn-ring-inner` is `transparent`, the inner ring expansion is visually inv
 - Ring variables:
   - uses the base defaults from `.action-btn` unless explicitly overridden
 
-## Disabled State
+## 10. Disabled State
 
 Disabled is a state (triggered by the `disabled` prop) that forces:
 
@@ -127,7 +133,7 @@ Token rules (as implemented today):
 - `cta`: trims and collapses whitespace (e.g. `"foo   bar"` -> `"foo bar"`).
 - `ctaPosition` / `ctaCopy`: trims and replaces whitespace with `-` (e.g. `"card demo"` -> `"card-demo"`).
 
-## Recommended JSX Template (Copy/Paste)
+## 11. Recommended JSX Template (Copy/Paste)
 
 ```jsx
 <Button
@@ -153,9 +159,3 @@ Notes:
 - Only use `type="submit"` for real form submits.
 - Prefer stable `id` for unique buttons; don’t rely on Tailwind class combinations as selectors.
 - For ring comparisons/debugging, set `dataIcon="with"` or `dataIcon="without"` and verify it renders to DOM as `data-icon="with"` or `data-icon="without"`.
-
-## Attribute Order Convention (Icon Buttons)
-
-When writing icon-only `<button>` or `<Button>` instances, keep attributes in this order for consistency:
-
-`type` → `id` → `variant/size` → `dataIcon` → `cta*` → `className` → `aria-*` → `title` → `onClick` → other

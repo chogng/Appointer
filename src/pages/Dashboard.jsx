@@ -20,8 +20,6 @@ import {
   Search,
   Trash2,
 
-  Check,
-  X,
   User,
   Package,
   Inbox,
@@ -110,7 +108,11 @@ const Dashboard = () => {
       setPendingUsers(
         users
           .filter((u) => u.status === "PENDING")
-          .map((u) => ({ ...u, msgType: "USER_REGISTRATION" })),
+          .map((u) => ({
+            ...u,
+            msgType: "USER_REGISTRATION",
+            timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
+          })),
       );
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -127,7 +129,11 @@ const Dashboard = () => {
         visibleRequests = reqs.filter((r) => r.requesterId === user?.id);
       }
       setRequests(
-        visibleRequests.map((r) => ({ ...r, msgType: "INVENTORY_REQUEST" })),
+        visibleRequests.map((r) => ({
+          ...r,
+          msgType: "INVENTORY_REQUEST",
+          timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
+        })),
       );
     } catch (error) {
       console.error("Failed to fetch requests:", error);
@@ -248,13 +254,16 @@ const Dashboard = () => {
     return <div className="min-h-[200px]" />;
   }
 
-  const getActionLabel = (action) => {
-    const labels = {
-      DEVICE_CREATED: t("createDevice"),
-      RESERVATION_CREATED: t("createReservation"),
-      USER_CREATED: t("registerUser"),
-    };
-    return labels[action] || action;
+  const getBehaviorLabel = (action, details) => {
+    if (action === "LOGIN") return t("dashboard_activity_login_system");
+    if (action === "RESERVATION_CREATED") return t("dashboard_activity_create_reservation");
+    if (action === "DEVICE_CREATED") return t("dashboard_activity_create_device");
+    if (action === "USER_CREATED") return t("dashboard_activity_register_user");
+    if (action === "LITERATURE_RESEARCH") return t("dashboard_activity_literature_research");
+    if (action === "RESERVATION_TIMEOUT") return t("dashboard_activity_reservation_timeout");
+
+    if (typeof details === "string" && details.trim()) return details.trim();
+    return typeof action === "string" ? action : "";
   };
 
   const messages = [...pendingUsers, ...requests];
@@ -308,18 +317,21 @@ const Dashboard = () => {
         <div className="dashboard_fill_grid grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
           {/* Recent Activity Column */}
           <section
-            aria-labelledby="dashboard-recent-activity-title"
+            data-cta="Dashboard"
+            data-cta-position="activity-notifications"
+            data-cta-copy="activity-notifications-section"
+            aria-labelledby="dashboard-activity-notifications-title"
             className="flex flex-col min-h-0"
           >
-            <h2 id="dashboard-recent-activity-title" className="section_title">
+            <h2 id="dashboard-activity-notifications-title" className="section_title">
               {t("recentActivity")}
             </h2>
             <Card
-              id="dashboard-recent-activity-card"
+              id="dashboard-activity-notifications-card"
               variant="fill"
               cta="Dashboard"
-              ctaPosition="recent-activity"
-              ctaCopy="activity-card"
+              ctaPosition="activity-notifications"
+              ctaCopy="activity-notifications-card"
             >
               <div className="card_head_warp">
                 <div className="flex-1 max-w-sm">
@@ -339,7 +351,7 @@ const Dashboard = () => {
                     autoComplete="off"
                     spellCheck={false}
                     cta="Dashboard"
-                    ctaPosition="recent-activity"
+                    ctaPosition="activity-notifications"
                     ctaCopy="search-logs"
                     aria-label={t("searchLogs")}
                   />
@@ -352,7 +364,7 @@ const Dashboard = () => {
                     size="control"
                     dataIcon="with"
                     cta="Dashboard"
-                    ctaPosition="recent-activity"
+                    ctaPosition="activity-notifications"
                     ctaCopy="clear-logs"
                     aria-label={t("clearLogs")}
                     title={t("clearLogs")}
@@ -366,7 +378,7 @@ const Dashboard = () => {
               <div className="overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                 {logs.length > 0 ? (
                   <ul
-                    id="dashboard-recent-activity-list"
+                    id="dashboard-activity-notifications-list"
                     className="flex flex-col m-0 p-0 list-none"
                   >
                     {logs.map((log) => {
@@ -385,34 +397,44 @@ const Dashboard = () => {
                         ? t(normalizedRole)
                         : "";
 
-                      const actionLabel = isLogin
-                        ? roleLabel
-                        : getActionLabel(log.action);
+                      const behaviorLabel = getBehaviorLabel(log.action, log.details);
 
                       return (
-                        <ListRow as="li" key={log.id}>
-                          <div className="flex items-center gap-3.5">
+                        <ListRow
+                          as="li"
+                          key={log.id}
+                          className="grid grid-cols-3 gap-x-6 items-center"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
                             <Avatar
                               fallback={log.userName || t("systemUser")}
                               className="bg-accent/10 text-accent border border-accent/10 shadow-sm"
                             />
                             <div className="flex flex-col min-w-0">
-                              <div className="text-sm font-semibold text-text-primary truncate" title={log.userName || t("systemUser")}>
+                              <div
+                                className="text-sm font-medium text-text-primary truncate"
+                                title={log.userName || t("systemUser")}
+                              >
                                 {log.userName || t("systemUser")}
                               </div>
-                              {actionLabel && (
+                              {roleLabel && (
                                 <div className="text-xs text-text-secondary mt-0.5 truncate">
-                                  {actionLabel}
-                                </div>
-                              )}
-                              {!isLogin && (
-                                <div className="text-xs text-text-tertiary/80 mt-0.5 line-clamp-1 break-all">
-                                  {log.details}
+                                  {roleLabel}
                                 </div>
                               )}
                             </div>
                           </div>
-                          <div className="text-xs font-medium text-text-tertiary/70 shrink-0 transition-colors ml-2">
+
+                          <div className="min-w-0 text-center">
+                            <div
+                              className="text-sm text-text-primary line-clamp-1 break-all"
+                              title={!isLogin ? log.details : undefined}
+                            >
+                              {behaviorLabel}
+                            </div>
+                          </div>
+
+                          <div className="text-sm font-medium text-text-primary shrink-0 transition-colors justify-self-end text-right">
                             {format(new Date(log.timestamp), "MM-dd HH:mm", {
                               locale: zhCN,
                             })}
@@ -433,36 +455,105 @@ const Dashboard = () => {
             </Card>
           </section>
 
-          {/* Recent Messages (Pending Approvals & Requests) Column */}
+          {/* Pending Approvals Inbox Column */}
           <section
-            aria-labelledby="dashboard-recent-messages-title"
+            data-cta="Dashboard"
+            data-cta-position="pending-approvals-inbox"
+            data-cta-copy="pending-approvals-inbox-section"
+            aria-labelledby="dashboard-message-notifications-title"
             className="flex flex-col min-h-0"
           >
-            <h2 id="dashboard-recent-messages-title" className="section_title">
+            <h2 id="dashboard-message-notifications-title" className="section_title">
               {t("recentMessages")}
             </h2>
             <Card
-              id="dashboard-recent-messages-card"
+              id="dashboard-message-notifications-card"
               variant="fill"
               cta="Dashboard"
-              ctaPosition="recent-messages"
-              ctaCopy="messages-card"
+              ctaPosition="pending-approvals-inbox"
+              ctaCopy="pending-approvals-inbox-card"
             >
+              <div className="card_head_warp">
+                <div className="flex-1 flex gap-4 text-sm font-medium text-text-tertiary px-4">
+                  <div className="min-w-[200px]">{t("requestUser")}</div>
+                  <div className="flex-1">{t("note")}</div>
+                </div>
+                {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") &&
+                  messages.length > 0 && (
+                    <Button
+                      type="button"
+                      id="dashboard-approve-all-btn"
+                      variant="ghost"
+                      size="control"
+                      dataIcon="with"
+                      cta="Dashboard"
+                      ctaPosition="pending-approvals-inbox"
+                      ctaCopy="approve-all"
+                      aria-label={t("approveAll")}
+                      title={t("approveAll")}
+                      onClick={() => {
+                        showToast(
+                          t("confirmApproveAll"),
+                          "warning",
+                          t("approveAll"),
+                          async () => {
+                            try {
+                              closeToast();
+                              await Promise.all(
+                                messages.map((msg) => {
+                                  if (msg.msgType === "USER_REGISTRATION") {
+                                    return apiService.updateUser(msg.id, {
+                                      status: "ACTIVE",
+                                    });
+                                  } else if (
+                                    msg.msgType === "INVENTORY_REQUEST"
+                                  ) {
+                                    return apiService.approveRequest(msg.id);
+                                  }
+                                  return Promise.resolve();
+                                }),
+                              );
+                              await Promise.all([
+                                fetchPendingUsers(),
+                                fetchRequests(),
+                              ]);
+                              showToast(t("approveAllSuccess"), "success");
+                            } catch (error) {
+                              console.error("Failed to approve all:", error);
+                              showToast(t("approveAllFailed"), "error");
+                            }
+                          },
+                        );
+                      }}
+                    >
+                      <CheckCircle size={16} />
+                    </Button>
+                  )}
+              </div>
+              <div className="mx-2 h-px bg-border-subtle/50" />
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 {messages.length > 0 ? (
-                  <div className="divide-y divide-border-subtle">
+                  <ul
+                    id="dashboard-message-notifications-list"
+                    className="flex flex-col m-0 p-0 list-none"
+                  >
                     {messages.map((msg) => (
-                      <div
+                      <li
                         key={msg.id}
-                        className="p-4 flex items-center justify-between hover:bg-accent/5 transition-colors cursor-pointer group"
+                        data-msg-type={msg.msgType}
+                        className="dashboard_message_item group"
                         onClick={() => setSelectedMessage(msg)}
                       >
                         <div className="flex items-center gap-3 min-w-[200px]">
                           <Avatar
                             size="md"
                             fallback={msg.name || "?"}
-                            icon={msg.msgType !== "USER_REGISTRATION" ? Package : undefined}
-                            className="bg-bg-200 group-hover:bg-accent/10 group-hover:text-accent"
+                            groupHover
+                            icon={
+                              msg.msgType !== "USER_REGISTRATION"
+                                ? Package
+                                : undefined
+                            }
                           />
                           <div>
                             <div className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors">
@@ -481,23 +572,24 @@ const Dashboard = () => {
                                 ? t("dashboard_applied_for_account")
                                 : t("dashboard_inventory_request")}
                             </div>
-                            {msg.email && (
-                              <div className="text-xs text-text-tertiary">
-                                {msg.email}
-                              </div>
-                            )}
                           </div>
                         </div>
 
-                        <div className="flex-1 flex items-center justify-end px-4 text-sm text-text-secondary">
+                        <div className="flex-1 flex items-center px-4 text-sm text-text-secondary">
                           {(() => {
-                            if (msg.msgType === "USER_REGISTRATION") return null;
+                            if (msg.msgType === "USER_REGISTRATION") {
+                              return msg.email ? (
+                                <span className="text-xs text-text-tertiary">
+                                  {msg.email}
+                                </span>
+                              ) : null;
+                            }
                             try {
                               const data = JSON.parse(msg.newData || "{}");
                               const itemName = data.name || "Unknown Item";
                               const quantity = data.quantity || 0;
                               return (
-                                <span className="flex items-center gap-2 bg-bg-200/50 px-3 py-1.5 rounded-lg border border-border/50">
+                                <span className="flex items-center gap-2 bg-bg-200/50 px-3 py-1.5 rounded-lg border border-border/50 w-fit">
                                   <span className="font-medium text-text-primary">
                                     {itemName}
                                   </span>
@@ -511,59 +603,19 @@ const Dashboard = () => {
                             }
                           })()}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {user?.role === "ADMIN" ||
-                            user?.role === "SUPER_ADMIN" ? (
-                            <>
-                              <button
-                                type="button"
-                                className="action-btn action-btn--control action-btn--ghost"
-                                aria-label={t("dashboard_approve")}
-                                title={t("dashboard_approve")}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleApprove(msg);
-                                }}
-                              >
-                                <span className="action-btn__content">
-                                  <Check size={18} />
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                className="action-btn action-btn--control action-btn--ghost action-btn--danger"
-                                aria-label={t("dashboard_reject")}
-                                title={t("dashboard_reject")}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleReject(msg);
-                                }}
-                              >
-                                <span className="action-btn__content">
-                                  <X size={18} />
-                                </span>
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              className="action-btn action-btn--control action-btn--ghost action-btn--danger"
-                              aria-label={t("dashboard_revoke_request")}
-                              title={t("dashboard_revoke_request")}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRevoke(msg);
-                              }}
-                            >
-                              <span className="action-btn__content">
-                                <Trash2 size={18} />
-                              </span>
-                            </button>
+
+                        <div className="text-xs font-medium text-text-tertiary/70 shrink-0 transition-colors ml-2">
+                          {format(
+                            new Date(msg.timestamp || new Date()),
+                            "MM-dd HH:mm",
+                            {
+                              locale: zhCN,
+                            },
                           )}
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2 py-8">
                     <div className="w-12 h-12 rounded-full bg-bg-200/50 flex items-center justify-center">
@@ -748,7 +800,7 @@ const Dashboard = () => {
         containerRef={containerRef}
         type={toast.type}
       />
-    </div>
+    </div >
   );
 };
 

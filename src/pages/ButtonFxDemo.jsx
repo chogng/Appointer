@@ -6,6 +6,17 @@ import Card from "../components/ui/Card";
 const ButtonFxDemo = () => {
   const { t } = useLanguage();
 
+  const typographyRows = [
+    { label: "Display", className: "text-3xl font-serif font-medium", meta: "text-3xl · 30/36" },
+    { label: "H2", className: "text-2xl font-serif font-medium", meta: "text-2xl · 24/32" },
+    { label: "H3", className: "text-xl font-serif font-medium", meta: "text-xl · 20/28" },
+    { label: "H4", className: "text-lg font-serif font-medium", meta: "text-lg · 18/28" },
+    { label: "Body", className: "text-base font-sans", meta: "text-base · 16/24" },
+    { label: "Body-sm", className: "text-sm font-sans", meta: "text-sm · 14/20" },
+    { label: "Caption", className: "text-xs font-sans", meta: "text-xs · 12/16" },
+    { label: "Mono", className: "text-sm font-mono", meta: "font-mono · 14/20" },
+  ];
+
   return (
     <div className="w-full min-h-screen">
       <div className="mb-8">
@@ -88,7 +99,7 @@ const ButtonFxDemo = () => {
             ctaCopy="default"
             aria-label={t("card_demo_default_aria")}
           >
-            <div className="text-sm font-semibold">
+            <div className="text-sm font-medium">
               {t("card_demo_default")}
             </div>
             <div className="mt-1 text-xs text-text-secondary">
@@ -107,7 +118,7 @@ const ButtonFxDemo = () => {
             ctaCopy="panel"
             aria-label={t("card_demo_panel_aria")}
           >
-            <div className="text-sm font-semibold">{t("card_demo_panel")}</div>
+            <div className="text-sm font-medium">{t("card_demo_panel")}</div>
             <div className="mt-1 text-xs text-text-secondary">
               <span id="button-fx-demo-card-demo-panel-marker">
                 {t("card_demo_marker")}
@@ -124,7 +135,7 @@ const ButtonFxDemo = () => {
             ctaCopy="flat"
             aria-label={t("card_demo_flat_aria")}
           >
-            <div className="text-sm font-semibold">{t("card_demo_flat")}</div>
+            <div className="text-sm font-medium">{t("card_demo_flat")}</div>
             <div className="mt-1 text-xs text-text-secondary">
               <span id="button-fx-demo-card-demo-flat-marker">
                 {t("card_demo_marker")}
@@ -141,7 +152,7 @@ const ButtonFxDemo = () => {
             ctaCopy="glass"
             aria-label={t("card_demo_glass_aria")}
           >
-            <div className="text-sm font-semibold">{t("card_demo_glass")}</div>
+            <div className="text-sm font-medium">{t("card_demo_glass")}</div>
             <div className="mt-1 text-xs text-text-secondary">
               <span id="button-fx-demo-card-demo-glass-marker">
                 {t("card_demo_marker")}
@@ -149,6 +160,43 @@ const ButtonFxDemo = () => {
             </div>
           </Card>
         </div>
+      </section>
+
+      <section className="mt-10" aria-label={t("typography_demo_title")}>
+        <div className="mb-4">
+          <h2 className="section_title">{t("typography_demo_title")}</h2>
+          <p className="text-sm text-text-secondary">{t("typography_demo_desc")}</p>
+        </div>
+
+        <Card
+          as="section"
+          id="button-fx-demo-typography"
+          cta="button-fx-demo"
+          ctaPosition="typography-demo"
+          ctaCopy="container"
+          aria-label={t("typography_demo_title")}
+        >
+          <div className="divide-y divide-border-subtle">
+            {typographyRows.map((row) => (
+              <div
+                key={row.label}
+                className="flex items-start justify-between gap-6 py-4"
+              >
+                <div className="min-w-[110px] text-sm font-medium text-text-tertiary">
+                  {row.label}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={row.className}>
+                    The quick brown fox jumps over the lazy dog
+                  </div>
+                  <div className="mt-1 text-xs font-mono text-text-tertiary">
+                    {row.meta} · <span className="opacity-70">{row.className}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </section>
     </div>
   );
