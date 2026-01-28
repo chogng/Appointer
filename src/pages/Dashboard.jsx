@@ -17,6 +17,7 @@ import {
 } from "../utils/dashboardMessageFormatters";
 import {
   buildDeviceNameById,
+  getDashboardActivityDeviceNames,
   getDashboardActivityDetailLabel,
 } from "../utils/dashboardActivityFormatters";
 
@@ -257,6 +258,8 @@ const Dashboard = () => {
   const logSyncHandlers = useMemo(
     () => ({
       "reservation:created": fetchLogs,
+      "reservation:updated": fetchLogs,
+      "reservation:deleted": fetchLogs,
       "device:created": fetchLogs,
       "user:created": () => {
         fetchLogs();
@@ -280,6 +283,7 @@ const Dashboard = () => {
   const getBehaviorLabel = (action, details) => {
     if (action === "LOGIN") return t("dashboard_activity_login_system");
     if (action === "RESERVATION_CREATED") return t("dashboard_activity_create_reservation");
+    if (action === "RESERVATION_CANCELLED") return t("dashboard_activity_cancel_reservation");
     if (action === "DEVICE_CREATED") return t("dashboard_activity_create_device");
     if (action === "USER_CREATED") return t("dashboard_activity_register_user");
     if (action === "LITERATURE_RESEARCH") return t("dashboard_activity_literature_research");
@@ -364,7 +368,7 @@ const Dashboard = () => {
               data-list="activity"
             >
               <div className="activity_card_head_warp">
-                <div className="flex-1 max-w-sm">
+                <div className="flex-1">
                   <Input
                     id="dashboard-search-logs"
                     idBase="dashboard-search-logs"
@@ -416,6 +420,9 @@ const Dashboard = () => {
                       const detailLabel = getDashboardActivityDetailLabel(log, {
                         deviceNameById,
                       });
+                      const deviceNames = getDashboardActivityDeviceNames(log, {
+                        deviceNameById,
+                      });
 
                       return (
                         <ListRow
@@ -426,7 +433,6 @@ const Dashboard = () => {
                           <div className="activity_left">
                             <Avatar
                               fallback={log.userName || t("systemUser")}
-                              className="bg-accent/10 text-accent border border-accent/10 shadow-sm"
                             />
                             <div className="flex flex-col min-w-0">
                               <div
@@ -441,7 +447,12 @@ const Dashboard = () => {
 
                           <div className="activity_middle">
                             <div className="activity_detail" title={detailLabel ? detailLabel : undefined}>
-                              {detailLabel}
+                              {deviceNames.map((name, idx) => (
+                                <span key={`${log.id}-${name}`} className="device_name">
+                                  {idx > 0 ? " " : ""}
+                                  {name}
+                                </span>
+                              ))}
                             </div>
                           </div>
 
@@ -594,50 +605,49 @@ const Dashboard = () => {
                         })();
 
                         return (
-                      <li
-                        key={msg.id}
-                        className="list-row group list_item"
-                        onClick={() => setSelectedMessage(msg)}
-                      >
-                        <div className="msg_left">
-                          <Avatar
-                            size="md"
-                            fallback={msg.name || "?"}
-                            groupHover
-                            icon={
-                              msg.msgType !== "USER_REGISTRATION"
-                                ? Package
-                                : undefined
-                            }
-                          />
-                          <div className="min-w-0">
-                            <div
-                              className="user_name"
-                            >
-                              {msg.msgType === "USER_REGISTRATION"
-                                ? msg.name
-                                : msg.requesterName}
+                          <li
+                            key={msg.id}
+                            className="list-row group list_item"
+                            onClick={() => setSelectedMessage(msg)}
+                          >
+                            <div className="msg_left">
+                            <Avatar
+                              size="md"
+                              fallback={msg.name || "?"}
+                              icon={
+                                msg.msgType !== "USER_REGISTRATION"
+                                  ? Package
+                                  : undefined
+                              }
+                              />
+                              <div className="min-w-0">
+                                <div
+                                  className="user_name"
+                                >
+                                  {msg.msgType === "USER_REGISTRATION"
+                                    ? msg.name
+                                    : msg.requesterName}
+                                </div>
+                                <div
+                                  className="user_behavior"
+                                >
+                                  {behaviorLabel}
+                                </div>
+                              </div>
                             </div>
+
                             <div
-                              className="user_behavior"
+                              className="msg_middle msg_detail"
                             >
-                              {behaviorLabel}
+                              {detailsNode}
                             </div>
-                          </div>
-                        </div>
 
-                        <div
-                          className="msg_middle msg_detail"
-                        >
-                          {detailsNode}
-                        </div>
-
-                        <div
-                          className="msg_right msg_date"
-                        >
-                          {tsLabel}
-                        </div>
-                      </li>
+                            <div
+                              className="msg_right msg_date"
+                            >
+                              {tsLabel}
+                            </div>
+                          </li>
                         );
                       })()
                     ))}

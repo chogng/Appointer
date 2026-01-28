@@ -11,15 +11,46 @@ export function buildDeviceNameById(devices) {
   return deviceNameById;
 }
 
-export function getDashboardActivityDetailLabel(log, { deviceNameById } = {}) {
+export function getDashboardActivityDeviceNames(log, { deviceNameById } = {}) {
   const details = typeof log?.details === "string" ? log.details.trim() : "";
-  if (!details) return "";
+  if (!details) return [];
 
-  const deviceIdMatch = details.match(/\bdevice\s+([a-z0-9_-]+)\b/i);
-  if (!deviceIdMatch?.[1]) return "";
+  const ids = new Set();
 
-  const deviceId = deviceIdMatch[1];
-  const deviceName = deviceNameById?.[deviceId];
-  return deviceName || "";
+  // Format A: repeated "device <id>" tokens.
+  const repeatedDeviceRe = /\bdevice\s+([a-z0-9_-]+)\b/gi;
+  for (const m of details.matchAll(repeatedDeviceRe)) {
+    const id = m?.[1];
+    if (id) ids.add(id);
+  }
+
+  // Format B: single "device <id1> <id2> ... xN" list.
+  if (!ids.size) {
+    const idx = details.toLowerCase().indexOf("device ");
+    if (idx !== -1) {
+      const tail = details.slice(idx + "device ".length).trim();
+      for (const token of tail.split(/\s+/)) {
+        if (!token) continue;
+        if (/^x\d+$/i.test(token)) break;
+        if (/^[a-z0-9_-]+$/i.test(token)) {
+          ids.add(token);
+          continue;
+        }
+        break;
+      }
+    }
+  }
+
+  if (!ids.size) return [];
+
+  const names = [];
+  for (const id of ids) {
+    const name = deviceNameById?.[id];
+    if (name) names.push(name);
+  }
+  return names;
 }
 
+export function getDashboardActivityDetailLabel(log, { deviceNameById } = {}) {
+  return getDashboardActivityDeviceNames(log, { deviceNameById }).join(" ");
+}

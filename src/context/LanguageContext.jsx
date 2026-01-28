@@ -83,6 +83,10 @@ const translations = {
     button_fx_demo_disabled: 'Disabled',
     button_fx_demo_note:
       'Note: The "scale" feel comes from box-shadow spread; computed transform is usually none.',
+    bg_scale_compare_title: 'Background scale swatches',
+    bg_scale_compare_desc: 'Preview Tailwind tokens and the proposed warm scale.',
+    bg_scale_compare_current: 'Current (Tailwind tokens)',
+    bg_scale_compare_proposed_warm: 'Proposed (warm, 0–500)',
     card_demo_title: 'Card Demo',
     card_demo_desc:
       'Inspect the Card root element in DevTools: `data-cta*` / `id` / `aria-label`.',
@@ -305,6 +309,7 @@ const translations = {
     systemUser: 'System',
     dashboard_activity_login_system: 'Logged in',
     dashboard_activity_create_reservation: 'Created reservation',
+    dashboard_activity_cancel_reservation: 'Cancelled reservation',
     dashboard_activity_literature_research: 'Literature research',
     dashboard_activity_reservation_timeout: 'Reservation timed out',
     dashboard_activity_create_device: 'Created device',
@@ -541,6 +546,10 @@ const translations = {
       'Y Data Step cell {cell} must contain a positive number.',
   },
   zh: {
+    bg_scale_compare_title: '背景色阶色卡',
+    bg_scale_compare_desc: '预览当前 Tailwind token 与暖白建议色阶。',
+    bg_scale_compare_current: '当前（Tailwind token）',
+    bg_scale_compare_proposed_warm: '建议（暖白 0–500）',
     typography_demo_title: 'Typography Demo',
     typography_demo_desc:
       'Preview the project type scale (families + sizes). Numbers are Tailwind defaults unless overridden.',
@@ -1038,6 +1047,7 @@ const translations = {
     dashboard_inventory_update: '\u5e93\u5b58\u4fee\u6539',
     dashboard_activity_login_system: '\u767b\u5f55\u7cfb\u7edf',
     dashboard_activity_create_reservation: '\u521b\u5efa\u9884\u7ea6',
+    dashboard_activity_cancel_reservation: '\u53d6\u6d88\u9884\u7ea6',
     dashboard_activity_literature_research: '\u6587\u732e\u8c03\u7814',
     dashboard_activity_reservation_timeout: '\u9884\u7ea6\u8d85\u65f6',
     dashboard_activity_create_device: '\u521b\u5efa\u8bbe\u5907',

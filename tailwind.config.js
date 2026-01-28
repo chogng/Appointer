@@ -21,10 +21,13 @@ export default {
           subtle: '#F0F0F0',
           0: '#FFFFFF', // Claude bg-000
           50: '#FAF9F5',
-          100: '#F0EEE6', // Claude bg-100
-          150: '#E8E6DC',
-          200: '#F0F0F0', // Claude bg-200 (approx)
-          300: '#E5E5E5', // Claude bg-300 (approx)
+          // Warm white scale (ivory/greige)
+          100: '#F0EEE6',
+          150: '#EAE7DC',
+          200: '#E3DFD2',
+          300: '#D6D1C2',
+          400: '#C7C1AF',
+          500: '#BDB6A2',
         },
         border: {
           DEFAULT: '#E5E5E5',

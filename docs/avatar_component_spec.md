@@ -23,8 +23,6 @@ Related:
   - first-letter placeholder (when `src` and `icon` are absent)
 - `icon`: a React component (e.g. Lucide icon) used as a placeholder when no `src`
 - `size`: `"sm" | "md" | "lg" | "xl"` (default: `"md"`)
-- `groupHover`: boolean (default: `false`)
-  - When `true`, applies `avatar--primary` so the avatar reacts to a parent `.group` hover.
 - `className`: extra classes appended to the root container
 - `imageClassName`: extra classes appended to the inner `<img>`
 - `cta` / `ctaPosition` / `ctaCopy`: optional markers (analytics)
@@ -56,6 +54,10 @@ Token rules (as implemented today):
 - `icon`: no `src`, `icon` provided, renders `<Icon>`
 - `fallback`: neither `src` nor `icon`, renders first-letter fallback
 
+Style rule:
+- `icon` and `fallback` share the same container styling (`avatar` + size classes).
+- `image` applies `avatar--image` (container is neutral; `<img>` fills the circle).
+
 ## 5. Base Classes and Sizes
 
 Root base classes (owned by the component):
@@ -68,6 +70,10 @@ Size map (owned by the component):
 - `md`: `avatar--md`
 - `lg`: `avatar--lg`
 - `xl`: `avatar--xl`
+
+Mode modifiers (owned by the component):
+
+- `avatar--image`: applied when `src` is provided
 
 ## 6. Icon Sizing Rule (Why 60%)
 
@@ -84,10 +90,8 @@ Note:
 
 ## 7. Hover/Focus Patterns (`group-hover`)
 
-`Avatar` itself does not assume it is interactive. If you want it to react to a parent row/card hover:
-
-- Put `className="group"` on the parent container
-- Prefer `groupHover` (or pass custom `group-hover:*` via `className` when you need a different hover style)
+`Avatar` includes `group-hover:bg-accent/10 group-hover:text-accent` in its base styles.
+If the parent does not have `.group`, nothing happens.
 
 Example (parent row hover drives avatar color):
 
@@ -95,7 +99,6 @@ Example (parent row hover drives avatar color):
 <li className="group cursor-pointer">
   <Avatar
     icon={Package}
-    groupHover
   />
 </li>
 ```
@@ -132,7 +135,6 @@ Example (parent row hover drives avatar color):
   cta="Dashboard"
   ctaPosition="pending-approvals-inbox"
   ctaCopy="message-avatar"
-  groupHover
   className="text-text-secondary"
 />
 ```

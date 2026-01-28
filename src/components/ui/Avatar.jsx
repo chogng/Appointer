@@ -8,7 +8,6 @@ const Avatar = ({
     fallback,
     icon: Icon,
     size = "md",
-    groupHover = false,
     className,
     imageClassName,
     cta,
@@ -32,7 +31,7 @@ const Avatar = ({
             className={cx(
                 baseClasses,
                 sizeClasses[size],
-                groupHover && "avatar--primary",
+                src && "avatar--image",
                 className,
             )}
             data-mode={mode}

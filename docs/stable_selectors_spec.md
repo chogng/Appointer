@@ -3,7 +3,7 @@
 目标：给测试/自动化/排查提供**短、稳定、可维护**的定位锚点；避免依赖 DOM 深度或 Tailwind class 组合。
 
 相关：
-- `docs/card_ui_component_spec_v2.md`
+- `docs/card_component_spec.md`
 - `docs/input_ui_component_spec.md`
 - `docs/textarea_ui_component_spec.md`
 - `docs/button_component_spec.md`

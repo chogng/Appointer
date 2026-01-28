@@ -17,6 +17,31 @@ const ButtonFxDemo = () => {
     { label: "Mono", className: "text-sm font-mono", meta: "font-mono · 14/20" },
   ];
 
+  const bgCurrent = [
+    { key: "0", className: "bg-bg-0", value: "#FFFFFF" },
+    { key: "page", className: "bg-bg-page", value: "#F5F4EF" },
+    { key: "surface", className: "bg-bg-surface", value: "#FFFFFF" },
+    { key: "surface-hover", className: "bg-bg-surface-hover", value: "#FAF9F5" },
+    { key: "ghost", className: "bg-bg-ghost", value: "#FAF9F5" },
+    { key: "subtle", className: "bg-bg-subtle", value: "#F0F0F0" },
+    { key: "50", className: "bg-bg-50", value: "#FAF9F5" },
+    { key: "100", className: "bg-bg-100", value: "#F0EEE6" },
+    { key: "150", className: "bg-bg-150", value: "#EAE7DC" },
+    { key: "200", className: "bg-bg-200", value: "#E3DFD2" },
+    { key: "300", className: "bg-bg-300", value: "#D6D1C2" },
+    { key: "400", className: "bg-bg-400", value: "#C7C1AF" },
+    { key: "500", className: "bg-bg-500", value: "#BDB6A2" },
+  ];
+
+  const bgProposedWarm = [
+    { key: "0", value: "#FFFFFF" },
+    { key: "100", value: "#FAF8F1" },
+    { key: "200", value: "#F5F2E9" },
+    { key: "300", value: "#ECE8DC" },
+    { key: "400", value: "#E2DCCF" },
+    { key: "500", value: "#f0f0f0" },
+  ];
+
   return (
     <div className="w-full min-h-screen">
       <div className="mb-8">
@@ -81,6 +106,65 @@ const ButtonFxDemo = () => {
 
         <div className="mt-4 text-sm text-text-tertiary">
           {t("button_fx_demo_note")}
+        </div>
+      </Card>
+
+      <Card
+        as="section"
+        id="button-fx-demo-bg-scale-compare"
+        cta="button-fx-demo"
+        ctaPosition="bg-scale"
+        ctaCopy="compare"
+        className="mt-6"
+        aria-label={t("bg_scale_compare_title")}
+      >
+        <div className="text-lg font-medium text-text-primary">
+          {t("bg_scale_compare_title")}
+        </div>
+        <div className="text-sm text-text-secondary mb-4">
+          {t("bg_scale_compare_desc")}
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-text-primary">
+              {t("bg_scale_compare_current")}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {bgCurrent.map((s) => (
+                <div
+                  key={`new-${s.key}`}
+                  className={`rounded-xl border border-border p-3 ${s.className}`}
+                >
+                  <div className="text-xs font-medium text-text-primary">
+                    bg.{s.key}
+                  </div>
+                  <div className="text-xs text-text-secondary">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 md:col-span-2">
+            <div className="text-sm font-medium text-text-primary">
+              {t("bg_scale_compare_proposed_warm")}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              {bgProposedWarm.map((s) => (
+                <Card
+                  key={`proposed-warm-${s.key}`}
+                  variant="panel"
+                  className="!rounded-xl !p-3"
+                  style={{ backgroundColor: s.value }}
+                >
+                  <div className="text-xs font-medium text-text-primary">
+                    bg.{s.key}
+                  </div>
+                  <div className="text-xs text-text-secondary">{s.value}</div>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
 

@@ -8,7 +8,10 @@ const API_BASE_URL = (
 
 // 开发模式：启用 mock API（与 AuthContext 中的 DEV_MOCK_LOGIN 保持一致）
 const DEV_MOCK_API =
+  import.meta.env?.DEV &&
   String(import.meta.env?.VITE_MOCK_API || "").toLowerCase() === "true";
+
+let didWarnMockApi = false;
 
 // Mock 数据
 const MOCK_DATA = {
@@ -73,6 +76,12 @@ class ApiService {
   async request(endpoint, options = {}) {
     // 开发模式：返回 mock 数据
     if (DEV_MOCK_API) {
+      if (!didWarnMockApi) {
+        didWarnMockApi = true;
+        console.warn(
+          "[apiService] VITE_MOCK_API=true: using mock API (backend will not be called).",
+        );
+      }
       return this._mockRequest(endpoint, options);
     }
 

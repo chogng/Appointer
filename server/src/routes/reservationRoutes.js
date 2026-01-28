@@ -1,7 +1,7 @@
 import express from "express";
 
 import { db } from "../config/db.js";
-import { enforceLogsMaxCount } from "../retention.js";
+import { upsertReservationCancelledLog, upsertReservationCreatedLog } from "../logAggregator.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { authenticateToken, isAdminRole } from "../middleware/authMiddleware.js";
 import { isUniqueConstraintError } from "../utils/dbErrors.js";
@@ -142,19 +142,12 @@ export default function createReservationRoutes({ broadcast } = {}) {
         throw error;
       }
 
-      broadcast?.("reservation:created", newReservation);
+      await upsertReservationCreatedLog(db, {
+        userId: newReservation.userId,
+        deviceId: newReservation.deviceId,
+      });
 
-      await db.execute(
-        "INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)",
-        [
-          makeId("log"),
-          newReservation.userId,
-          "RESERVATION_CREATED",
-          `Created reservation for device ${newReservation.deviceId}`,
-          new Date().toISOString(),
-        ],
-      );
-      await enforceLogsMaxCount(db);
+      broadcast?.("reservation:created", newReservation);
 
       res.status(201).json(newReservation);
     }),
@@ -253,6 +246,13 @@ export default function createReservationRoutes({ broadcast } = {}) {
         id,
       ]);
 
+      if (updates.status === "CANCELLED" && reservation.status !== "CANCELLED") {
+        await upsertReservationCancelledLog(db, {
+          userId: reservation.userId,
+          deviceId: reservation.deviceId,
+        });
+      }
+
       broadcast?.("reservation:updated", updated);
 
       res.json(updated);
@@ -292,4 +292,3 @@ export default function createReservationRoutes({ broadcast } = {}) {
 
   return router;
 }
-

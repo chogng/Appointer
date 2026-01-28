@@ -190,7 +190,7 @@ body {
   }
 
   .avatar {
-    @apply relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-200 text-text-primary font-medium transition-colors;
+    @apply relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-200 text-text-primary font-medium transition-colors group-hover:bg-accent/10 group-hover:text-accent;
   }
 
   .avatar--sm {
@@ -209,8 +209,9 @@ body {
     @apply w-16 h-16 text-2xl;
   }
 
-  .avatar--primary {
-    @apply group-hover:bg-accent/10 group-hover:text-accent;
+  /* Image-mode: keep container neutral (icon/text share the default `.avatar` styling). */
+  .avatar--image {
+    @apply bg-transparent;
   }
 
   /* List row base: shared hover/padding/radius for list items (paired with `.list_item` grid layout on Dashboard). */
@@ -254,6 +255,10 @@ body {
 
   .activity_list .activity_detail {
     @apply min-w-0 text-sm text-text-secondary text-center truncate;
+  }
+
+  .activity_list .device_name {
+    @apply text-text-secondary;
   }
 
   .activity_list .activity_date {
