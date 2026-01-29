@@ -350,6 +350,32 @@ test("routes: exercise all API route groups", async (t) => {
     assert.ok(created?.id);
     createdRequestId = created.id;
 
+    const listPending = await authedFetch(
+      baseUrl,
+      adminLogin.cookie,
+      "/api/requests?status=PENDING",
+    );
+    assert.equal(listPending.status, 200);
+    const pendingRequests = await listPending.json();
+    assert.ok(
+      Array.isArray(pendingRequests) &&
+        pendingRequests.some((r) => r?.id === createdRequestId),
+    );
+
+    // Re-submit the same request should not create duplicates.
+    const dedupeRes = await authedFetch(baseUrl, userLogin.cookie, "/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "INVENTORY_ADD",
+        requesterName: "User",
+        newData: { name: "Req Item", category: "Req", quantity: 1 },
+      }),
+    });
+    assert.equal(dedupeRes.status, 200);
+    const deduped = await dedupeRes.json();
+    assert.equal(deduped?.id, createdRequestId);
+
     const listUser = await authedFetch(baseUrl, userLogin.cookie, "/api/requests");
     assert.equal(listUser.status, 200);
     const userRequests = await listUser.json();

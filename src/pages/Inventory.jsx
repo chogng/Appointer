@@ -60,18 +60,34 @@ const Inventory = () => {
     setToast((prev) => ({ ...prev, isVisible: false }));
   };
 
-  const loadInventory = useCallback(async () => {
+  const loadInventory = useCallback(async ({ showLoading = true } = {}) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const [inventoryData, requestsData] = await Promise.all([
         apiService.getInventory(searchQuery),
-        apiService.getRequests(),
+        apiService.getRequests({ status: ["PENDING", "REJECTED"] }),
       ]);
+
+      const updateRequestByTargetId = new Map();
+      for (const req of requestsData) {
+        if (req?.type !== "INVENTORY_UPDATE") continue;
+        if (req?.status !== "PENDING" && req?.status !== "REJECTED") continue;
+        if (typeof req?.targetId !== "string" || !req.targetId) continue;
+
+        const existing = updateRequestByTargetId.get(req.targetId);
+        if (!existing || String(req.createdAt) > String(existing.createdAt)) {
+          updateRequestByTargetId.set(req.targetId, req);
+        }
+      }
 
       // Process existing inventory
       const processedInventory = inventoryData.map((item) => ({
         ...item,
-        status: "APPROVED",
+        status: updateRequestByTargetId.get(item.id)?.status === "REJECTED"
+          ? "REJECTED"
+          : updateRequestByTargetId.has(item.id)
+            ? "PENDING"
+            : "APPROVED",
         isRequest: false,
         requester: item.requesterDisplayName || item.requesterName || "System",
       }));
@@ -81,7 +97,8 @@ const Inventory = () => {
         .filter(
           (req) =>
             req.type === "INVENTORY_ADD" &&
-            (req.status === "PENDING" || req.status === "REJECTED"),
+            (req.status === "PENDING" ||
+              req.status === "REJECTED"),
         )
         .map((req) => {
           const data = JSON.parse(req.newData);
@@ -91,7 +108,7 @@ const Inventory = () => {
             category: data.category,
             quantity: data.quantity,
             date: req.createdAt.split("T")[0],
-            status: req.status === "REJECTED" ? "REJECTED" : "REVIEWING",
+            status: req.status === "REJECTED" ? "REJECTED" : "PENDING",
             isRequest: true,
             requester:
               req.requesterDisplayName || req.requesterName || "Unknown",
@@ -107,12 +124,12 @@ const Inventory = () => {
     } catch (error) {
       console.error("Failed to load inventory:", error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [searchQuery]);
 
   useEffect(() => {
-    loadInventory();
+    loadInventory({ showLoading: true });
   }, [loadInventory]);
 
   const handleAddItem = () => {
@@ -166,19 +183,42 @@ const Inventory = () => {
         if (!isAdmin()) {
           // Submit Request
           const originalItem = items.find((i) => i.id === currentItem.id);
+          const originalComparable = originalItem?.isRequest
+            ? (() => {
+              try {
+                return JSON.parse(originalItem.originalData || "{}") || {};
+              } catch {
+                return {};
+              }
+            })()
+            : originalItem || {};
+          const nextData = {
+            name: currentItem.name,
+            category: currentItem.category,
+            quantity: parseInt(currentItem.quantity),
+          };
+          const hasChanges =
+            String(originalComparable?.name ?? "") !== String(nextData.name ?? "") ||
+            String(originalComparable?.category ?? "") !== String(nextData.category ?? "") ||
+            Number(originalComparable?.quantity ?? 0) !== Number(nextData.quantity ?? 0);
+          if (!hasChanges) {
+            showToast(t("inventory_no_changes"), "info");
+            setIsModalOpen(false);
+            return;
+          }
+
           await apiService.createRequest({
             requesterId: user.id,
             requesterName: user.name || user.username,
             type: "INVENTORY_UPDATE",
             targetId: currentItem.id,
             originalData: originalItem,
-            newData: {
-              name: currentItem.name,
-              category: currentItem.category,
-              quantity: parseInt(currentItem.quantity),
-            },
+            newData: nextData,
           });
           showToast(t("inventory_request_submitted_success"), "success");
+          setIsModalOpen(false);
+          loadInventory({ showLoading: false });
+          return;
         } else {
           // Direct Update (Admin)
           const updated = await apiService.updateInventory(currentItem.id, {
@@ -189,7 +229,9 @@ const Inventory = () => {
           setItems(
             items.map((item) => (item.id === updated.id ? updated : item)),
           );
-          await loadInventory(); // Reload to be safe
+          setIsModalOpen(false);
+          loadInventory({ showLoading: false }); // Reload to be safe
+          return;
         }
       } else {
         // Add new item
@@ -207,7 +249,9 @@ const Inventory = () => {
             },
           });
           showToast(t("inventory_request_submitted_success"), "success");
-          await loadInventory();
+          setIsModalOpen(false);
+          loadInventory({ showLoading: false });
+          return;
         } else {
           const newItem = await apiService.createInventory({
             name: currentItem.name,
@@ -226,9 +270,11 @@ const Inventory = () => {
             },
             ...items,
           ]);
+          setIsModalOpen(false);
+          loadInventory({ showLoading: false });
+          return;
         }
       }
-      setIsModalOpen(false);
     } catch (error) {
       console.error("Failed to save item:", error);
       showToast(t("updateFailed"), "error");
@@ -239,10 +285,11 @@ const Inventory = () => {
 
   const handlers = useMemo(
     () => ({
-      "request:created": loadInventory,
-      "request:approved": loadInventory,
-      "request:rejected": loadInventory,
-      "request:deleted": loadInventory,
+      "request:created": () => loadInventory({ showLoading: false }),
+      "request:updated": () => loadInventory({ showLoading: false }),
+      "request:approved": () => loadInventory({ showLoading: false }),
+      "request:rejected": () => loadInventory({ showLoading: false }),
+      "request:deleted": () => loadInventory({ showLoading: false }),
     }),
     [loadInventory],
   );
@@ -354,7 +401,7 @@ const Inventory = () => {
                       {item.quantity}
                     </td>
                     <td className="py-4 px-6">
-                      {item.status === "REVIEWING" ? (
+                      {item.status === "PENDING" ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
                           <Clock size={12} />
                           {t("reviewing")}

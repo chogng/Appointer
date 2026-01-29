@@ -82,12 +82,22 @@ export default function createUserRoutes({
       query += " ORDER BY createdAt DESC";
 
       if (limit !== undefined) {
-        query += " LIMIT ?";
-        params.push(limit);
+        if (db.dialect === "mysql") {
+          query += ` LIMIT ${limit}`;
+        } else {
+          query += " LIMIT ?";
+          params.push(limit);
+        }
       }
       if (offset !== undefined) {
-        query += " OFFSET ?";
-        params.push(offset);
+        if (db.dialect === "mysql") {
+          // MySQL requires LIMIT when using OFFSET. Use a very large LIMIT when offset is provided alone.
+          if (limit === undefined) query += " LIMIT 18446744073709551615";
+          query += ` OFFSET ${offset}`;
+        } else {
+          query += " OFFSET ?";
+          params.push(offset);
+        }
       }
 
       const applications = await db.query(query, params);

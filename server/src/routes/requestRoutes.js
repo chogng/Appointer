@@ -43,9 +43,11 @@ export default function createRequestRoutes({ broadcast } = {}) {
     authenticateToken,
     asyncHandler(async (req, res) => {
       const statusParam = typeof req.query.status === "string" ? req.query.status : "";
+
       const statuses = statusParam
         .split(",")
         .map((s) => s.trim().toUpperCase())
+        .filter(Boolean)
         .filter((s) => ["PENDING", "APPROVED", "REJECTED"].includes(s));
 
       const limit = optionalInteger(req.query.limit, "limit", {
@@ -85,13 +87,23 @@ export default function createRequestRoutes({ broadcast } = {}) {
       query += " ORDER BY r.createdAt DESC";
 
       if (limit !== undefined) {
-        query += " LIMIT ?";
-        params.push(limit);
+        if (db.dialect === "mysql") {
+          query += ` LIMIT ${limit}`;
+        } else {
+          query += " LIMIT ?";
+          params.push(limit);
+        }
       }
 
       if (offset !== undefined) {
-        query += " OFFSET ?";
-        params.push(offset);
+        if (db.dialect === "mysql") {
+          // MySQL requires LIMIT when using OFFSET. Use a very large LIMIT when offset is provided alone.
+          if (limit === undefined) query += " LIMIT 18446744073709551615";
+          query += ` OFFSET ${offset}`;
+        } else {
+          query += " OFFSET ?";
+          params.push(offset);
+        }
       }
 
       const requests = await db.query(query, params);
@@ -127,6 +139,32 @@ export default function createRequestRoutes({ broadcast } = {}) {
       const originalDataJson = JSON.stringify(body.originalData ?? null);
       const newData = requirePlainObject(body.newData, "newData");
       const newDataJson = JSON.stringify(newData);
+
+      const existingPending = await db.queryOne(
+        "SELECT * FROM requests WHERE requesterId = ? AND type = ? AND status = 'PENDING' AND ((targetId IS NULL AND ? IS NULL) OR targetId = ?) ORDER BY createdAt DESC LIMIT 1",
+        [resolvedRequesterId, type, targetId, targetId],
+      );
+
+      if (existingPending) {
+        // If the user re-submits the same request, don't create duplicates.
+        if (
+          String(existingPending.newData || "") === newDataJson &&
+          String(existingPending.originalData || "") === originalDataJson
+        ) {
+          return res.json({ ...existingPending, deduped: true });
+        }
+
+        await db.execute(
+          "UPDATE requests SET originalData = ?, newData = ? WHERE id = ?",
+          [originalDataJson, newDataJson, existingPending.id],
+        );
+
+        const updated = await db.queryOne("SELECT * FROM requests WHERE id = ?", [
+          existingPending.id,
+        ]);
+        broadcast?.("request:updated", { id: existingPending.id });
+        return res.json(updated || { ...existingPending, originalData: originalDataJson, newData: newDataJson });
+      }
 
       const newRequest = {
         id: makeId("req"),

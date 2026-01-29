@@ -39,6 +39,7 @@ export function useDashboardPageData({
       "user_application:rejected": fetchPendingUsers,
       "user_application:reviewed_deleted": fetchPendingUsers,
       "request:created": fetchRequests,
+      "request:updated": fetchRequests,
       "request:approved": fetchRequests,
       "request:rejected": fetchRequests,
       "request:deleted": fetchRequests,
