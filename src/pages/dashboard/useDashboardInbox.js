@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { zhCN } from "date-fns/locale";
 import { apiService } from "../../services/apiService";
 import {
@@ -20,6 +20,19 @@ export function useDashboardInbox({
   const [reviewedRequests, setReviewedRequests] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [messageTab, setMessageTab] = useState("pending");
+  const messageTabRef = useRef(messageTab);
+  const refreshTimerRef = useRef(null);
+
+  useEffect(() => {
+    messageTabRef.current = messageTab;
+  }, [messageTab]);
+
+  useEffect(() => () => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
 
   const fetchPendingUsers = useCallback(async () => {
     if (!isAdmin) {
@@ -29,13 +42,21 @@ export function useDashboardInbox({
     }
 
     try {
-      const pendingApps = await apiService.getUserApplications({
-        status: ["PENDING"],
-      });
-      const reviewedApps = await apiService.getUserApplications({
-        status: ["APPROVED", "REJECTED"],
-        limit: reviewedInboxLimit,
-      });
+      const currentTab = messageTabRef.current;
+      const shouldFetchPending = currentTab !== "reviewed";
+      const shouldFetchReviewed = currentTab === "reviewed";
+
+      const [pendingApps, reviewedApps] = await Promise.all([
+        shouldFetchPending
+          ? apiService.getUserApplications({ status: ["PENDING"] })
+          : Promise.resolve([]),
+        shouldFetchReviewed
+          ? apiService.getUserApplications({
+            status: ["APPROVED", "REJECTED"],
+            limit: reviewedInboxLimit,
+          })
+          : Promise.resolve([]),
+      ]);
 
       const normalizedPending = pendingApps.map((u) => ({
         ...u,
@@ -48,12 +69,14 @@ export function useDashboardInbox({
         timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
       }));
 
-      setPendingUsers(normalizedPending);
-      setReviewedUsers(
-        normalizedReviewed
-          .slice()
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-      );
+      if (shouldFetchPending) setPendingUsers(normalizedPending);
+      if (shouldFetchReviewed) {
+        setReviewedUsers(
+          normalizedReviewed
+            .slice()
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+        );
+      }
     } catch (error) {
       console.error("Failed to fetch users:", error);
     }
@@ -61,11 +84,21 @@ export function useDashboardInbox({
 
   const fetchRequests = useCallback(async () => {
     try {
-      const pending = await apiService.getRequests({ status: ["PENDING"] });
-      const reviewed = await apiService.getRequests({
-        status: ["APPROVED", "REJECTED"],
-        limit: reviewedInboxLimit,
-      });
+      const currentTab = messageTabRef.current;
+      const shouldFetchPending = currentTab !== "reviewed";
+      const shouldFetchReviewed = currentTab === "reviewed";
+
+      const [pending, reviewed] = await Promise.all([
+        shouldFetchPending
+          ? apiService.getRequests({ status: ["PENDING"] })
+          : Promise.resolve([]),
+        shouldFetchReviewed
+          ? apiService.getRequests({
+            status: ["APPROVED", "REJECTED"],
+            limit: reviewedInboxLimit,
+          })
+          : Promise.resolve([]),
+      ]);
 
       let visiblePending = pending;
       let visibleReviewed = reviewed;
@@ -80,12 +113,65 @@ export function useDashboardInbox({
         timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
       });
 
-      setRequests(visiblePending.map(normalizeRequest));
-      setReviewedRequests(visibleReviewed.map(normalizeRequest));
+      if (shouldFetchPending) setRequests(visiblePending.map(normalizeRequest));
+      if (shouldFetchReviewed) setReviewedRequests(visibleReviewed.map(normalizeRequest));
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     }
   }, [reviewedInboxLimit, user]);
+
+  const scheduleInboxRefresh = useCallback((delayMs = 350) => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      Promise.all([fetchPendingUsers(), fetchRequests()]).catch(() => null);
+    }, delayMs);
+  }, [fetchPendingUsers, fetchRequests]);
+
+  const showProcessing = useCallback(() => {
+    showToast?.(t("dashboard_processing"), "info");
+  }, [showToast, t]);
+
+  const removeFromPending = useCallback((msg) => {
+    if (!msg) return;
+    if (msg.msgType === "USER_REGISTRATION") {
+      setPendingUsers((prev) => prev.filter((u) => u?.id !== msg.id));
+      return;
+    }
+    if (msg.msgType === "INVENTORY_REQUEST") {
+      setRequests((prev) => prev.filter((r) => r?.id !== msg.id));
+    }
+  }, []);
+
+  const addToReviewed = useCallback((msg, status) => {
+    if (!msg) return;
+    const nowIso = new Date().toISOString();
+    if (msg.msgType === "USER_REGISTRATION") {
+      setReviewedUsers((prev) => [
+        {
+          ...msg,
+          status,
+          reviewedAt: nowIso,
+          timestamp: nowIso,
+        },
+        ...prev,
+      ].slice(0, reviewedInboxLimit));
+      return;
+    }
+    if (msg.msgType === "INVENTORY_REQUEST") {
+      setReviewedRequests((prev) => [
+        {
+          ...msg,
+          status,
+          timestamp: nowIso,
+        },
+        ...prev,
+      ].slice(0, reviewedInboxLimit));
+    }
+  }, [reviewedInboxLimit]);
 
   const pendingMessages = useMemo(
     () => [...pendingUsers, ...requests],
@@ -115,22 +201,29 @@ export function useDashboardInbox({
 
   const handleApprove = useCallback(
     async (msg) => {
+      if (selectedMessage?.id === msg?.id) setSelectedMessage(null);
+
+      // Optimistic UI: move out of pending immediately.
+      removeFromPending(msg);
+      addToReviewed(msg, "APPROVED");
+      showProcessing();
+
       try {
         if (msg.msgType === "USER_REGISTRATION") {
           await apiService.approveUserApplication(msg.id);
           showToast?.(t("dashboard_user_approved_success"), "success");
-          fetchPendingUsers();
         } else if (msg.msgType === "INVENTORY_REQUEST") {
           await apiService.approveRequest(msg.id);
           showToast?.(t("dashboard_request_approved_success"), "success");
-          fetchRequests();
         }
-        if (selectedMessage?.id === msg.id) setSelectedMessage(null);
       } catch {
         showToast?.(t("dashboard_failed_approve"), "error");
+      } finally {
+        // Reconcile with server (also repairs optimistic drift on failures).
+        scheduleInboxRefresh();
       }
     },
-    [fetchPendingUsers, fetchRequests, selectedMessage, showToast, t],
+    [addToReviewed, removeFromPending, scheduleInboxRefresh, selectedMessage, showProcessing, showToast, t],
   );
 
   const handleReject = useCallback(
@@ -141,23 +234,38 @@ export function useDashboardInbox({
           : t("dashboard_confirm_reject_request");
 
       showToast?.(confirmMsg, "warning", t("dashboard_reject"), async () => {
+        closeToast?.();
+        if (selectedMessage?.id === msg?.id) setSelectedMessage(null);
+
+        // Optimistic UI: move out of pending immediately.
+        removeFromPending(msg);
+        addToReviewed(msg, "REJECTED");
+        showProcessing();
+
         try {
-          closeToast?.();
           if (msg.msgType === "USER_REGISTRATION") {
             await apiService.rejectUserApplication(msg.id);
-            fetchPendingUsers();
           } else if (msg.msgType === "INVENTORY_REQUEST") {
             await apiService.rejectRequest(msg.id);
-            fetchRequests();
           }
           showToast?.(t("dashboard_rejected_success"), "success");
-          if (selectedMessage?.id === msg.id) setSelectedMessage(null);
         } catch {
           showToast?.(t("dashboard_failed_reject"), "error");
+        } finally {
+          scheduleInboxRefresh();
         }
       });
     },
-    [closeToast, fetchPendingUsers, fetchRequests, selectedMessage, showToast, t],
+    [
+      addToReviewed,
+      closeToast,
+      removeFromPending,
+      scheduleInboxRefresh,
+      selectedMessage,
+      showProcessing,
+      showToast,
+      t,
+    ],
   );
 
   const handleRevoke = useCallback(
@@ -167,19 +275,25 @@ export function useDashboardInbox({
         "warning",
         t("dashboard_revoke"),
         async () => {
+          closeToast?.();
+          if (selectedMessage?.id === msg?.id) setSelectedMessage(null);
+
+          // Optimistic UI: remove from pending immediately.
+          removeFromPending(msg);
+          showProcessing();
+
           try {
-            closeToast?.();
             await apiService.deleteRequest(msg.id);
-            fetchRequests();
             showToast?.(t("dashboard_request_revoked_success"), "success");
-            if (selectedMessage?.id === msg.id) setSelectedMessage(null);
           } catch {
             showToast?.(t("dashboard_failed_revoke_request"), "error");
+          } finally {
+            scheduleInboxRefresh();
           }
         },
       );
     },
-    [closeToast, fetchRequests, selectedMessage, showToast, t],
+    [closeToast, removeFromPending, scheduleInboxRefresh, selectedMessage, showProcessing, showToast, t],
   );
 
   const handleClearReviewedRequests = useCallback(() => {
@@ -199,6 +313,7 @@ export function useDashboardInbox({
       async () => {
         try {
           closeToast?.();
+          showProcessing();
           await Promise.all([
             hasReviewedRequests ? apiService.deleteReviewedRequests() : null,
             hasReviewedUsers ? apiService.deleteReviewedUserApplications() : null,
@@ -219,6 +334,7 @@ export function useDashboardInbox({
     isAdmin,
     reviewedRequests,
     reviewedUsers,
+    showProcessing,
     showToast,
     t,
   ]);
@@ -233,6 +349,16 @@ export function useDashboardInbox({
     showToast?.(t("confirmApproveAll"), "warning", t("approveAll"), async () => {
       try {
         closeToast?.();
+        showProcessing();
+
+        // Optimistic UI: move everything out of pending immediately.
+        const toApprove = pendingMessages.slice();
+        setPendingUsers([]);
+        setRequests([]);
+        for (const msg of toApprove) {
+          addToReviewed(msg, "APPROVED");
+        }
+
         await Promise.all(
           pendingMessages.map((msg) => {
             if (msg.msgType === "USER_REGISTRATION") {
@@ -244,14 +370,15 @@ export function useDashboardInbox({
             return Promise.resolve();
           }),
         );
-        await Promise.all([fetchPendingUsers(), fetchRequests()]);
         showToast?.(t("approveAllSuccess"), "success");
       } catch (error) {
         console.error("Failed to approve all:", error);
         showToast?.(t("approveAllFailed"), "error");
+      } finally {
+        scheduleInboxRefresh();
       }
     });
-  }, [closeToast, fetchPendingUsers, fetchRequests, isAdmin, pendingMessages, showToast, t]);
+  }, [addToReviewed, closeToast, isAdmin, pendingMessages, scheduleInboxRefresh, showProcessing, showToast, t]);
 
   return {
     isAdmin,

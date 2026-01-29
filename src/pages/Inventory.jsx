@@ -24,8 +24,18 @@ import { useRealtimeSync } from "../hooks/useRealtimeSync";
 
 import { useAuth } from "../hooks/useAuth";
 
+const safeJsonParse = (input, fallback = null) => {
+  if (typeof input !== "string" || !input) return fallback;
+  try {
+    return JSON.parse(input);
+  } catch {
+    return fallback;
+  }
+};
+
 const Inventory = () => {
   const containerRef = useRef(null);
+  const refreshTimerRef = useRef(null);
   const { t } = useLanguage();
   const { user } = useAuth();
   const { isAdmin } = usePermission();
@@ -68,14 +78,18 @@ const Inventory = () => {
         apiService.getRequests({ status: ["PENDING", "REJECTED"] }),
       ]);
 
+      const relevantRequests = requestsData.filter((req) =>
+        (req?.type === "INVENTORY_ADD" || req?.type === "INVENTORY_UPDATE") &&
+        (req?.status === "PENDING" || req?.status === "REJECTED")
+      );
+
       const updateRequestByTargetId = new Map();
-      for (const req of requestsData) {
+      for (const req of relevantRequests) {
         if (req?.type !== "INVENTORY_UPDATE") continue;
-        if (req?.status !== "PENDING" && req?.status !== "REJECTED") continue;
         if (typeof req?.targetId !== "string" || !req.targetId) continue;
 
         const existing = updateRequestByTargetId.get(req.targetId);
-        if (!existing || String(req.createdAt) > String(existing.createdAt)) {
+        if (!existing || new Date(req.createdAt) > new Date(existing.createdAt)) {
           updateRequestByTargetId.set(req.targetId, req);
         }
       }
@@ -83,40 +97,30 @@ const Inventory = () => {
       // Process existing inventory
       const processedInventory = inventoryData.map((item) => ({
         ...item,
-        status: updateRequestByTargetId.get(item.id)?.status === "REJECTED"
-          ? "REJECTED"
-          : updateRequestByTargetId.has(item.id)
-            ? "PENDING"
-            : "APPROVED",
+        status: updateRequestByTargetId.get(item.id)?.status || "APPROVED",
         isRequest: false,
         requester: item.requesterDisplayName || item.requesterName || "System",
       }));
 
-      // Process pending requests (only add requests for now)
-      const pendingRequests = requestsData
-        .filter(
-          (req) =>
-            req.type === "INVENTORY_ADD" &&
-            (req.status === "PENDING" ||
-              req.status === "REJECTED"),
-        )
+      // Process request rows (inventory adds)
+      const addRequestRows = relevantRequests
+        .filter((req) => req.type === "INVENTORY_ADD")
         .map((req) => {
-          const data = JSON.parse(req.newData);
+          const data = safeJsonParse(req.newData, {});
           return {
             id: req.id,
             name: data.name,
             category: data.category,
             quantity: data.quantity,
-            date: req.createdAt.split("T")[0],
-            status: req.status === "REJECTED" ? "REJECTED" : "PENDING",
+            date: String(req.createdAt || "").split("T")[0],
+            status: req.status,
             isRequest: true,
-            requester:
-              req.requesterDisplayName || req.requesterName || "Unknown",
+            requester: req.requesterDisplayName || req.requesterName || "Unknown",
           };
         });
 
       // Combine and sort by date descending
-      const allItems = [...pendingRequests, ...processedInventory].sort(
+      const allItems = [...addRequestRows, ...processedInventory].sort(
         (a, b) => new Date(b.date) - new Date(a.date),
       );
 
@@ -127,6 +131,28 @@ const Inventory = () => {
       if (showLoading) setLoading(false);
     }
   }, [searchQuery]);
+
+  const scheduleInventoryRefresh = useCallback(({
+    showLoading = false,
+    delayMs = 450,
+  } = {}) => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      loadInventory({ showLoading });
+    }, delayMs);
+  }, [loadInventory]);
+
+  useEffect(() => () => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     loadInventory({ showLoading: true });
@@ -153,7 +179,7 @@ const Inventory = () => {
         try {
           closeToast();
           await apiService.deleteInventory(id);
-          setItems(items.filter((item) => item.id !== id));
+          setItems((prev) => prev.filter((item) => item.id !== id));
           setTimeout(
             () => showToast(t("updateSuccess"), "success"),
             300,
@@ -179,35 +205,39 @@ const Inventory = () => {
     e.preventDefault();
 
     try {
+      const quantity = Number.parseInt(currentItem.quantity, 10);
       if (isEditing) {
         if (!isAdmin()) {
           // Submit Request
           const originalItem = items.find((i) => i.id === currentItem.id);
           const originalComparable = originalItem?.isRequest
-            ? (() => {
-              try {
-                return JSON.parse(originalItem.originalData || "{}") || {};
-              } catch {
-                return {};
-              }
-            })()
+            ? safeJsonParse(originalItem.originalData, {}) || {}
             : originalItem || {};
           const nextData = {
             name: currentItem.name,
             category: currentItem.category,
-            quantity: parseInt(currentItem.quantity),
+            quantity,
           };
           const hasChanges =
             String(originalComparable?.name ?? "") !== String(nextData.name ?? "") ||
             String(originalComparable?.category ?? "") !== String(nextData.category ?? "") ||
             Number(originalComparable?.quantity ?? 0) !== Number(nextData.quantity ?? 0);
           if (!hasChanges) {
-            showToast(t("inventory_no_changes"), "info");
-            setIsModalOpen(false);
-            return;
+            if (originalItem?.status === "PENDING") {
+              showToast(t("inventory_under_review_wait"), "info");
+              setIsModalOpen(false);
+              return;
+            }
+            // Allow re-submitting a previously rejected request even if user doesn't change fields.
+            if (originalItem?.status !== "REJECTED") {
+              showToast(t("inventory_no_changes"), "info");
+              setIsModalOpen(false);
+              return;
+            }
           }
 
-          await apiService.createRequest({
+          showToast(t("inventory_submitting_request"), "info");
+          const createdRequest = await apiService.createRequest({
             requesterId: user.id,
             requesterName: user.name || user.username,
             type: "INVENTORY_UPDATE",
@@ -217,26 +247,44 @@ const Inventory = () => {
           });
           showToast(t("inventory_request_submitted_success"), "success");
           setIsModalOpen(false);
-          loadInventory({ showLoading: false });
+
+          // Optimistic UI: mark the inventory item as pending immediately.
+          if (createdRequest?.status === "PENDING") {
+            setItems((prev) =>
+              prev.map((row) =>
+                row?.id === currentItem.id && row?.isRequest !== true
+                  ? {
+                    ...row,
+                    status: "PENDING",
+                    requester: user?.name || user?.username || row.requester,
+                  }
+                  : row,
+              ),
+            );
+          }
+
+          // Debounced refresh to reconcile with backend + avoid double-refresh (socket + manual).
+          scheduleInventoryRefresh({ showLoading: false });
           return;
         } else {
           // Direct Update (Admin)
           const updated = await apiService.updateInventory(currentItem.id, {
             name: currentItem.name,
             category: currentItem.category,
-            quantity: parseInt(currentItem.quantity),
+            quantity,
           });
-          setItems(
-            items.map((item) => (item.id === updated.id ? updated : item)),
+          setItems((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item)),
           );
           setIsModalOpen(false);
-          loadInventory({ showLoading: false }); // Reload to be safe
+          scheduleInventoryRefresh({ showLoading: false }); // Reload to be safe
           return;
         }
       } else {
         // Add new item
         if (!isAdmin()) {
-          await apiService.createRequest({
+          showToast(t("inventory_submitting_request"), "info");
+          const createdRequest = await apiService.createRequest({
             requesterId: user.id,
             requesterName: user.name || user.username,
             type: "INVENTORY_ADD",
@@ -245,12 +293,39 @@ const Inventory = () => {
             newData: {
               name: currentItem.name,
               category: currentItem.category,
-              quantity: parseInt(currentItem.quantity),
+              quantity,
             },
           });
           showToast(t("inventory_request_submitted_success"), "success");
           setIsModalOpen(false);
-          loadInventory({ showLoading: false });
+
+          // Optimistic UI: insert/update the pending request row immediately.
+          if (createdRequest?.id && createdRequest?.type === "INVENTORY_ADD") {
+            const data = safeJsonParse(createdRequest.newData, {}) || {};
+            const optimisticRow = {
+              id: createdRequest.id,
+              name: data.name,
+              category: data.category,
+              quantity: data.quantity,
+              date: String(createdRequest.createdAt || new Date().toISOString()).split("T")[0],
+              status: createdRequest.status,
+              isRequest: true,
+              requester:
+                createdRequest.requesterDisplayName ||
+                createdRequest.requesterName ||
+                user?.name ||
+                user?.username ||
+                "Unknown",
+            };
+
+            setItems((prev) => {
+              const next = prev.filter((row) => row?.id !== optimisticRow.id);
+              next.unshift(optimisticRow);
+              return next;
+            });
+          }
+
+          scheduleInventoryRefresh({ showLoading: false });
           return;
         } else {
           const newItem = await apiService.createInventory({
@@ -258,7 +333,7 @@ const Inventory = () => {
             category: currentItem.category,
             quantity: parseInt(currentItem.quantity),
           });
-          setItems([
+          setItems((prev) => [
             {
               ...newItem,
               status: "APPROVED",
@@ -268,10 +343,10 @@ const Inventory = () => {
                 newItem.requesterName ||
                 "Unknown",
             },
-            ...items,
+            ...prev,
           ]);
           setIsModalOpen(false);
-          loadInventory({ showLoading: false });
+          scheduleInventoryRefresh({ showLoading: false });
           return;
         }
       }
@@ -281,17 +356,15 @@ const Inventory = () => {
     }
   };
 
-  const filteredItems = items; // Handling filtering via API now
-
   const handlers = useMemo(
     () => ({
-      "request:created": () => loadInventory({ showLoading: false }),
-      "request:updated": () => loadInventory({ showLoading: false }),
-      "request:approved": () => loadInventory({ showLoading: false }),
-      "request:rejected": () => loadInventory({ showLoading: false }),
-      "request:deleted": () => loadInventory({ showLoading: false }),
+      "request:created": () => scheduleInventoryRefresh({ showLoading: false }),
+      "request:updated": () => scheduleInventoryRefresh({ showLoading: false }),
+      "request:approved": () => scheduleInventoryRefresh({ showLoading: false }),
+      "request:rejected": () => scheduleInventoryRefresh({ showLoading: false }),
+      "request:deleted": () => scheduleInventoryRefresh({ showLoading: false }),
     }),
-    [loadInventory],
+    [scheduleInventoryRefresh],
   );
 
   useRealtimeSync(handlers);
@@ -385,8 +458,8 @@ const Inventory = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50 text-text-primary">
-              {filteredItems.length > 0 ? (
-                filteredItems.map((item) => (
+              {items.length > 0 ? (
+                items.map((item) => (
                   <tr
                     key={item.id}
                     className="hover:bg-white/5 transition-colors group"
