@@ -270,6 +270,16 @@ async function migrateSchema() {
   `);
 
   db.run(`
+    CREATE INDEX IF NOT EXISTS requests_pending_dedupe_idx
+    ON requests (requesterId, type, status, targetId, createdAt)
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS requests_requester_status_createdAt_idx
+    ON requests (requesterId, status, createdAt)
+  `);
+
+  db.run(`
     CREATE INDEX IF NOT EXISTS device_analysis_templates_user_updated_idx
     ON device_analysis_templates (userId, updatedAt)
   `);

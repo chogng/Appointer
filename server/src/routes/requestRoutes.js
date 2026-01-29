@@ -19,6 +19,29 @@ import {
 export default function createRequestRoutes({ broadcast } = {}) {
   const router = express.Router();
 
+  const normalizeInventoryData = (value) => {
+    if (!value) return null;
+    let parsed = value;
+    if (typeof value === "string") {
+      try {
+        parsed = JSON.parse(value);
+      } catch {
+        return null;
+      }
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+    const name = typeof parsed.name === "string" ? parsed.name : "";
+    const category = typeof parsed.category === "string" ? parsed.category : "";
+    const quantity = Number(parsed.quantity);
+
+    return {
+      name,
+      category,
+      quantity: Number.isFinite(quantity) ? quantity : 0,
+    };
+  };
+
   router.delete(
     "/reviewed",
     authenticateToken,
@@ -122,23 +145,27 @@ export default function createRequestRoutes({ broadcast } = {}) {
       ]);
 
       const resolvedRequesterId = req.user.id;
-      const user = await db.queryOne("SELECT name FROM users WHERE id = ?", [
-        resolvedRequesterId,
-      ]);
       const requesterNameInput = optionalString(body.requesterName, "requesterName", {
         maxLength: 255,
       });
       const resolvedRequesterName =
-        user?.name || requesterNameInput || req.user.username || "Unknown";
+        req.user?.name || requesterNameInput || req.user.username || "Unknown";
 
       const targetId =
         type === "INVENTORY_UPDATE"
           ? requireString(body.targetId, "targetId", { maxLength: 64 })
           : null;
 
-      const originalDataJson = JSON.stringify(body.originalData ?? null);
+      const originalDataNormalized =
+        type === "INVENTORY_UPDATE" ? normalizeInventoryData(body.originalData) : null;
       const newData = requirePlainObject(body.newData, "newData");
-      const newDataJson = JSON.stringify(newData);
+      const newDataNormalized = normalizeInventoryData(newData);
+      if (!newDataNormalized) {
+        return res.status(400).json({ error: "Invalid newData" });
+      }
+
+      const originalDataJson = JSON.stringify(originalDataNormalized);
+      const newDataJson = JSON.stringify(newDataNormalized);
 
       const existingPending = await db.queryOne(
         "SELECT * FROM requests WHERE requesterId = ? AND type = ? AND status = 'PENDING' AND ((targetId IS NULL AND ? IS NULL) OR targetId = ?) ORDER BY createdAt DESC LIMIT 1",
@@ -159,11 +186,12 @@ export default function createRequestRoutes({ broadcast } = {}) {
           [originalDataJson, newDataJson, existingPending.id],
         );
 
-        const updated = await db.queryOne("SELECT * FROM requests WHERE id = ?", [
-          existingPending.id,
-        ]);
         broadcast?.("request:updated", { id: existingPending.id });
-        return res.json(updated || { ...existingPending, originalData: originalDataJson, newData: newDataJson });
+        return res.json({
+          ...existingPending,
+          originalData: originalDataJson,
+          newData: newDataJson,
+        });
       }
 
       const newRequest = {

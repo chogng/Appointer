@@ -37,7 +37,7 @@ export const authenticateToken = (req, res, next) => {
 
     try {
       const dbUser = await db.queryOne(
-        "SELECT id, username, role, status, expiryDate FROM users WHERE id = ?",
+        "SELECT id, username, role, status, expiryDate, name FROM users WHERE id = ?",
         [user?.id],
       );
       if (!dbUser)
@@ -56,6 +56,7 @@ export const authenticateToken = (req, res, next) => {
         id: dbUser.id,
         username: dbUser.username,
         role: dbUser.role,
+        name: dbUser.name,
       };
       next();
     } catch (error) {

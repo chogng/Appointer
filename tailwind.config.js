@@ -51,7 +51,12 @@ export default {
           hover: '#000000',
           focus: '#2C84DB',
           terracotta: '#D97757',
-        }
+        },
+        status: {
+          approved: 'rgb(var(--status-approved-rgb) / <alpha-value>)',
+          pending: 'rgb(var(--status-pending-rgb) / <alpha-value>)',
+          rejected: 'rgb(var(--status-rejected-rgb) / <alpha-value>)',
+        },
         
       },
       fontFamily: {

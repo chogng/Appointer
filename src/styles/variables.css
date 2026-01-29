@@ -16,6 +16,11 @@
   --color-warning: #F59E0B;
   --color-error: #EF4444;
 
+  /* Semantic status colors (RGB triplets for Tailwind alpha support) */
+  --status-approved-rgb: 16 185 129; /* emerald-500 */
+  --status-pending-rgb: 245 158 11; /* amber-500 */
+  --status-rejected-rgb: 239 68 68; /* red-500 */
+
   /* Typography */
   --font-family-base: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-size-sm: 0.875rem;

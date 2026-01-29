@@ -32,6 +32,7 @@ import {
 
 import { useLanguage } from "../hooks/useLanguage";
 import Avatar from "../components/ui/Avatar";
+import StatusBadge from "../components/ui/StatusBadge";
 
 const Dashboard = () => {
   const containerRef = useRef(null);
@@ -393,6 +394,10 @@ const Dashboard = () => {
                         const tsLabel = getMessageTimestampLabel(msg);
 
                         const detailsNode = (() => {
+                          if (messageTab === "reviewed") {
+                            return <StatusBadge status={msg.status} pendingLabelKey="reviewing" />;
+                          }
+
                           if (msg.msgType === "USER_REGISTRATION") {
                             return msg.email ? (
                               <span className="user_request_email">

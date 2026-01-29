@@ -293,6 +293,18 @@ async function ensureSchema(db) {
   );
   await ensureIndex("logs", "logs_timestamp_idx", "timestamp");
 
+  await ensureIndex(
+    "requests",
+    "requests_pending_dedupe_idx",
+    "requesterId, type, status, targetId, createdAt",
+  );
+
+  await ensureIndex(
+    "requests",
+    "requests_requester_status_createdAt_idx",
+    "requesterId, status, createdAt",
+  );
+
   await ensureColumn(
     "device_analysis_settings",
     "ssMethodDefault",

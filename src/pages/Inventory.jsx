@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { flushSync } from "react-dom";
 import { useLanguage } from "../hooks/useLanguage";
 import { usePermission } from "../hooks/usePermission";
 import {
@@ -16,11 +17,11 @@ import {
   X,
   Check,
   FileQuestion,
-  Clock,
 } from "lucide-react";
 import { apiService } from "../services/apiService";
 import Toast from "../components/ui/Toast";
 import { useRealtimeSync } from "../hooks/useRealtimeSync";
+import StatusBadge from "../components/ui/StatusBadge";
 
 import { useAuth } from "../hooks/useAuth";
 
@@ -36,6 +37,7 @@ const safeJsonParse = (input, fallback = null) => {
 const Inventory = () => {
   const containerRef = useRef(null);
   const refreshTimerRef = useRef(null);
+  const inventoryFetchIdRef = useRef(0);
   const { t } = useLanguage();
   const { user } = useAuth();
   const { isAdmin } = usePermission();
@@ -49,6 +51,7 @@ const Inventory = () => {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({
     isVisible: false,
     message: "",
@@ -72,11 +75,14 @@ const Inventory = () => {
 
   const loadInventory = useCallback(async ({ showLoading = true } = {}) => {
     try {
+      const fetchId = (inventoryFetchIdRef.current += 1);
       if (showLoading) setLoading(true);
       const [inventoryData, requestsData] = await Promise.all([
         apiService.getInventory(searchQuery),
         apiService.getRequests({ status: ["PENDING", "REJECTED"] }),
       ]);
+
+      if (fetchId !== inventoryFetchIdRef.current) return;
 
       const relevantRequests = requestsData.filter((req) =>
         (req?.type === "INVENTORY_ADD" || req?.type === "INVENTORY_UPDATE") &&
@@ -147,6 +153,17 @@ const Inventory = () => {
     }, delayMs);
   }, [loadInventory]);
 
+  const scheduleInventoryRefreshFromSubmit = useCallback(() => {
+    // Fallback refresh: if socket events are delayed or disconnected, still reconcile.
+    // Use a longer delay to avoid doubling up with socket-triggered refresh.
+    scheduleInventoryRefresh({ showLoading: false, delayMs: 1200 });
+  }, [scheduleInventoryRefresh]);
+
+  const scheduleInventoryRefreshFromSocket = useCallback(() => {
+    // Fast refresh when we receive realtime events.
+    scheduleInventoryRefresh({ showLoading: false, delayMs: 250 });
+  }, [scheduleInventoryRefresh]);
+
   useEffect(() => () => {
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
@@ -203,6 +220,8 @@ const Inventory = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
       const quantity = Number.parseInt(currentItem.quantity, 10);
@@ -236,13 +255,21 @@ const Inventory = () => {
             }
           }
 
-          showToast(t("inventory_submitting_request"), "info");
+          const originalData = {
+            name: originalComparable?.name ?? "",
+            category: originalComparable?.category ?? "",
+            quantity: Number(originalComparable?.quantity ?? 0),
+          };
+
+          flushSync(() => {
+            showToast(t("inventory_submitting_request"), "info");
+          });
           const createdRequest = await apiService.createRequest({
             requesterId: user.id,
             requesterName: user.name || user.username,
             type: "INVENTORY_UPDATE",
             targetId: currentItem.id,
-            originalData: originalItem,
+            originalData,
             newData: nextData,
           });
           showToast(t("inventory_request_submitted_success"), "success");
@@ -264,10 +291,13 @@ const Inventory = () => {
           }
 
           // Debounced refresh to reconcile with backend + avoid double-refresh (socket + manual).
-          scheduleInventoryRefresh({ showLoading: false });
+          scheduleInventoryRefreshFromSubmit();
           return;
         } else {
           // Direct Update (Admin)
+          flushSync(() => {
+            showToast(t("inventory_submitting_request"), "info");
+          });
           const updated = await apiService.updateInventory(currentItem.id, {
             name: currentItem.name,
             category: currentItem.category,
@@ -277,13 +307,15 @@ const Inventory = () => {
             prev.map((item) => (item.id === updated.id ? updated : item)),
           );
           setIsModalOpen(false);
-          scheduleInventoryRefresh({ showLoading: false }); // Reload to be safe
+          scheduleInventoryRefreshFromSubmit(); // Reload to be safe
           return;
         }
       } else {
         // Add new item
         if (!isAdmin()) {
-          showToast(t("inventory_submitting_request"), "info");
+          flushSync(() => {
+            showToast(t("inventory_submitting_request"), "info");
+          });
           const createdRequest = await apiService.createRequest({
             requesterId: user.id,
             requesterName: user.name || user.username,
@@ -325,9 +357,12 @@ const Inventory = () => {
             });
           }
 
-          scheduleInventoryRefresh({ showLoading: false });
+          scheduleInventoryRefreshFromSubmit();
           return;
         } else {
+          flushSync(() => {
+            showToast(t("inventory_submitting_request"), "info");
+          });
           const newItem = await apiService.createInventory({
             name: currentItem.name,
             category: currentItem.category,
@@ -346,25 +381,27 @@ const Inventory = () => {
             ...prev,
           ]);
           setIsModalOpen(false);
-          scheduleInventoryRefresh({ showLoading: false });
+          scheduleInventoryRefreshFromSubmit();
           return;
         }
       }
     } catch (error) {
       console.error("Failed to save item:", error);
       showToast(t("updateFailed"), "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handlers = useMemo(
     () => ({
-      "request:created": () => scheduleInventoryRefresh({ showLoading: false }),
-      "request:updated": () => scheduleInventoryRefresh({ showLoading: false }),
-      "request:approved": () => scheduleInventoryRefresh({ showLoading: false }),
-      "request:rejected": () => scheduleInventoryRefresh({ showLoading: false }),
-      "request:deleted": () => scheduleInventoryRefresh({ showLoading: false }),
+      "request:created": scheduleInventoryRefreshFromSocket,
+      "request:updated": scheduleInventoryRefreshFromSocket,
+      "request:approved": scheduleInventoryRefreshFromSocket,
+      "request:rejected": scheduleInventoryRefreshFromSocket,
+      "request:deleted": scheduleInventoryRefreshFromSocket,
     }),
-    [scheduleInventoryRefresh],
+    [scheduleInventoryRefreshFromSocket],
   );
 
   useRealtimeSync(handlers);
@@ -474,22 +511,7 @@ const Inventory = () => {
                       {item.quantity}
                     </td>
                     <td className="py-4 px-6">
-                      {item.status === "PENDING" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-                          <Clock size={12} />
-                          {t("reviewing")}
-                        </span>
-                      ) : item.status === "REJECTED" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                          <X size={12} />
-                          {t("rejected")}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          <Check size={12} />
-                          {t("approved")}
-                        </span>
-                      )}
+                      <StatusBadge status={item.status} pendingLabelKey="reviewing" />
                     </td>
                     <td className="py-4 px-6 text-text-secondary text-sm">
                       {item.date}
@@ -649,12 +671,15 @@ const Inventory = () => {
                 <button
                   id="inventory-modal-submit-btn"
                   type="submit"
+                  disabled={isSubmitting}
                   className="action-btn action-btn--md action-btn--primary"
                 >
                   <span className="action-btn__content">
                     <Check size={18} />
                     <span>
-                      {isEditing
+                      {isSubmitting
+                        ? t("inventory_submitting_request")
+                        : isEditing
                         ? isAdmin()
                           ? t("saveChanges")
                           : t("submitRequest")

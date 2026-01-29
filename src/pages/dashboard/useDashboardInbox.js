@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { zhCN } from "date-fns/locale";
 import { apiService } from "../../services/apiService";
 import {
   getDashboardMessageBehaviorLabel,
   getDashboardMessageTimestampLabel,
 } from "../../utils/dashboardMessageFormatters";
+
+const isAdminRole = (role) => role === "ADMIN" || role === "SUPER_ADMIN";
 
 export function useDashboardInbox({
   user,
@@ -13,15 +16,21 @@ export function useDashboardInbox({
   closeToast,
   reviewedInboxLimit = 100,
 }) {
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const isAdmin = isAdminRole(user?.role);
+
   const [pendingUsers, setPendingUsers] = useState([]);
-  const [requests, setRequests] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [reviewedUsers, setReviewedUsers] = useState([]);
   const [reviewedRequests, setReviewedRequests] = useState([]);
+
   const [selectedMessage, setSelectedMessage] = useState(null);
-  const [messageTab, setMessageTab] = useState("pending");
-  const messageTabRef = useRef(messageTab);
+  const [messageTab, setMessageTab] = useState("pending"); // "pending" | "reviewed"
+
   const refreshTimerRef = useRef(null);
+  const messageTabRef = useRef(messageTab);
+  const userAppsFetchIdRef = useRef(0);
+  const requestsFetchIdRef = useRef(0);
+  const tabIsReviewed = messageTab === "reviewed";
 
   useEffect(() => {
     messageTabRef.current = messageTab;
@@ -34,148 +43,155 @@ export function useDashboardInbox({
     }
   }, []);
 
-  const fetchPendingUsers = useCallback(async () => {
-    if (!isAdmin) {
-      setPendingUsers([]);
-      setReviewedUsers([]);
-      return;
-    }
-
-    try {
-      const currentTab = messageTabRef.current;
-      const shouldFetchPending = currentTab !== "reviewed";
-      const shouldFetchReviewed = currentTab === "reviewed";
-
-      const [pendingApps, reviewedApps] = await Promise.all([
-        shouldFetchPending
-          ? apiService.getUserApplications({ status: ["PENDING"] })
-          : Promise.resolve([]),
-        shouldFetchReviewed
-          ? apiService.getUserApplications({
-            status: ["APPROVED", "REJECTED"],
-            limit: reviewedInboxLimit,
-          })
-          : Promise.resolve([]),
-      ]);
-
-      const normalizedPending = pendingApps.map((u) => ({
-        ...u,
-        msgType: "USER_REGISTRATION",
-        timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
-      }));
-      const normalizedReviewed = reviewedApps.map((u) => ({
-        ...u,
-        msgType: "USER_REGISTRATION",
-        timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
-      }));
-
-      if (shouldFetchPending) setPendingUsers(normalizedPending);
-      if (shouldFetchReviewed) {
-        setReviewedUsers(
-          normalizedReviewed
-            .slice()
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-    }
-  }, [isAdmin, reviewedInboxLimit]);
-
-  const fetchRequests = useCallback(async () => {
-    try {
-      const currentTab = messageTabRef.current;
-      const shouldFetchPending = currentTab !== "reviewed";
-      const shouldFetchReviewed = currentTab === "reviewed";
-
-      const [pending, reviewed] = await Promise.all([
-        shouldFetchPending
-          ? apiService.getRequests({ status: ["PENDING"] })
-          : Promise.resolve([]),
-        shouldFetchReviewed
-          ? apiService.getRequests({
-            status: ["APPROVED", "REJECTED"],
-            limit: reviewedInboxLimit,
-          })
-          : Promise.resolve([]),
-      ]);
-
-      let visiblePending = pending;
-      let visibleReviewed = reviewed;
-      if (user?.role !== "ADMIN" && user?.role !== "SUPER_ADMIN") {
-        visiblePending = pending.filter((r) => r.requesterId === user?.id);
-        visibleReviewed = reviewed.filter((r) => r.requesterId === user?.id);
-      }
-
-      const normalizeRequest = (r) => ({
-        ...r,
-        msgType: "INVENTORY_REQUEST",
-        timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
+  const showToastImmediate = useCallback(
+    (message, type = "success", actionText = null, onAction = null) => {
+      if (!showToast) return;
+      flushSync(() => {
+        showToast(message, type, actionText, onAction);
       });
-
-      if (shouldFetchPending) setRequests(visiblePending.map(normalizeRequest));
-      if (shouldFetchReviewed) setReviewedRequests(visibleReviewed.map(normalizeRequest));
-    } catch (error) {
-      console.error("Failed to fetch requests:", error);
-    }
-  }, [reviewedInboxLimit, user]);
-
-  const scheduleInboxRefresh = useCallback((delayMs = 350) => {
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-    refreshTimerRef.current = setTimeout(() => {
-      refreshTimerRef.current = null;
-      Promise.all([fetchPendingUsers(), fetchRequests()]).catch(() => null);
-    }, delayMs);
-  }, [fetchPendingUsers, fetchRequests]);
+    },
+    [showToast],
+  );
 
   const showProcessing = useCallback(() => {
-    showToast?.(t("dashboard_processing"), "info");
-  }, [showToast, t]);
+    showToastImmediate(t("dashboard_processing"), "info");
+  }, [showToastImmediate, t]);
 
-  const removeFromPending = useCallback((msg) => {
-    if (!msg) return;
-    if (msg.msgType === "USER_REGISTRATION") {
-      setPendingUsers((prev) => prev.filter((u) => u?.id !== msg.id));
-      return;
-    }
-    if (msg.msgType === "INVENTORY_REQUEST") {
-      setRequests((prev) => prev.filter((r) => r?.id !== msg.id));
-    }
-  }, []);
+  const normalizeUserApplication = useCallback(
+    (u) => ({
+      ...u,
+      msgType: "USER_REGISTRATION",
+      timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
+    }),
+    [],
+  );
 
-  const addToReviewed = useCallback((msg, status) => {
-    if (!msg) return;
-    const nowIso = new Date().toISOString();
-    if (msg.msgType === "USER_REGISTRATION") {
-      setReviewedUsers((prev) => [
-        {
-          ...msg,
-          status,
-          reviewedAt: nowIso,
-          timestamp: nowIso,
-        },
-        ...prev,
-      ].slice(0, reviewedInboxLimit));
-      return;
-    }
-    if (msg.msgType === "INVENTORY_REQUEST") {
-      setReviewedRequests((prev) => [
-        {
-          ...msg,
-          status,
-          timestamp: nowIso,
-        },
-        ...prev,
-      ].slice(0, reviewedInboxLimit));
-    }
-  }, [reviewedInboxLimit]);
+  const normalizeRequest = useCallback(
+    (r) => ({
+      ...r,
+      msgType: "INVENTORY_REQUEST",
+      timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
+    }),
+    [],
+  );
+
+  const fetchUserApplications = useCallback(
+    async ({ tab = messageTab } = {}) => {
+      if (!isAdmin) {
+        setPendingUsers([]);
+        setReviewedUsers([]);
+        return;
+      }
+
+      try {
+        const fetchId = (userAppsFetchIdRef.current += 1);
+        const shouldFetchReviewed = tab === "reviewed";
+        const shouldFetchPending = tab !== "reviewed";
+
+        const [pendingApps, reviewedApps] = await Promise.all([
+          shouldFetchPending
+            ? apiService.getUserApplications({ status: ["PENDING"] })
+            : Promise.resolve([]),
+          shouldFetchReviewed
+            ? apiService.getUserApplications({
+              status: ["APPROVED", "REJECTED"],
+              limit: reviewedInboxLimit,
+            })
+            : Promise.resolve([]),
+        ]);
+
+        if (fetchId !== userAppsFetchIdRef.current) return;
+
+        if (shouldFetchPending) {
+          setPendingUsers(pendingApps.map(normalizeUserApplication));
+        }
+
+        if (shouldFetchReviewed) {
+          setReviewedUsers(reviewedApps.map(normalizeUserApplication));
+        }
+      } catch (error) {
+        console.error("Failed to fetch user applications:", error);
+      }
+    },
+    [isAdmin, messageTab, normalizeUserApplication, reviewedInboxLimit],
+  );
+
+  const fetchRequests = useCallback(
+    async ({ tab = messageTab } = {}) => {
+      try {
+        const fetchId = (requestsFetchIdRef.current += 1);
+        const shouldFetchReviewed = tab === "reviewed";
+        const shouldFetchPending = tab !== "reviewed";
+
+        const [pending, reviewed] = await Promise.all([
+          shouldFetchPending
+            ? apiService.getRequests({ status: ["PENDING"] })
+            : Promise.resolve([]),
+          shouldFetchReviewed
+            ? apiService.getRequests({
+              status: ["APPROVED", "REJECTED"],
+              limit: reviewedInboxLimit,
+            })
+            : Promise.resolve([]),
+        ]);
+
+        let visiblePending = pending;
+        let visibleReviewed = reviewed;
+
+        if (!isAdmin) {
+          visiblePending = pending.filter((r) => r.requesterId === user?.id);
+          visibleReviewed = reviewed.filter((r) => r.requesterId === user?.id);
+        }
+
+        if (fetchId !== requestsFetchIdRef.current) return;
+
+        if (shouldFetchPending) {
+          setPendingRequests(visiblePending.map(normalizeRequest));
+        }
+
+        if (shouldFetchReviewed) {
+          setReviewedRequests(visibleReviewed.map(normalizeRequest));
+        }
+      } catch (error) {
+        console.error("Failed to fetch requests:", error);
+      }
+    },
+    [isAdmin, messageTab, normalizeRequest, reviewedInboxLimit, user?.id],
+  );
+
+  const refreshCurrentTab = useCallback(
+    async ({ delayMs = 0 } = {}) => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+
+      if (delayMs > 0) {
+        refreshTimerRef.current = setTimeout(() => {
+          refreshTimerRef.current = null;
+          Promise.all([
+            fetchUserApplications({ tab: messageTabRef.current }),
+            fetchRequests({ tab: messageTabRef.current }),
+          ]).catch(() => null);
+        }, delayMs);
+        return;
+      }
+
+      await Promise.all([
+        fetchUserApplications({ tab: messageTabRef.current }),
+        fetchRequests({ tab: messageTabRef.current }),
+      ]).catch(() => null);
+    },
+    [fetchRequests, fetchUserApplications],
+  );
+
+  useEffect(() => {
+    refreshCurrentTab();
+  }, [messageTab, refreshCurrentTab]);
 
   const pendingMessages = useMemo(
-    () => [...pendingUsers, ...requests],
-    [pendingUsers, requests],
+    () => [...pendingUsers, ...pendingRequests],
+    [pendingRequests, pendingUsers],
   );
 
   const reviewedMessages = useMemo(
@@ -187,7 +203,7 @@ export function useDashboardInbox({
     [reviewedInboxLimit, reviewedRequests, reviewedUsers],
   );
 
-  const messages = messageTab === "reviewed" ? reviewedMessages : pendingMessages;
+  const messages = tabIsReviewed ? reviewedMessages : pendingMessages;
 
   const getMessageBehaviorLabel = useCallback(
     (msg) => getDashboardMessageBehaviorLabel(msg, t),
@@ -199,11 +215,57 @@ export function useDashboardInbox({
     [],
   );
 
+  const removeFromPending = useCallback((msg) => {
+    if (!msg) return;
+    if (msg.msgType === "USER_REGISTRATION") {
+      setPendingUsers((prev) => prev.filter((u) => u?.id !== msg.id));
+      return;
+    }
+    if (msg.msgType === "INVENTORY_REQUEST") {
+      setPendingRequests((prev) => prev.filter((r) => r?.id !== msg.id));
+    }
+  }, []);
+
+  const addToReviewed = useCallback(
+    (msg, status) => {
+      if (!msg) return;
+      const nowIso = new Date().toISOString();
+
+      if (msg.msgType === "USER_REGISTRATION") {
+        setReviewedUsers((prev) =>
+          [
+            {
+              ...msg,
+              status,
+              reviewedAt: nowIso,
+              timestamp: nowIso,
+            },
+            ...prev,
+          ].slice(0, reviewedInboxLimit),
+        );
+        return;
+      }
+
+      if (msg.msgType === "INVENTORY_REQUEST") {
+        setReviewedRequests((prev) =>
+          [
+            {
+              ...msg,
+              status,
+              timestamp: nowIso,
+            },
+            ...prev,
+          ].slice(0, reviewedInboxLimit),
+        );
+      }
+    },
+    [reviewedInboxLimit],
+  );
+
   const handleApprove = useCallback(
     async (msg) => {
       if (selectedMessage?.id === msg?.id) setSelectedMessage(null);
 
-      // Optimistic UI: move out of pending immediately.
       removeFromPending(msg);
       addToReviewed(msg, "APPROVED");
       showProcessing();
@@ -219,11 +281,18 @@ export function useDashboardInbox({
       } catch {
         showToast?.(t("dashboard_failed_approve"), "error");
       } finally {
-        // Reconcile with server (also repairs optimistic drift on failures).
-        scheduleInboxRefresh();
+        refreshCurrentTab({ delayMs: 350 });
       }
     },
-    [addToReviewed, removeFromPending, scheduleInboxRefresh, selectedMessage, showProcessing, showToast, t],
+    [
+      addToReviewed,
+      refreshCurrentTab,
+      removeFromPending,
+      selectedMessage?.id,
+      showProcessing,
+      showToast,
+      t,
+    ],
   );
 
   const handleReject = useCallback(
@@ -237,7 +306,6 @@ export function useDashboardInbox({
         closeToast?.();
         if (selectedMessage?.id === msg?.id) setSelectedMessage(null);
 
-        // Optimistic UI: move out of pending immediately.
         removeFromPending(msg);
         addToReviewed(msg, "REJECTED");
         showProcessing();
@@ -252,16 +320,16 @@ export function useDashboardInbox({
         } catch {
           showToast?.(t("dashboard_failed_reject"), "error");
         } finally {
-          scheduleInboxRefresh();
+          refreshCurrentTab({ delayMs: 350 });
         }
       });
     },
     [
       addToReviewed,
       closeToast,
+      refreshCurrentTab,
       removeFromPending,
-      scheduleInboxRefresh,
-      selectedMessage,
+      selectedMessage?.id,
       showProcessing,
       showToast,
       t,
@@ -278,7 +346,6 @@ export function useDashboardInbox({
           closeToast?.();
           if (selectedMessage?.id === msg?.id) setSelectedMessage(null);
 
-          // Optimistic UI: remove from pending immediately.
           removeFromPending(msg);
           showProcessing();
 
@@ -288,17 +355,27 @@ export function useDashboardInbox({
           } catch {
             showToast?.(t("dashboard_failed_revoke_request"), "error");
           } finally {
-            scheduleInboxRefresh();
+            refreshCurrentTab({ delayMs: 350 });
           }
         },
       );
     },
-    [closeToast, removeFromPending, scheduleInboxRefresh, selectedMessage, showProcessing, showToast, t],
+    [
+      closeToast,
+      refreshCurrentTab,
+      removeFromPending,
+      selectedMessage?.id,
+      showProcessing,
+      showToast,
+      t,
+    ],
   );
 
   const handleClearReviewedRequests = useCallback(() => {
     if (!isAdmin) return;
-    const hasReviewedRequests = Array.isArray(reviewedRequests) && reviewedRequests.length > 0;
+
+    const hasReviewedRequests =
+      Array.isArray(reviewedRequests) && reviewedRequests.length > 0;
     const hasReviewedUsers = Array.isArray(reviewedUsers) && reviewedUsers.length > 0;
 
     if (!hasReviewedRequests && !hasReviewedUsers) {
@@ -318,8 +395,7 @@ export function useDashboardInbox({
             hasReviewedRequests ? apiService.deleteReviewedRequests() : null,
             hasReviewedUsers ? apiService.deleteReviewedUserApplications() : null,
           ]);
-          await fetchRequests();
-          await fetchPendingUsers();
+          await refreshCurrentTab();
           showToast?.(t("dashboard_clear_reviewed_success"), "success");
         } catch (error) {
           console.error("Failed to clear reviewed requests:", error);
@@ -329,9 +405,8 @@ export function useDashboardInbox({
     );
   }, [
     closeToast,
-    fetchPendingUsers,
-    fetchRequests,
     isAdmin,
+    refreshCurrentTab,
     reviewedRequests,
     reviewedUsers,
     showProcessing,
@@ -351,16 +426,15 @@ export function useDashboardInbox({
         closeToast?.();
         showProcessing();
 
-        // Optimistic UI: move everything out of pending immediately.
         const toApprove = pendingMessages.slice();
         setPendingUsers([]);
-        setRequests([]);
+        setPendingRequests([]);
         for (const msg of toApprove) {
           addToReviewed(msg, "APPROVED");
         }
 
         await Promise.all(
-          pendingMessages.map((msg) => {
+          toApprove.map((msg) => {
             if (msg.msgType === "USER_REGISTRATION") {
               return apiService.approveUserApplication(msg.id);
             }
@@ -370,21 +444,31 @@ export function useDashboardInbox({
             return Promise.resolve();
           }),
         );
+
         showToast?.(t("approveAllSuccess"), "success");
       } catch (error) {
         console.error("Failed to approve all:", error);
         showToast?.(t("approveAllFailed"), "error");
       } finally {
-        scheduleInboxRefresh();
+        refreshCurrentTab({ delayMs: 350 });
       }
     });
-  }, [addToReviewed, closeToast, isAdmin, pendingMessages, scheduleInboxRefresh, showProcessing, showToast, t]);
+  }, [
+    addToReviewed,
+    closeToast,
+    isAdmin,
+    pendingMessages,
+    refreshCurrentTab,
+    showProcessing,
+    showToast,
+    t,
+  ]);
 
   return {
     isAdmin,
     reviewedInboxLimit,
     pendingUsers,
-    requests,
+    requests: pendingRequests,
     reviewedUsers,
     reviewedRequests,
     selectedMessage,
@@ -394,7 +478,7 @@ export function useDashboardInbox({
     messages,
     pendingMessages,
     reviewedMessages,
-    fetchPendingUsers,
+    fetchPendingUsers: fetchUserApplications,
     fetchRequests,
     handleApprove,
     handleReject,
