@@ -4,6 +4,7 @@ This doc defines `src/components/ui/Input.jsx` behavior and the recommended DOM/
 
 Related:
 - Stable selectors: `docs/stable_selectors_spec.md`
+- Focus indicator rules: `docs/focus_indicator_spec.md`
 - Buttons (right-slot actions): `docs/button_component_spec.md`
 - Textarea counterpart: `docs/textarea_ui_component_spec.md`
 - Implementation: `src/components/ui/Input.jsx`

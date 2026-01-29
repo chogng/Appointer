@@ -372,7 +372,7 @@ body {
          - --btn-ring-outer
          - --btn-ring-outer-hover (defaults to --btn-ring-outer)
      */
-    --btn-ring-inner: theme("colors.bg.ghost");
+    --btn-ring-inner: theme("colors.bg.0");
     --btn-ring-outer: theme("colors.border.200");
     --btn-ring-outer-hover: var(--btn-ring-outer);
 
@@ -462,7 +462,7 @@ body {
   }
 
   .action-btn--danger {
-    @apply text-text-tertiary hover:text-text-danger;
+    @apply text-text-tertiary bg-bg-0 hover:text-text-danger;
   }
 
   .action-btn--disabled {
@@ -525,7 +525,7 @@ body {
   }
 
   .input_field {
-    @apply flex items-center gap-2 px-3 py-2 rounded-lg transition-all bg-bg-page;
+    @apply relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all bg-bg-page;
   }
 
   .input_field--sm {
@@ -550,8 +550,20 @@ body {
 
   /* Keyboard focus ring (component-level outer ring).
      Note: native outlines are disabled globally; keep a visible keyboard focus indicator here. */
-  html[data-nav="keyboard"] .input_field[data-state="enable"]:focus-within {
-    @apply ring-2 ring-accent-terracotta ring-offset-4 ring-offset-bg-page;
+  html[data-nav="keyboard"] .input_field[data-state="enable"]::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: calc(0.5rem + 6px); /* rounded-lg + offset */
+    @apply border-2 border-transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, border-color 120ms ease;
+  }
+
+  html[data-nav="keyboard"] .input_field[data-state="enable"]:focus-within::after {
+    @apply border-accent-terracotta;
+    opacity: 0.5;
   }
 
   .input_field[data-state="error"] {

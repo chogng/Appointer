@@ -112,6 +112,24 @@ async function ensureSchema(db) {
   `);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS user_applications (
+      id VARCHAR(64) PRIMARY KEY,
+      username VARCHAR(64) NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      expiryDate VARCHAR(10) NULL,
+      status VARCHAR(32) NOT NULL,
+      createdAt VARCHAR(30) NOT NULL,
+      reviewedAt VARCHAR(30) NULL,
+      reviewerId VARCHAR(64) NULL,
+      approvedUserId VARCHAR(64) NULL,
+      UNIQUE KEY user_applications_username_unique (username),
+      INDEX user_applications_status_created_idx (status, createdAt)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS devices (
       id VARCHAR(64) PRIMARY KEY,
       name VARCHAR(255) NOT NULL,

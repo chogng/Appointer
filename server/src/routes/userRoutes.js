@@ -12,6 +12,7 @@ import {
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
   assertAllowedKeys,
+  optionalInteger,
   optionalString,
   requireOneOf,
   requirePlainObject,
@@ -45,6 +46,190 @@ export default function createUserRoutes({
         "SELECT id, username, role, status, name, email, expiryDate, avatarUrl FROM users",
       );
       res.json(users);
+    }),
+  );
+
+  router.get(
+    "/user-applications",
+    authenticateToken,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const statusParam = typeof req.query.status === "string" ? req.query.status : "";
+      const statuses = statusParam
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => ["PENDING", "APPROVED", "REJECTED"].includes(s));
+
+      const limit = optionalInteger(req.query.limit, "limit", {
+        min: 1,
+        max: 1000,
+      });
+      const offset = optionalInteger(req.query.offset, "offset", {
+        min: 0,
+        max: Number.MAX_SAFE_INTEGER,
+      });
+
+      const conditions = [];
+      const params = [];
+      if (statuses.length > 0) {
+        conditions.push(`status IN (${statuses.map(() => "?").join(", ")})`);
+        params.push(...statuses);
+      }
+
+      let query =
+        "SELECT id, username, status, name, email, expiryDate, createdAt, reviewedAt, reviewerId, approvedUserId FROM user_applications";
+      if (conditions.length > 0) query += ` WHERE ${conditions.join(" AND ")}`;
+      query += " ORDER BY createdAt DESC";
+
+      if (limit !== undefined) {
+        query += " LIMIT ?";
+        params.push(limit);
+      }
+      if (offset !== undefined) {
+        query += " OFFSET ?";
+        params.push(offset);
+      }
+
+      const applications = await db.query(query, params);
+      res.json(applications);
+    }),
+  );
+
+  router.post(
+    "/user-applications/:id/approve",
+    authenticateToken,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const { id } = req.params;
+      const application = await db.queryOne(
+        "SELECT * FROM user_applications WHERE id = ?",
+        [id],
+      );
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+      if (application.status !== "PENDING") {
+        return res
+          .status(400)
+          .json({ error: "Only pending applications can be approved" });
+      }
+
+      const username = application.username;
+      const existingUser = await db.queryOne(
+        "SELECT id FROM users WHERE username = ?",
+        [username],
+      );
+      if (existingUser) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+
+      const createdUser = {
+        id: makeId("user"),
+        username,
+        password: application.password,
+        role: "USER",
+        status: "ACTIVE",
+        name: application.name,
+        email: application.email,
+        expiryDate: application.expiryDate || null,
+        avatarUrl: null,
+      };
+
+      await db.execute(
+        "INSERT INTO users (id, username, password, role, status, name, email, expiryDate, avatarUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          createdUser.id,
+          createdUser.username,
+          createdUser.password,
+          createdUser.role,
+          createdUser.status,
+          createdUser.name,
+          createdUser.email,
+          createdUser.expiryDate,
+          createdUser.avatarUrl,
+        ],
+      );
+
+      const reviewedAt = new Date().toISOString();
+      await db.execute(
+        "UPDATE user_applications SET status = 'APPROVED', reviewedAt = ?, reviewerId = ?, approvedUserId = ? WHERE id = ?",
+        [reviewedAt, req.user.id, createdUser.id, id],
+      );
+
+      broadcast?.("user_application:approved", { id, approvedUserId: createdUser.id });
+      broadcast?.("user:created", {
+        id: createdUser.id,
+        username: createdUser.username,
+        role: createdUser.role,
+        status: createdUser.status,
+        name: createdUser.name,
+        email: createdUser.email,
+        expiryDate: createdUser.expiryDate,
+        avatarUrl: createdUser.avatarUrl,
+      });
+
+      await db.execute(
+        "INSERT INTO logs (id, userId, action, details, timestamp) VALUES (?, ?, ?, ?, ?)",
+        [
+          makeId("log"),
+          req.user.id,
+          "USER_CREATED",
+          `Approved application for ${username}`,
+          reviewedAt,
+        ],
+      );
+      await enforceLogsMaxCount(db);
+
+      res.json({ success: true, approvedUserId: createdUser.id });
+    }),
+  );
+
+  router.post(
+    "/user-applications/:id/reject",
+    authenticateToken,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      const { id } = req.params;
+      const application = await db.queryOne(
+        "SELECT id, status FROM user_applications WHERE id = ?",
+        [id],
+      );
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+      if (application.status !== "PENDING") {
+        return res
+          .status(400)
+          .json({ error: "Only pending applications can be rejected" });
+      }
+
+      const reviewedAt = new Date().toISOString();
+      await db.execute(
+        "UPDATE user_applications SET status = 'REJECTED', reviewedAt = ?, reviewerId = ? WHERE id = ?",
+        [reviewedAt, req.user.id, id],
+      );
+
+      broadcast?.("user_application:rejected", { id });
+      res.json({ success: true });
+    }),
+  );
+
+  router.delete(
+    "/user-applications/reviewed",
+    authenticateToken,
+    requireAdmin,
+    asyncHandler(async (_req, res) => {
+      const countRow = await db.queryOne(
+        "SELECT COUNT(*) AS count FROM user_applications WHERE status <> 'PENDING'",
+      );
+      const deletedCount = Number(countRow?.count || 0);
+
+      await db.execute("DELETE FROM user_applications WHERE status <> 'PENDING'");
+
+      broadcast?.("user_application:reviewed_deleted", { deletedCount });
+      res.json({ success: true, deletedCount });
     }),
   );
 
@@ -134,29 +319,37 @@ export default function createUserRoutes({
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const newUser = {
-        id: makeId("user"),
+      const existingApplication = await db.queryOne(
+        "SELECT id FROM user_applications WHERE username = ?",
+        [username],
+      );
+      if (existingApplication) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+
+      const application = {
+        id: makeId("app"),
         username,
         password: hashedPassword,
-        role: "USER",
         status: "PENDING",
         name,
         email,
         expiryDate: expiryDate || null,
+        createdAt: new Date().toISOString(),
       };
 
       try {
         await db.execute(
-          "INSERT INTO users (id, username, password, role, status, name, email, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO user_applications (id, username, password, status, name, email, expiryDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
           [
-            newUser.id,
-            newUser.username,
-            newUser.password,
-            newUser.role,
-            newUser.status,
-            newUser.name,
-            newUser.email,
-            newUser.expiryDate,
+            application.id,
+            application.username,
+            application.password,
+            application.status,
+            application.name,
+            application.email,
+            application.expiryDate,
+            application.createdAt,
           ],
         );
       } catch (error) {
@@ -166,11 +359,11 @@ export default function createUserRoutes({
         throw error;
       }
 
-      const { password: _, ...userWithoutPassword } = newUser;
+      const { password: _, ...appWithoutPassword } = application;
 
-      broadcast?.("user:created", userWithoutPassword);
+      broadcast?.("user_application:created", appWithoutPassword);
 
-      res.status(201).json(userWithoutPassword);
+      res.status(201).json(appWithoutPassword);
     }),
   );
 

@@ -65,6 +65,22 @@ async function createTables() {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS user_applications (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      expiryDate TEXT,
+      status TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      reviewedAt TEXT,
+      reviewerId TEXT,
+      approvedUserId TEXT
+    );
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS devices (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

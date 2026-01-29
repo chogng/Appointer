@@ -1,6 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useCallback, useMemo, useRef } from "react";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
@@ -8,19 +7,15 @@ import ListRow from "../components/ui/ListRow";
 import Toast from "../components/ui/Toast";
 import Modal from "../components/ui/Modal";
 import Tabs from "../components/ui/Tabs";
-import { apiService } from "../services/apiService";
-import { useRealtimeSync } from "../hooks/useRealtimeSync";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import {
-  getDashboardMessageBehaviorLabel,
-  getDashboardMessageTimestampLabel,
-} from "../utils/dashboardMessageFormatters";
-import {
-  buildDeviceNameById,
   getDashboardActivityDeviceNames,
   getDashboardActivityDetailLabel,
 } from "../utils/dashboardActivityFormatters";
+import { useDashboardActivity } from "./dashboard/useDashboardActivity";
+import { useDashboardInbox } from "./dashboard/useDashboardInbox";
+import { useDashboardPageData } from "./dashboard/useDashboardPageData";
 
 import {
   Calendar,
@@ -42,18 +37,6 @@ const Dashboard = () => {
   const containerRef = useRef(null);
   const { user } = useAuth();
   const { t } = useLanguage();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
-  const reviewedInboxLimit = 100;
-  const [loading, setLoading] = useState(true);
-  const [logs, setLogs] = useState([]);
-  const [pendingUsers, setPendingUsers] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [reviewedUsers, setReviewedUsers] = useState([]);
-  const [reviewedRequests, setReviewedRequests] = useState([]);
-  const [deviceNameById, setDeviceNameById] = useState({});
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [messageTab, setMessageTab] = useState("pending");
-  const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState({
     isVisible: false,
     message: "",
@@ -62,18 +45,35 @@ const Dashboard = () => {
     onAction: null,
   });
 
-  const showToast = (
+  const showToast = useCallback((
     message,
     type = "success",
     actionText = null,
     onAction = null,
   ) => {
     setToast({ isVisible: true, message, type, actionText, onAction });
-  };
+  }, []);
 
-  const closeToast = () => {
+  const closeToast = useCallback(() => {
     setToast((prev) => ({ ...prev, isVisible: false }));
-  };
+  }, []);
+
+  const activity = useDashboardActivity({ user, t, showToast, closeToast });
+  const inbox = useDashboardInbox({
+    user,
+    t,
+    showToast,
+    closeToast,
+    reviewedInboxLimit: 100,
+  });
+  const { loading } = useDashboardPageData({
+    fetchLogs: activity.fetchLogs,
+    fetchPendingUsers: inbox.fetchPendingUsers,
+    fetchRequests: inbox.fetchRequests,
+    fetchDevices: activity.fetchDevices,
+  });
+
+  const isAdmin = inbox.isAdmin;
 
   const stats = [
     {
@@ -99,253 +99,21 @@ const Dashboard = () => {
     },
   ];
 
-  const fetchLogs = useCallback(async () => {
-    try {
-      const data = await apiService.getLogs(searchTerm);
-      if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {
-        setLogs(data);
-      } else {
-        setLogs(data.filter((log) => log.userId === user?.id));
-      }
-    } catch (error) {
-      console.error("Failed to fetch logs:", error);
-    }
-  }, [searchTerm, user]);
-
-  const fetchPendingUsers = useCallback(async () => {
-    if (!isAdmin) {
-      setPendingUsers([]);
-      setReviewedUsers([]);
-      return;
-    }
-
-    try {
-      const users = await apiService.getUsers();
-      const normalized = users.map((u) => ({
-        ...u,
-        msgType: "USER_REGISTRATION",
-        timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
-      }));
-
-      setPendingUsers(normalized.filter((u) => u.status === "PENDING"));
-      setReviewedUsers(
-        normalized
-          .filter((u) => u.status !== "PENDING")
-          .slice()
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          .slice(0, reviewedInboxLimit),
-      );
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-    }
-  }, [isAdmin, reviewedInboxLimit]);
-
-  const fetchRequests = useCallback(async () => {
-    try {
-      const pending = await apiService.getRequests({ status: ["PENDING"] });
-      const reviewed = await apiService.getRequests({
-        status: ["APPROVED", "REJECTED"],
-        limit: reviewedInboxLimit,
-      });
-
-      let visiblePending = pending;
-      let visibleReviewed = reviewed;
-      if (user?.role !== "ADMIN" && user?.role !== "SUPER_ADMIN") {
-        visiblePending = pending.filter((r) => r.requesterId === user?.id);
-        visibleReviewed = reviewed.filter((r) => r.requesterId === user?.id);
-      }
-
-      const normalizeRequest = (r) => ({
-        ...r,
-        msgType: "INVENTORY_REQUEST",
-        timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
-      });
-
-      setRequests(visiblePending.map(normalizeRequest));
-      setReviewedRequests(visibleReviewed.map(normalizeRequest));
-    } catch (error) {
-      console.error("Failed to fetch requests:", error);
-    }
-  }, [reviewedInboxLimit, user]);
-
-  const fetchDevices = useCallback(async () => {
-    try {
-      const devices = await apiService.getDevices();
-      setDeviceNameById(buildDeviceNameById(devices));
-    } catch (error) {
-      console.error("Failed to fetch devices:", error);
-    }
-  }, []);
-
-  const handleClearLogs = async () => {
-    showToast(
-      t("confirmClearLogs"),
-      "warning",
-      t("clearLogs"),
-      async () => {
-        try {
-          closeToast();
-          await apiService.deleteLogs();
-          await fetchLogs();
-          setTimeout(() => {
-            showToast(t("updateSuccess"), "success");
-          }, 300);
-        } catch (error) {
-          console.error("Failed to clear logs:", error);
-          setTimeout(() => {
-            showToast(t("clearLogsFailed"), "error");
-          }, 300);
-        }
-      },
-    );
-  };
-
-  const handleApprove = async (msg) => {
-    try {
-      if (msg.msgType === "USER_REGISTRATION") {
-        await apiService.updateUser(msg.id, { status: "ACTIVE" });
-        showToast(t("dashboard_user_approved_success"), "success");
-        fetchPendingUsers();
-      } else if (msg.msgType === "INVENTORY_REQUEST") {
-        await apiService.approveRequest(msg.id);
-        showToast(t("dashboard_request_approved_success"), "success");
-        fetchRequests();
-      }
-      if (selectedMessage?.id === msg.id) setSelectedMessage(null);
-    } catch {
-      showToast(t("dashboard_failed_approve"), "error");
-    }
-  };
-
-  const handleReject = async (msg) => {
-    const confirmMsg =
-      msg.msgType === "USER_REGISTRATION"
-        ? t("dashboard_confirm_reject_user")
-        : t("dashboard_confirm_reject_request");
-
-    showToast(confirmMsg, "warning", t("dashboard_reject"), async () => {
-      try {
-        closeToast();
-        if (msg.msgType === "USER_REGISTRATION") {
-          await apiService.deleteUser(msg.id);
-          fetchPendingUsers();
-        } else if (msg.msgType === "INVENTORY_REQUEST") {
-          await apiService.rejectRequest(msg.id);
-          fetchRequests();
-        }
-        showToast(t("dashboard_rejected_success"), "success");
-        if (selectedMessage?.id === msg.id) setSelectedMessage(null);
-      } catch {
-        showToast(t("dashboard_failed_reject"), "error");
-      }
-    });
-  };
-
-  const handleRevoke = async (msg) => {
-    showToast(
-      t("dashboard_confirm_revoke_request"),
-      "warning",
-      t("dashboard_revoke"),
-      async () => {
-        try {
-          closeToast();
-          await apiService.deleteRequest(msg.id);
-          fetchRequests();
-          showToast(t("dashboard_request_revoked_success"), "success");
-          if (selectedMessage?.id === msg.id) setSelectedMessage(null);
-        } catch {
-          showToast(t("dashboard_failed_revoke_request"), "error");
-        }
-      },
-    );
-  };
-
-  const handleClearReviewedRequests = async () => {
-    if (!isAdmin) return;
-    if (!Array.isArray(reviewedRequests) || reviewedRequests.length === 0) return;
-
-    showToast(
-      t("dashboard_confirm_clear_reviewed"),
-      "warning",
-      t("dashboard_clear_reviewed"),
-      async () => {
-        try {
-          closeToast();
-          await Promise.all(
-            reviewedRequests.map((req) => apiService.deleteRequest(req.id)),
-          );
-          await fetchRequests();
-          showToast(t("dashboard_clear_reviewed_success"), "success");
-        } catch (error) {
-          console.error("Failed to clear reviewed requests:", error);
-          showToast(t("dashboard_clear_reviewed_failed"), "error");
-        }
-      },
-    );
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      await Promise.all([
-        fetchLogs(),
-        fetchPendingUsers(),
-        fetchRequests(),
-        fetchDevices(),
-      ]);
-      setLoading(false);
-    };
-    loadData();
-  }, [fetchLogs, fetchPendingUsers, fetchRequests, fetchDevices]);
-
-  const logSyncHandlers = useMemo(
-    () => ({
-      "reservation:created": fetchLogs,
-      "reservation:updated": fetchLogs,
-      "reservation:deleted": fetchLogs,
-      "device:created": fetchLogs,
-      "user:created": () => {
-        fetchLogs();
-        fetchPendingUsers();
-      },
-      "user:updated": fetchPendingUsers,
-      "request:created": fetchRequests,
-      "request:approved": fetchRequests,
-      "request:rejected": fetchRequests,
-      "request:deleted": fetchRequests,
-    }),
-    [fetchLogs, fetchPendingUsers, fetchRequests],
-  );
-
-  useRealtimeSync(logSyncHandlers);
-
   if (loading) {
     return <div className="min-h-[200px]" />;
   }
 
-  const getBehaviorLabel = (action, details) => {
-    if (action === "LOGIN") return t("dashboard_activity_login_system");
-    if (action === "RESERVATION_CREATED") return t("dashboard_activity_create_reservation");
-    if (action === "RESERVATION_CANCELLED") return t("dashboard_activity_cancel_reservation");
-    if (action === "DEVICE_CREATED") return t("dashboard_activity_create_device");
-    if (action === "USER_CREATED") return t("dashboard_activity_register_user");
-    if (action === "LITERATURE_RESEARCH") return t("dashboard_activity_literature_research");
-    if (action === "RESERVATION_TIMEOUT") return t("dashboard_activity_reservation_timeout");
+  const logs = activity.logs;
+  const deviceNameById = activity.deviceNameById;
+  const searchTerm = activity.searchTerm;
 
-    if (typeof details === "string" && details.trim()) return details.trim();
-    return typeof action === "string" ? action : "";
-  };
+  const messages = inbox.messages;
+  const selectedMessage = inbox.selectedMessage;
+  const messageTab = inbox.messageTab;
 
-  const pendingMessages = [...pendingUsers, ...requests];
-  const reviewedMessages = [...reviewedUsers, ...reviewedRequests]
-    .slice()
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, reviewedInboxLimit);
-  const messages = messageTab === "reviewed" ? reviewedMessages : pendingMessages;
-
-  const getMessageBehaviorLabel = (msg) => getDashboardMessageBehaviorLabel(msg, t);
-
-  const getMessageTimestampLabel = (msg) =>
-    getDashboardMessageTimestampLabel(msg, { locale: zhCN });
+  const getActivityBehaviorLabel = activity.getActivityBehaviorLabel;
+  const getMessageBehaviorLabel = inbox.getMessageBehaviorLabel;
+  const getMessageTimestampLabel = inbox.getMessageTimestampLabel;
 
   return (
     <div
@@ -421,7 +189,7 @@ const Dashboard = () => {
                     name="searchLogs"
                     type="text"
                     value={searchTerm}
-                    onChange={setSearchTerm}
+                    onChange={activity.setSearchTerm}
                     placeholder={t("searchLogs")}
                     leftIcon={Search}
                     size="md"
@@ -446,7 +214,7 @@ const Dashboard = () => {
                     ctaCopy="clear-logs"
                     aria-label={t("clearLogs")}
                     title={t("clearLogs")}
-                    onClick={handleClearLogs}
+                    onClick={activity.handleClearLogs}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -460,7 +228,10 @@ const Dashboard = () => {
                     className="flex flex-col m-0 p-0 list-none"
                   >
                     {logs.map((log) => {
-                      const behaviorLabel = getBehaviorLabel(log.action, log.details);
+                      const behaviorLabel = getActivityBehaviorLabel(
+                        log.action,
+                        log.details,
+                      );
                       const detailLabel = getDashboardActivityDetailLabel(log, {
                         deviceNameById,
                       });
@@ -543,13 +314,13 @@ const Dashboard = () => {
               ctaCopy="pending-approvals-inbox-card"
             >
               <div className="message_card_head_warp">
-                <div>
+                <div className="min-w-0">
                   <Tabs
                     idBase="dashboard-message-inbox-tabs"
                     groupLabel={t("recentMessages")}
                     value={messageTab}
                     onChange={(next) =>
-                      setMessageTab(next === "reviewed" ? "reviewed" : "pending")
+                      inbox.setMessageTab(next === "reviewed" ? "reviewed" : "pending")
                     }
                     options={[
                       {
@@ -571,65 +342,30 @@ const Dashboard = () => {
                     ]}
                   />
                 </div>
-                {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") &&
-                  messageTab === "pending" &&
-                  messages.length > 0 && (
-                    <Button
-                      type="button"
-                      id="dashboard-approve-all-btn"
-                      variant="ghost"
-                      size="control"
-                      dataIcon="with"
-                      cta="Dashboard"
-                      ctaPosition="pending-approvals-inbox"
-                      ctaCopy="approve-all"
-                      aria-label={t("approveAll")}
-                      title={t("approveAll")}
-                      onClick={() => {
-                        showToast(
-                          t("confirmApproveAll"),
-                          "warning",
-                          t("approveAll"),
-                          async () => {
-                            try {
-                              closeToast();
-                              await Promise.all(
-                                messages.map((msg) => {
-                                  if (msg.msgType === "USER_REGISTRATION") {
-                                    return apiService.updateUser(msg.id, {
-                                      status: "ACTIVE",
-                                    });
-                                  } else if (
-                                    msg.msgType === "INVENTORY_REQUEST"
-                                  ) {
-                                    return apiService.approveRequest(msg.id);
-                                  }
-                                  return Promise.resolve();
-                                }),
-                              );
-                              await Promise.all([
-                                fetchPendingUsers(),
-                                fetchRequests(),
-                              ]);
-                              showToast(t("approveAllSuccess"), "success");
-                            } catch (error) {
-                              console.error("Failed to approve all:", error);
-                              showToast(t("approveAllFailed"), "error");
-                            }
-                          },
-                        );
-                      }}
-                    >
-                      <CheckCircle size={16} />
-                    </Button>
-                  )}
-                {isAdmin &&
-                  messageTab === "reviewed" &&
-                  reviewedRequests.length > 0 && (
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") &&
+                    messageTab === "pending" && (
+                      <Button
+                        type="button"
+                        id="dashboard-approve-all-btn"
+                        variant="ghost"
+                        size="control"
+                        dataIcon="with"
+                        cta="Dashboard"
+                        ctaPosition="pending-approvals-inbox"
+                        ctaCopy="approve-all"
+                        aria-label={t("approveAll")}
+                        title={t("approveAll")}
+                        onClick={inbox.handleApproveAll}
+                      >
+                        <CheckCircle size={16} />
+                      </Button>
+                    )}
+                  {isAdmin && messageTab === "reviewed" && (
                     <Button
                       type="button"
                       id="dashboard-clear-reviewed-btn"
-                      variant="ghost"
+                      variant="danger"
                       size="control"
                       dataIcon="with"
                       cta="Dashboard"
@@ -637,11 +373,12 @@ const Dashboard = () => {
                       ctaCopy="clear-reviewed"
                       aria-label={t("dashboard_clear_reviewed")}
                       title={t("dashboard_clear_reviewed")}
-                      onClick={handleClearReviewedRequests}
+                      onClick={inbox.handleClearReviewedRequests}
                     >
                       <Trash2 size={16} />
                     </Button>
                   )}
+                </div>
               </div>
               <div className="mx-2 h-px bg-border-subtle/50" />
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -694,7 +431,7 @@ const Dashboard = () => {
                           <li
                             key={msg.id}
                             className="list-row group list_item"
-                            onClick={() => setSelectedMessage(msg)}
+                            onClick={() => inbox.setSelectedMessage(msg)}
                           >
                             <div className="msg_left">
                               <Avatar
@@ -759,7 +496,7 @@ const Dashboard = () => {
       {/* Message Details Modal */}
       <Modal
         isOpen={!!selectedMessage}
-        onClose={() => setSelectedMessage(null)}
+        onClose={() => inbox.setSelectedMessage(null)}
         title={
           selectedMessage?.msgType === "USER_REGISTRATION"
             ? t("dashboard_application_details")
@@ -771,7 +508,7 @@ const Dashboard = () => {
               selectedMessage?.status === "PENDING" ? (
               <>
                 <Button
-                  onClick={() => handleReject(selectedMessage)}
+                  onClick={() => inbox.handleReject(selectedMessage)}
                   variant="ghost"
                   size="md"
                   className="action-btn--danger"
@@ -779,7 +516,7 @@ const Dashboard = () => {
                   {t("dashboard_reject")}
                 </Button>
                 <Button
-                  onClick={() => handleApprove(selectedMessage)}
+                  onClick={() => inbox.handleApprove(selectedMessage)}
                   variant="primary"
                   size="md"
                 >
@@ -788,7 +525,7 @@ const Dashboard = () => {
               </>
             ) : selectedMessage?.status === "PENDING" ? (
               <Button
-                onClick={() => handleRevoke(selectedMessage)}
+                onClick={() => inbox.handleRevoke(selectedMessage)}
                 variant="ghost"
                 size="md"
                 className="action-btn--danger"

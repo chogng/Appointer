@@ -19,7 +19,7 @@ export default {
           ghost: '#FAF9F5',
           primary: '#222222',
           subtle: '#F0F0F0',
-          0: '#FFFFFF',
+          0: '#FAF9F5',
           100: '#F0EEE6',
           200: '#E3DFD2',
           300: '#D6D1C2',

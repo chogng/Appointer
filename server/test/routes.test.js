@@ -388,8 +388,33 @@ test("routes: exercise all API route groups", async (t) => {
       }),
     });
     assert.equal(registerRes.status, 201);
-    const pendingUser = await registerRes.json();
-    assert.ok(pendingUser?.id);
+    const pendingApplication = await registerRes.json();
+    assert.ok(pendingApplication?.id);
+
+    const listPendingApps = await authedFetch(
+      baseUrl,
+      adminLogin.cookie,
+      "/api/user-applications?status=PENDING",
+    );
+    assert.equal(listPendingApps.status, 200);
+    const pendingApps = await listPendingApps.json();
+    assert.ok(
+      Array.isArray(pendingApps) &&
+        pendingApps.some((a) => a?.id === pendingApplication.id),
+    );
+
+    const approveAppRes = await authedFetch(
+      baseUrl,
+      adminLogin.cookie,
+      `/api/user-applications/${pendingApplication.id}/approve`,
+      { method: "POST" },
+    );
+    assert.equal(approveAppRes.status, 200);
+    const approved = await approveAppRes.json();
+    assert.ok(approved?.approvedUserId);
+
+    const approvedLogin = await login(baseUrl, pendingApplication.username, "pw");
+    assert.equal(approvedLogin.res.status, 200);
 
     const listForbidden = await authedFetch(baseUrl, userLogin.cookie, "/api/users");
     assert.equal(listForbidden.status, 403);
@@ -398,6 +423,36 @@ test("routes: exercise all API route groups", async (t) => {
     assert.equal(listRes.status, 200);
     const users = await listRes.json();
     assert.ok(Array.isArray(users));
+
+    const rejectRes = await authedFetch(baseUrl, null, "/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: `rejected_${Date.now()}`,
+        password: "pw",
+        name: "Rejected User",
+        email: "rejected@example.com",
+      }),
+    });
+    assert.equal(rejectRes.status, 201);
+    const rejectedApplication = await rejectRes.json();
+    assert.ok(rejectedApplication?.id);
+
+    const rejectAppRes = await authedFetch(
+      baseUrl,
+      adminLogin.cookie,
+      `/api/user-applications/${rejectedApplication.id}/reject`,
+      { method: "POST" },
+    );
+    assert.equal(rejectAppRes.status, 200);
+
+    const deleteReviewedApps = await authedFetch(
+      baseUrl,
+      adminLogin.cookie,
+      "/api/user-applications/reviewed",
+      { method: "DELETE" },
+    );
+    assert.equal(deleteReviewedApps.status, 200);
 
     const adminCreateRes = await authedFetch(baseUrl, adminLogin.cookie, "/api/admin/users", {
       method: "POST",

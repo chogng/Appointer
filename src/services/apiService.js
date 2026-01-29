@@ -157,6 +157,35 @@ class ApiService {
     return this.request("/users");
   }
 
+  async getUserApplications(options = {}) {
+    const params = new URLSearchParams();
+    if (options.status) {
+      const statusValue = Array.isArray(options.status)
+        ? options.status.join(",")
+        : String(options.status);
+      params.set("status", statusValue);
+    }
+    if (typeof options.limit === "number")
+      params.set("limit", String(options.limit));
+    if (typeof options.offset === "number")
+      params.set("offset", String(options.offset));
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request(`/user-applications${query}`);
+  }
+
+  async approveUserApplication(id) {
+    return this.request(`/user-applications/${id}/approve`, { method: "POST" });
+  }
+
+  async rejectUserApplication(id) {
+    return this.request(`/user-applications/${id}/reject`, { method: "POST" });
+  }
+
+  async deleteReviewedUserApplications() {
+    return this.request("/user-applications/reviewed", { method: "DELETE" });
+  }
+
   async createUser(userData) {
     return this.request("/users", {
       method: "POST",
@@ -342,6 +371,13 @@ class ApiService {
       method: "DELETE",
     });
   }
+
+  async deleteReviewedRequests() {
+    return this.request("/requests/reviewed", {
+      method: "DELETE",
+    });
+  }
+
 
   // ============ 黑名单相关 ============
   async getUserBlocklist(userId) {

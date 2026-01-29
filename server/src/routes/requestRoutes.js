@@ -19,6 +19,25 @@ import {
 export default function createRequestRoutes({ broadcast } = {}) {
   const router = express.Router();
 
+  router.delete(
+    "/reviewed",
+    authenticateToken,
+    requireAdmin,
+    asyncHandler(async (_req, res) => {
+      const statuses = ["APPROVED", "REJECTED"];
+      const countRow = await db.queryOne(
+        `SELECT COUNT(*) AS count FROM requests WHERE status IN (?, ?)`,
+        statuses,
+      );
+      const deletedCount = Number(countRow?.count || 0);
+
+      await db.execute(`DELETE FROM requests WHERE status IN (?, ?)`, statuses);
+
+      broadcast?.("request:bulk_deleted", { statuses, deletedCount });
+      res.json({ success: true, deletedCount });
+    }),
+  );
+
   router.get(
     "/",
     authenticateToken,
@@ -257,4 +276,3 @@ export default function createRequestRoutes({ broadcast } = {}) {
 
   return router;
 }
-
