@@ -98,7 +98,7 @@ const Devices = () => {
       if (context && Object.prototype.hasOwnProperty.call(context, "previousDevices")) {
         queryClient.setQueryData(queryKeys.devices(), context.previousDevices);
       }
-      showToast(t("updateFailed"), "error");
+      showToast(error?.message || t("updateFailed"), "error");
     },
   });
 

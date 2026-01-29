@@ -112,25 +112,32 @@ class ApiService {
       let message = fallbackMessage;
       const contentType = response.headers.get("content-type") || "";
 
-      if (contentType.includes("application/json")) {
-        const parsed = await response.json().catch(() => null);
-        message = parsed?.error || parsed?.message || fallbackMessage;
+      // Always read the response body once, then try to parse it as JSON when applicable.
+      // This avoids losing useful error details when servers/proxies mislabel or return invalid JSON.
+      const rawBody = await response.text().catch(() => "");
+      let parsed = null;
 
-        const error = new Error(message);
-        if (parsed && typeof parsed === "object") {
-          Object.entries(parsed).forEach(([k, v]) => {
-            if (k === "error" || k === "message") return;
-            error[k] = v;
-          });
+      if (contentType.includes("application/json") && rawBody) {
+        try {
+          parsed = JSON.parse(rawBody);
+        } catch {
+          parsed = null;
         }
-        error.status = response.status;
-        error.endpoint = endpoint;
-        throw error;
       }
 
-      const text = await response.text().catch(() => "");
-      if (text) message = text;
+      if (parsed && typeof parsed === "object") {
+        message = parsed?.error || parsed?.message || fallbackMessage;
+      } else if (rawBody) {
+        message = rawBody;
+      }
+
       const error = new Error(message);
+      if (parsed && typeof parsed === "object") {
+        Object.entries(parsed).forEach(([k, v]) => {
+          if (k === "error" || k === "message") return;
+          error[k] = v;
+        });
+      }
       error.status = response.status;
       error.endpoint = endpoint;
       throw error;

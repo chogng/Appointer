@@ -6,6 +6,7 @@ export function useDashboardPageData({
   fetchPendingUsers,
   fetchRequests,
   fetchDevices,
+  fetchReservations,
 }) {
   const [loading, setLoading] = useState(true);
 
@@ -16,18 +17,28 @@ export function useDashboardPageData({
         fetchPendingUsers?.(),
         fetchRequests?.(),
         fetchDevices?.(),
+        fetchReservations?.(),
       ]);
       setLoading(false);
     };
 
     loadData();
-  }, [fetchDevices, fetchLogs, fetchPendingUsers, fetchRequests]);
+  }, [fetchDevices, fetchLogs, fetchPendingUsers, fetchRequests, fetchReservations]);
 
   const realtimeHandlers = useMemo(
     () => ({
-      "reservation:created": fetchLogs,
-      "reservation:updated": fetchLogs,
-      "reservation:deleted": fetchLogs,
+      "reservation:created": () => {
+        fetchLogs?.();
+        fetchReservations?.();
+      },
+      "reservation:updated": () => {
+        fetchLogs?.();
+        fetchReservations?.();
+      },
+      "reservation:deleted": () => {
+        fetchLogs?.();
+        fetchReservations?.();
+      },
       "device:created": fetchLogs,
       "user:created": () => {
         fetchLogs?.();
@@ -45,7 +56,7 @@ export function useDashboardPageData({
       "request:deleted": fetchRequests,
       "request:bulk_deleted": fetchRequests,
     }),
-    [fetchLogs, fetchPendingUsers, fetchRequests],
+    [fetchLogs, fetchPendingUsers, fetchRequests, fetchReservations],
   );
 
   useRealtimeSync(realtimeHandlers);

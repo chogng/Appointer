@@ -16,6 +16,7 @@ import {
 import { useDashboardActivity } from "./dashboard/useDashboardActivity";
 import { useDashboardInbox } from "./dashboard/useDashboardInbox";
 import { useDashboardPageData } from "./dashboard/useDashboardPageData";
+import { useDashboardStats } from "./dashboard/useDashboardStats";
 
 import {
   Calendar,
@@ -67,42 +68,41 @@ const Dashboard = () => {
     closeToast,
     reviewedInboxLimit: 100,
   });
+  const dashboardStats = useDashboardStats({ user, t });
   const { loading } = useDashboardPageData({
     fetchLogs: activity.fetchLogs,
     fetchPendingUsers: inbox.fetchPendingUsers,
     fetchRequests: inbox.fetchRequests,
     fetchDevices: activity.fetchDevices,
+    fetchReservations: dashboardStats.fetchReservations,
   });
 
   const isAdmin = inbox.isAdmin;
 
+  const isStatsLoading = dashboardStats.isLoading || loading;
   const stats = [
     {
       id: "upcoming-reservations",
       label: t("upcomingReservations"),
-      value: "2",
+      value: isStatsLoading ? "—" : String(dashboardStats.stats.upcomingCount),
       icon: Calendar,
       color: "#0071E3",
     },
     {
       id: "reserved-hours",
       label: t("reservedHours"),
-      value: `14 ${t("hours")}`,
+      value: isStatsLoading ? "—" : dashboardStats.stats.reservedHoursLabel,
       icon: Clock,
       color: "#34C759",
     },
     {
       id: "completed",
       label: t("completed"),
-      value: "8",
+      value: isStatsLoading ? "—" : String(dashboardStats.stats.completedCount),
       icon: CheckCircle,
       color: "#FF9F0A",
     },
   ];
-
-  if (loading) {
-    return <div className="min-h-[200px]" />;
-  }
 
   const logs = activity.logs;
   const deviceNameById = activity.deviceNameById;
@@ -562,7 +562,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-bg-200/50 rounded-xl">
                 <div className="text-xs text-text-tertiary mb-1">
-                  Student ID
+                  {t("student_id")}
                 </div>
                 <div className="text-sm font-medium text-text-primary flex items-center gap-2">
                   <User size={14} />
@@ -570,16 +570,16 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="p-3 bg-bg-200/50 rounded-xl">
-                <div className="text-xs text-text-tertiary mb-1">Status</div>
+                <div className="text-xs text-text-tertiary mb-1">{t("status")}</div>
                 <div className="text-sm font-medium text-orange-500 flex items-center gap-2">
                   <Clock size={14} />
-                  Pending Review
+                  {t("reviewing")}
                 </div>
               </div>
               <div className="col-span-2 p-3 bg-bg-200/50 rounded-xl">
-                <div className="text-xs text-text-tertiary mb-1">Email</div>
+                <div className="text-xs text-text-tertiary mb-1">{t("email")}</div>
                 <div className="text-sm font-medium text-text-primary">
-                  {selectedMessage.email || "Not provided"}
+                  {selectedMessage.email || t("common_not_provided")}
                 </div>
               </div>
             </div>
@@ -599,11 +599,11 @@ const Dashboard = () => {
                 <div>
                   <h3 className="text-lg font-medium text-text-primary">
                     {selectedMessage.type === "INVENTORY_ADD"
-                      ? "New Inventory Item"
-                      : "Inventory Modification"}
+                      ? t("inventory_new_item")
+                      : t("inventory_modification")}
                   </h3>
                   <p className="text-text-secondary">
-                    Requested by {selectedMessage.requesterName}
+                    {t("requested_by", { name: selectedMessage.requesterName })}
                   </p>
                 </div>
               </div>
@@ -611,8 +611,8 @@ const Dashboard = () => {
               <div className="bg-bg-200/50 rounded-xl p-4">
                 <h4 className="text-sm font-medium text-text-primary mb-3">
                   {selectedMessage.type === "INVENTORY_ADD"
-                    ? "Item Details"
-                    : "Changes Breakdown"}
+                    ? t("inventory_item_details")
+                    : t("inventory_changes_breakdown")}
                 </h4>
 
                 {(() => {
@@ -626,20 +626,22 @@ const Dashboard = () => {
                   return (
                     <div className="space-y-3">
                       <div className="grid grid-cols-3 text-xs text-text-tertiary mb-1 border-b border-border/50 pb-2">
-                        <div>Field</div>
-                        <div>Original</div>
-                        <div>New Value</div>
+                        <div>{t("inventory_field")}</div>
+                        <div>{t("inventory_original")}</div>
+                        <div>{t("inventory_new_value")}</div>
                       </div>
 
                       {["name", "category", "quantity"].map((field) => {
                         const isChanged = original[field] != newData[field];
+                        const fieldLabelKey =
+                          field === "name" ? "itemName" : field;
                         return (
                           <div
                             key={field}
                             className={`grid grid-cols-3 text-sm ${isChanged && selectedMessage.type !== "INVENTORY_ADD" ? "bg-accent/5 -mx-2 px-2 py-1 rounded" : ""}`}
                           >
                             <div className="text-text-secondary capitalize">
-                              {field}
+                              {t(fieldLabelKey)}
                             </div>
                             <div className="text-text-secondary">
                               {original[field] || "-"}

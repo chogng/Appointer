@@ -27,6 +27,7 @@ export function useDashboardInbox({
   const [messageTab, setMessageTab] = useState("pending"); // "pending" | "reviewed"
 
   const refreshTimerRef = useRef(null);
+  const didInitRef = useRef(false);
   const messageTabRef = useRef(messageTab);
   const userAppsFetchIdRef = useRef(0);
   const requestsFetchIdRef = useRef(0);
@@ -186,6 +187,11 @@ export function useDashboardInbox({
   );
 
   useEffect(() => {
+    // Initial data load is handled by the dashboard page loader to avoid duplicate API calls.
+    if (!didInitRef.current) {
+      didInitRef.current = true;
+      return;
+    }
     refreshCurrentTab();
   }, [messageTab, refreshCurrentTab]);
 

@@ -274,11 +274,27 @@ const shouldServeClient = (() => {
 
 if (shouldServeClient) {
   if (fs.existsSync(clientDistDir)) {
-    app.use(express.static(clientDistDir));
+    app.use(
+      express.static(clientDistDir, {
+        setHeaders: (res, filePath) => {
+          const normalizedPath = String(filePath || "").replace(/\\/g, "/");
+          if (normalizedPath.endsWith("/index.html")) {
+            res.setHeader("Cache-Control", "no-store");
+            return;
+          }
+
+          // Vite build outputs hashed assets under /assets. These are safe to cache long-term.
+          if (normalizedPath.includes("/assets/")) {
+            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          }
+        },
+      }),
+    );
     app.get("*", (req, res, next) => {
       if (req.path.startsWith("/api") || req.path.startsWith("/socket.io")) {
         return next();
       }
+      res.setHeader("Cache-Control", "no-store");
       res.sendFile(path.join(clientDistDir, "index.html"));
     });
     console.log(`[static] serving dist from ${clientDistDir}`);

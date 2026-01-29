@@ -16,6 +16,9 @@ import {
   requireString,
 } from "../utils/validation.js";
 
+const REQUEST_TYPES = ["INVENTORY_UPDATE", "INVENTORY_ADD"];
+const REQUEST_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+
 export default function createRequestRoutes({ broadcast } = {}) {
   const router = express.Router();
 
@@ -63,15 +66,15 @@ export default function createRequestRoutes({ broadcast } = {}) {
 
   router.get(
     "/",
-    authenticateToken,
-    asyncHandler(async (req, res) => {
-      const statusParam = typeof req.query.status === "string" ? req.query.status : "";
+      authenticateToken,
+      asyncHandler(async (req, res) => {
+        const statusParam = typeof req.query.status === "string" ? req.query.status : "";
 
-      const statuses = statusParam
-        .split(",")
-        .map((s) => s.trim().toUpperCase())
-        .filter(Boolean)
-        .filter((s) => ["PENDING", "APPROVED", "REJECTED"].includes(s));
+        const statuses = statusParam
+          .split(",")
+          .map((s) => s.trim().toUpperCase())
+          .filter(Boolean)
+          .filter((s) => REQUEST_STATUSES.includes(s));
 
       const limit = optionalInteger(req.query.limit, "limit", {
         min: 1,
@@ -139,10 +142,7 @@ export default function createRequestRoutes({ broadcast } = {}) {
     authenticateToken,
     asyncHandler(async (req, res) => {
       const body = requirePlainObject(req.body, "body");
-      const type = requireOneOf(body.type, "type", [
-        "INVENTORY_UPDATE",
-        "INVENTORY_ADD",
-      ]);
+      const type = requireOneOf(body.type, "type", REQUEST_TYPES);
 
       const resolvedRequesterId = req.user.id;
       const requesterNameInput = optionalString(body.requesterName, "requesterName", {
@@ -167,31 +167,37 @@ export default function createRequestRoutes({ broadcast } = {}) {
       const originalDataJson = JSON.stringify(originalDataNormalized);
       const newDataJson = JSON.stringify(newDataNormalized);
 
-      const existingPending = await db.queryOne(
-        "SELECT * FROM requests WHERE requesterId = ? AND type = ? AND status = 'PENDING' AND ((targetId IS NULL AND ? IS NULL) OR targetId = ?) ORDER BY createdAt DESC LIMIT 1",
-        [resolvedRequesterId, type, targetId, targetId],
-      );
-
-      if (existingPending) {
-        // If the user re-submits the same request, don't create duplicates.
-        if (
-          String(existingPending.newData || "") === newDataJson &&
-          String(existingPending.originalData || "") === originalDataJson
-        ) {
-          return res.json({ ...existingPending, deduped: true });
-        }
-
-        await db.execute(
-          "UPDATE requests SET originalData = ?, newData = ? WHERE id = ?",
-          [originalDataJson, newDataJson, existingPending.id],
+      // De-dupe only applies to inventory modifications (INVENTORY_UPDATE).
+      // Inventory additions (INVENTORY_ADD) should allow multiple pending requests.
+      if (type === "INVENTORY_UPDATE") {
+        const findExistingPendingSql =
+          "SELECT * FROM requests WHERE requesterId = ? AND type = ? AND status = 'PENDING' AND ((targetId IS NULL AND ? IS NULL) OR targetId = ?) ORDER BY createdAt DESC LIMIT 1";
+        const existingPending = await db.queryOne(
+          findExistingPendingSql,
+          [resolvedRequesterId, type, targetId, targetId],
         );
 
-        broadcast?.("request:updated", { id: existingPending.id });
-        return res.json({
-          ...existingPending,
-          originalData: originalDataJson,
-          newData: newDataJson,
-        });
+        if (existingPending) {
+          // If the user re-submits the same request, don't create duplicates.
+          if (
+            String(existingPending.newData || "") === newDataJson &&
+            String(existingPending.originalData || "") === originalDataJson
+          ) {
+            return res.json({ ...existingPending, deduped: true });
+          }
+
+          await db.execute(
+            "UPDATE requests SET originalData = ?, newData = ? WHERE id = ?",
+            [originalDataJson, newDataJson, existingPending.id],
+          );
+
+          broadcast?.("request:updated", { id: existingPending.id });
+          return res.json({
+            ...existingPending,
+            originalData: originalDataJson,
+            newData: newDataJson,
+          });
+        }
       }
 
       const newRequest = {
@@ -244,7 +250,8 @@ export default function createRequestRoutes({ broadcast } = {}) {
       }
 
       if (request.type === "INVENTORY_UPDATE") {
-        const updates = JSON.parse(request.newData);
+        const updates = normalizeInventoryData(request.newData);
+        if (!updates) return res.status(400).json({ error: "Invalid request newData" });
         const { name, category, quantity } = updates;
         const targetId = request.targetId;
 
@@ -260,7 +267,8 @@ export default function createRequestRoutes({ broadcast } = {}) {
           ],
         );
       } else if (request.type === "INVENTORY_ADD") {
-        const newItem = JSON.parse(request.newData);
+        const newItem = normalizeInventoryData(request.newData);
+        if (!newItem) return res.status(400).json({ error: "Invalid request newData" });
         const itemId = makeId("item");
         const { name, category, quantity } = newItem;
         const date = new Date().toISOString().split("T")[0];

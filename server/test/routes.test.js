@@ -362,8 +362,8 @@ test("routes: exercise all API route groups", async (t) => {
         pendingRequests.some((r) => r?.id === createdRequestId),
     );
 
-    // Re-submit the same request should not create duplicates.
-    const dedupeRes = await authedFetch(baseUrl, userLogin.cookie, "/api/requests", {
+    // Re-submit an inventory add request should create a new pending request (do not overwrite).
+    const secondRes = await authedFetch(baseUrl, userLogin.cookie, "/api/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -372,14 +372,17 @@ test("routes: exercise all API route groups", async (t) => {
         newData: { name: "Req Item", category: "Req", quantity: 1 },
       }),
     });
-    assert.equal(dedupeRes.status, 200);
-    const deduped = await dedupeRes.json();
-    assert.equal(deduped?.id, createdRequestId);
+    assert.equal(secondRes.status, 201);
+    const second = await secondRes.json();
+    assert.ok(second?.id);
+    assert.notEqual(second?.id, createdRequestId);
 
     const listUser = await authedFetch(baseUrl, userLogin.cookie, "/api/requests");
     assert.equal(listUser.status, 200);
     const userRequests = await listUser.json();
     assert.ok(Array.isArray(userRequests));
+    assert.ok(userRequests.some((r) => r?.id === createdRequestId));
+    assert.ok(userRequests.some((r) => r?.id === second?.id));
 
     const approveForbidden = await authedFetch(
       baseUrl,

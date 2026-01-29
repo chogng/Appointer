@@ -387,7 +387,7 @@ const Inventory = () => {
       }
     } catch (error) {
       console.error("Failed to save item:", error);
-      showToast(t("updateFailed"), "error");
+      showToast(error?.message || t("updateFailed"), "error");
     } finally {
       setIsSubmitting(false);
     }

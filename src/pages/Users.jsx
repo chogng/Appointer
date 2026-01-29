@@ -134,7 +134,7 @@ const Users = () => {
       showToast(t("updateSuccess"), "success");
     } catch (error) {
       console.error("Update failed", error);
-      showToast(t("updateFailed"), "error");
+      showToast(error?.message || t("updateFailed"), "error");
     }
   };
 

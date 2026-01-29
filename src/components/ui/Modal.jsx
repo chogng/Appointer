@@ -1,6 +1,15 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useLanguage } from '../../hooks/useLanguage';
+
+const cx = (...parts) => parts.filter(Boolean).join(' ');
+
+const MODAL_OVERLAY_CLASS = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+const MODAL_BACKDROP_CLASS = 'absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity';
+const MODAL_DIALOG_BASE_CLASS =
+    'relative w-full max-w-md bg-white/80 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-2xl flex flex-col';
+const MODAL_DIALOG_ANIMATION_CLASS = 'animate-in fade-in zoom-in-95 duration-200';
 
 const Modal = ({
     isOpen,
@@ -10,8 +19,9 @@ const Modal = ({
     footer,
     className = '',
     dataUi,
-    closeAriaLabel = 'Close dialog',
+    closeAriaLabel,
 }) => {
+    const { t } = useLanguage();
     const reactId = useId();
     const titleId = `modal-title-${reactId}`;
     const uiMarker = typeof dataUi === 'string' && dataUi.trim() ? dataUi.trim() : undefined;
@@ -72,29 +82,20 @@ const Modal = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className={MODAL_OVERLAY_CLASS}
             data-style="modal"
             data-ui={uiMarker}
         >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity"
+                className={MODAL_BACKDROP_CLASS}
                 onClick={onClose}
                 data-ui={uiMarker ? `${uiMarker}-backdrop` : undefined}
             />
 
             {/* Modal Content */}
             <div
-                className={`
-                    relative w-full max-w-md 
-                    bg-white/80 backdrop-blur-xl 
-                    border border-white/40 
-                    shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] 
-                    rounded-2xl 
-                    flex flex-col 
-                    animate-in fade-in zoom-in-95 duration-200
-                    ${className}
-                `}
+                className={cx(MODAL_DIALOG_BASE_CLASS, MODAL_DIALOG_ANIMATION_CLASS, className)}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={title != null ? titleId : undefined}
@@ -114,7 +115,7 @@ const Modal = ({
                         type="button"
                         onClick={onClose}
                         className="p-2 text-text-tertiary hover:text-text-primary hover:bg-black/5 rounded-full transition-colors"
-                        aria-label={closeAriaLabel}
+                        aria-label={closeAriaLabel ?? t('common_close')}
                         data-ui={uiMarker ? `${uiMarker}-close` : undefined}
                     >
                         <X size={20} aria-hidden="true" />

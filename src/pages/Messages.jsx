@@ -128,8 +128,8 @@ const Messages = () => {
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-medium text-text-primary">
                       {msg.type === "INVENTORY_ADD"
-                        ? "New Inventory Item"
-                        : "Inventory Modification"}
+                        ? t("inventory_new_item")
+                        : t("inventory_modification")}
                     </h3>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -138,14 +138,11 @@ const Messages = () => {
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {msg.status}
+                      {t(msg.status === "APPROVED" ? "approved" : "rejected")}
                     </span>
                   </div>
                   <div className="text-sm text-text-secondary mt-1">
-                    Requested by{" "}
-                    <span className="text-text-primary font-medium">
-                      {msg.requesterName}
-                    </span>
+                    {t("requested_by", { name: msg.requesterName })}
                   </div>
                   <div className="text-xs text-text-tertiary mt-1">
                     {format(new Date(msg.createdAt), "yyyy-MM-dd HH:mm", {
@@ -189,7 +186,7 @@ const Messages = () => {
       <Modal
         isOpen={!!selectedMessage}
         onClose={() => setSelectedMessage(null)}
-        title="Request Details"
+        title={t("dashboard_request_details")}
       >
         {selectedMessage && (
           <div className="space-y-4">
@@ -210,11 +207,11 @@ const Messages = () => {
               <div>
                 <h3 className="text-lg font-medium text-text-primary">
                   {selectedMessage.type === "INVENTORY_ADD"
-                    ? "New Inventory Item"
-                    : "Inventory Modification"}
+                    ? t("inventory_new_item")
+                    : t("inventory_modification")}
                 </h3>
                 <div className="flex items-center gap-2 text-text-secondary">
-                  <span>Status:</span>
+                  <span>{t("status")}:</span>
                   <span
                     className={`font-medium ${
                       selectedMessage.status === "APPROVED"
@@ -222,7 +219,7 @@ const Messages = () => {
                         : "text-red-600"
                     }`}
                   >
-                    {selectedMessage.status}
+                    {t(selectedMessage.status === "APPROVED" ? "approved" : "rejected")}
                   </span>
                 </div>
                 <p className="text-text-tertiary text-sm">
@@ -238,8 +235,8 @@ const Messages = () => {
             <div className="bg-bg-200/50 rounded-xl p-4">
               <h4 className="text-sm font-medium text-text-primary mb-3">
                 {selectedMessage.type === "INVENTORY_ADD"
-                  ? "Item Details"
-                  : "Changes"}
+                  ? t("inventory_item_details")
+                  : t("inventory_changes")}
               </h4>
 
               {(() => {
@@ -253,20 +250,22 @@ const Messages = () => {
                 return (
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 text-xs text-text-tertiary mb-1 border-b border-border/50 pb-2">
-                      <div>Field</div>
-                      <div>Original</div>
-                      <div>New Value</div>
+                      <div>{t("inventory_field")}</div>
+                      <div>{t("inventory_original")}</div>
+                      <div>{t("inventory_new_value")}</div>
                     </div>
 
                     {["name", "category", "quantity"].map((field) => {
                       const isChanged = original[field] != newData[field];
+                      const fieldLabelKey =
+                        field === "name" ? "itemName" : field;
                       return (
                         <div
                           key={field}
                           className={`grid grid-cols-3 text-sm ${isChanged && selectedMessage.type !== "INVENTORY_ADD" ? "bg-accent/5 -mx-2 px-2 py-1 rounded" : ""}`}
                         >
                           <div className="text-text-secondary capitalize">
-                            {field}
+                            {t(fieldLabelKey)}
                           </div>
                           <div className="text-text-secondary">
                             {original[field] || "-"}
