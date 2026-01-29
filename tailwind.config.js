@@ -19,11 +19,8 @@ export default {
           ghost: '#FAF9F5',
           primary: '#222222',
           subtle: '#F0F0F0',
-          0: '#FFFFFF', // Claude bg-000
-          50: '#FAF9F5',
-          // Warm white scale (ivory/greige)
+          0: '#FFFFFF',
           100: '#F0EEE6',
-          150: '#EAE7DC',
           200: '#E3DFD2',
           300: '#D6D1C2',
           400: '#C7C1AF',
@@ -53,8 +50,9 @@ export default {
           DEFAULT: '#222222', // Using dark grey/black as accent for buttons
           hover: '#000000',
           focus: '#2C84DB',
-        },
-        terracotta: '#D97757',
+          terracotta: '#D97757',
+        }
+        
       },
       fontFamily: {
         sans: ['Inter', 'Arial', 'sans-serif'],

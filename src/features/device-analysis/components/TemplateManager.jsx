@@ -1996,7 +1996,7 @@ const TemplateManager = ({
                               >
                                 <div className="relative flex items-center justify-center w-4 h-4">
                                   {isSelected ? (
-                                    <div className="w-3.5 h-3.5 rounded bg-terracotta border border-terracotta flex items-center justify-center transition-all">
+                                    <div className="w-3.5 h-3.5 rounded bg-accent-terracotta border border-accent-terracotta flex items-center justify-center transition-all">
                                       <Check
                                         size={10}
                                         className="text-white"
@@ -2004,7 +2004,7 @@ const TemplateManager = ({
                                       />
                                     </div>
                                   ) : (
-                                    <div className="w-3.5 h-3.5 rounded border border-gray-300 group-hover:border-terracotta/50 transition-colors bg-white" />
+                                    <div className="w-3.5 h-3.5 rounded border border-gray-300 group-hover:border-accent-terracotta/50 transition-colors bg-white" />
                                   )}
                                 </div>
                                 <span>{getExcelColumnLabel(idx)}</span>

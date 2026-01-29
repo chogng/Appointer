@@ -40,6 +40,9 @@ Token rules (as implemented today):
 - `cta`: trims and collapses whitespace (e.g. `"foo   bar"` -> `"foo bar"`).
 - `ctaPosition` / `ctaCopy`: trims and replaces whitespace with `-` (e.g. `"card demo"` -> `"card-demo"`).
 
+Avoid:
+- Ad-hoc `data-*` markers on `Card` roots (e.g. `data-list="..."`) unless there is a written spec and a real consumer (tests/scripts/analytics). Prefer stable `id` and/or `data-cta*` instead.
+
 ## 5. Variants
 
 - `default`: `card` (includes `p-6 shadow-sm`)
@@ -140,5 +143,5 @@ Use when:
 - Semantics: pick the right `as` (`section/article/div`).
 - Accessible name: `aria-labelledby` (or `aria-label`) must resolve to a human-readable name.
 - Visual: use `variant` for the base look; use `className` only for additional layout/spacing.
-- Markers: add `id` / `data-cta*` only when you need a stable anchor.
+- Markers: add `id` / `data-cta*` only when you need a stable anchor; avoid one-off `data-*` attributes.
 - Copy: don't hardcode user-facing strings; use `t("key")` and update `src/context/LanguageContext.jsx` (`en`/`zh`).

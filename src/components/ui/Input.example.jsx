@@ -16,7 +16,6 @@ export default function InputExample() {
         onChange={setTitle}
         placeholder="例如：SEM 测试"
         size="md"
-        testId="reservation-title"
         leftIcon={Search}
       />
 

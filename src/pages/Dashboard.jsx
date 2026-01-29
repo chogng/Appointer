@@ -7,6 +7,7 @@ import Input from "../components/ui/Input";
 import ListRow from "../components/ui/ListRow";
 import Toast from "../components/ui/Toast";
 import Modal from "../components/ui/Modal";
+import Tabs from "../components/ui/Tabs";
 import { apiService } from "../services/apiService";
 import { useRealtimeSync } from "../hooks/useRealtimeSync";
 import { format } from "date-fns";
@@ -42,12 +43,16 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const reviewedInboxLimit = 100;
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [reviewedUsers, setReviewedUsers] = useState([]);
+  const [reviewedRequests, setReviewedRequests] = useState([]);
   const [deviceNameById, setDeviceNameById] = useState({});
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [messageTab, setMessageTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState({
     isVisible: false,
@@ -110,45 +115,58 @@ const Dashboard = () => {
   const fetchPendingUsers = useCallback(async () => {
     if (!isAdmin) {
       setPendingUsers([]);
+      setReviewedUsers([]);
       return;
     }
 
     try {
       const users = await apiService.getUsers();
-      setPendingUsers(
-        users
-          .filter((u) => u.status === "PENDING")
-          .map((u) => ({
-            ...u,
-            msgType: "USER_REGISTRATION",
-            timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
-          })),
+      const normalized = users.map((u) => ({
+        ...u,
+        msgType: "USER_REGISTRATION",
+        timestamp: u.createdAt || u.timestamp || new Date().toISOString(),
+      }));
+
+      setPendingUsers(normalized.filter((u) => u.status === "PENDING"));
+      setReviewedUsers(
+        normalized
+          .filter((u) => u.status !== "PENDING")
+          .slice()
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, reviewedInboxLimit),
       );
     } catch (error) {
       console.error("Failed to fetch users:", error);
     }
-  }, [isAdmin]);
+  }, [isAdmin, reviewedInboxLimit]);
 
   const fetchRequests = useCallback(async () => {
     try {
-      const reqs = (await apiService.getRequests()).filter(
-        (r) => r.status === "PENDING",
-      );
-      let visibleRequests = reqs;
+      const pending = await apiService.getRequests({ status: ["PENDING"] });
+      const reviewed = await apiService.getRequests({
+        status: ["APPROVED", "REJECTED"],
+        limit: reviewedInboxLimit,
+      });
+
+      let visiblePending = pending;
+      let visibleReviewed = reviewed;
       if (user?.role !== "ADMIN" && user?.role !== "SUPER_ADMIN") {
-        visibleRequests = reqs.filter((r) => r.requesterId === user?.id);
+        visiblePending = pending.filter((r) => r.requesterId === user?.id);
+        visibleReviewed = reviewed.filter((r) => r.requesterId === user?.id);
       }
-      setRequests(
-        visibleRequests.map((r) => ({
-          ...r,
-          msgType: "INVENTORY_REQUEST",
-          timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
-        })),
-      );
+
+      const normalizeRequest = (r) => ({
+        ...r,
+        msgType: "INVENTORY_REQUEST",
+        timestamp: r.createdAt || r.timestamp || new Date().toISOString(),
+      });
+
+      setRequests(visiblePending.map(normalizeRequest));
+      setReviewedRequests(visibleReviewed.map(normalizeRequest));
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     }
-  }, [user]);
+  }, [reviewedInboxLimit, user]);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -242,6 +260,30 @@ const Dashboard = () => {
     );
   };
 
+  const handleClearReviewedRequests = async () => {
+    if (!isAdmin) return;
+    if (!Array.isArray(reviewedRequests) || reviewedRequests.length === 0) return;
+
+    showToast(
+      t("dashboard_confirm_clear_reviewed"),
+      "warning",
+      t("dashboard_clear_reviewed"),
+      async () => {
+        try {
+          closeToast();
+          await Promise.all(
+            reviewedRequests.map((req) => apiService.deleteRequest(req.id)),
+          );
+          await fetchRequests();
+          showToast(t("dashboard_clear_reviewed_success"), "success");
+        } catch (error) {
+          console.error("Failed to clear reviewed requests:", error);
+          showToast(t("dashboard_clear_reviewed_failed"), "error");
+        }
+      },
+    );
+  };
+
   useEffect(() => {
     const loadData = async () => {
       await Promise.all([
@@ -293,7 +335,12 @@ const Dashboard = () => {
     return typeof action === "string" ? action : "";
   };
 
-  const messages = [...pendingUsers, ...requests];
+  const pendingMessages = [...pendingUsers, ...requests];
+  const reviewedMessages = [...reviewedUsers, ...reviewedRequests]
+    .slice()
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, reviewedInboxLimit);
+  const messages = messageTab === "reviewed" ? reviewedMessages : pendingMessages;
 
   const getMessageBehaviorLabel = (msg) => getDashboardMessageBehaviorLabel(msg, t);
 
@@ -365,7 +412,6 @@ const Dashboard = () => {
               cta="Dashboard"
               ctaPosition="activity-notifications"
               ctaCopy="activity-notifications-card"
-              data-list="activity"
             >
               <div className="activity_card_head_warp">
                 <div className="flex-1">
@@ -378,10 +424,8 @@ const Dashboard = () => {
                     onChange={setSearchTerm}
                     placeholder={t("searchLogs")}
                     leftIcon={Search}
-                    size="sm"
+                    size="md"
                     className="w-full"
-                    fieldClassName="h-[38px]"
-                    inputClassName="text-sm bg-bg-200/50 border-transparent focus:border-accent/20 focus:bg-bg-100 placeholder:text-text-tertiary"
                     autoComplete="off"
                     spellCheck={false}
                     cta="Dashboard"
@@ -497,15 +541,38 @@ const Dashboard = () => {
               cta="Dashboard"
               ctaPosition="pending-approvals-inbox"
               ctaCopy="pending-approvals-inbox-card"
-              data-list="messages"
             >
               <div className="message_card_head_warp">
-                <div className="msg_header">
-                  <div className="msg_left">{t("requestUser")}</div>
-                  <div className="msg_middle">{t("note")}</div>
-                  <div className="msg_right">{t("date")}</div>
+                <div>
+                  <Tabs
+                    idBase="dashboard-message-inbox-tabs"
+                    groupLabel={t("recentMessages")}
+                    value={messageTab}
+                    onChange={(next) =>
+                      setMessageTab(next === "reviewed" ? "reviewed" : "pending")
+                    }
+                    options={[
+                      {
+                        label: t("dashboard_tab_pending"),
+                        value: "pending",
+                        icon: Clock,
+                        cta: "Dashboard",
+                        ctaPosition: "pending-approvals-inbox",
+                        ctaCopy: "tab-pending",
+                      },
+                      {
+                        label: t("dashboard_tab_reviewed"),
+                        value: "reviewed",
+                        icon: CheckCircle,
+                        cta: "Dashboard",
+                        ctaPosition: "pending-approvals-inbox",
+                        ctaCopy: "tab-reviewed",
+                      },
+                    ]}
+                  />
                 </div>
                 {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") &&
+                  messageTab === "pending" &&
                   messages.length > 0 && (
                     <Button
                       type="button"
@@ -554,6 +621,25 @@ const Dashboard = () => {
                       }}
                     >
                       <CheckCircle size={16} />
+                    </Button>
+                  )}
+                {isAdmin &&
+                  messageTab === "reviewed" &&
+                  reviewedRequests.length > 0 && (
+                    <Button
+                      type="button"
+                      id="dashboard-clear-reviewed-btn"
+                      variant="ghost"
+                      size="control"
+                      dataIcon="with"
+                      cta="Dashboard"
+                      ctaPosition="pending-approvals-inbox"
+                      ctaCopy="clear-reviewed"
+                      aria-label={t("dashboard_clear_reviewed")}
+                      title={t("dashboard_clear_reviewed")}
+                      onClick={handleClearReviewedRequests}
+                    >
+                      <Trash2 size={16} />
                     </Button>
                   )}
               </div>
@@ -611,14 +697,14 @@ const Dashboard = () => {
                             onClick={() => setSelectedMessage(msg)}
                           >
                             <div className="msg_left">
-                            <Avatar
-                              size="md"
-                              fallback={msg.name || "?"}
-                              icon={
-                                msg.msgType !== "USER_REGISTRATION"
-                                  ? Package
-                                  : undefined
-                              }
+                              <Avatar
+                                size="md"
+                                fallback={msg.name || "?"}
+                                icon={
+                                  msg.msgType !== "USER_REGISTRATION"
+                                    ? Package
+                                    : undefined
+                                }
                               />
                               <div className="min-w-0">
                                 <div
@@ -657,7 +743,11 @@ const Dashboard = () => {
                     <div className="w-12 h-12 rounded-full bg-bg-200/50 flex items-center justify-center">
                       <Inbox size={20} className="opacity-50" />
                     </div>
-                    <p className="text-sm">{t("noPendingRequests")}</p>
+                    <p className="text-sm">
+                      {messageTab === "reviewed"
+                        ? t("dashboard_no_reviewed_requests")
+                        : t("noPendingRequests")}
+                    </p>
                   </div>
                 )}
               </div>
@@ -677,7 +767,8 @@ const Dashboard = () => {
         }
         footer={
           <>
-            {user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" ? (
+            {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") &&
+              selectedMessage?.status === "PENDING" ? (
               <>
                 <Button
                   onClick={() => handleReject(selectedMessage)}
@@ -695,7 +786,7 @@ const Dashboard = () => {
                   {t("dashboard_approve")}
                 </Button>
               </>
-            ) : (
+            ) : selectedMessage?.status === "PENDING" ? (
               <Button
                 onClick={() => handleRevoke(selectedMessage)}
                 variant="ghost"
@@ -704,7 +795,7 @@ const Dashboard = () => {
               >
                 {t("dashboard_revoke_request")}
               </Button>
-            )}
+            ) : null}
           </>
         }
       >

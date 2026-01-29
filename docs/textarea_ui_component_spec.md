@@ -6,7 +6,7 @@
 
 相关规范：
 - [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记约定
-- [`input_ui_component_spec.md`](./input_ui_component_spec.md)：Input（UI）规范（同一套容器结构/状态标记）
+- [`input_component_spec.md`](./input_component_spec.md)：Input（UI）规范（同一套容器结构/状态标记）
 
 ---
 

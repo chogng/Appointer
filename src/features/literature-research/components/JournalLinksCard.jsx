@@ -281,7 +281,7 @@ const JournalLinksCard = ({
           <div>
             <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-terracotta to-orange-400 transition-[width] duration-500 ease-out shadow-[0_0_8px_rgba(217,119,87,0.4)]"
+                className="h-full bg-gradient-to-r from-accent-terracotta to-orange-400 transition-[width] duration-500 ease-out shadow-[0_0_8px_rgba(217,119,87,0.4)]"
                 style={{
                   width: `${fetchProgress.total > 0
                     ? Math.round((fetchProgress.completed / fetchProgress.total) * 100)
@@ -292,13 +292,13 @@ const JournalLinksCard = ({
 
             <div className="mt-2.5 flex items-center justify-between gap-3 text-[11px] font-medium text-text-secondary select-none">
               <span className="shrink-0 flex items-center gap-2">
-                <span className={status.state === "loading" ? "text-terracotta" : "opacity-80"}>
+                <span className={status.state === "loading" ? "text-accent-terracotta" : "opacity-80"}>
                   {status.state === "loading"
                     ? t("literature_fetching")
                     : t("literature_status_ready")}
                 </span>
                 {status.state === "loading" && (
-                  <span className="bg-terracotta/10 text-terracotta px-1.5 py-0.5 rounded text-[10px] font-mono">
+                  <span className="bg-accent-terracotta/10 text-accent-terracotta px-1.5 py-0.5 rounded text-[10px] font-mono">
                     {Math.min(fetchProgress.completed + 1, fetchProgress.total)}/{fetchProgress.total}
                   </span>
                 )}

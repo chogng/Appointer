@@ -55,9 +55,12 @@ body {
   }
 
   .card_head_warp,
-  .activity_card_head_warp,
-  .message_card_head_warp {
+  .activity_card_head_warp {
     @apply p-4 flex items-center justify-between gap-4;
+  }
+
+  .message_card_head_warp {
+    @apply h-[70px] pt-3 pr-4 pb-3 pl-4 flex items-center justify-between gap-4;
   }
 
   /* Layout: Section */
@@ -121,47 +124,38 @@ body {
   }
 
   /* Tabs */
-  .ui-tabs__menu,
   .tab_menu {
     @apply bg-bg-page rounded-lg p-1 flex items-center border border-transparent;
   }
 
-  .ui-tabs__btn,
   .tab_btn {
     @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
   }
 
-  .ui-tabs__btn--sm,
   .tab_btn--sm {
     @apply h-6 text-xs;
   }
 
-  .ui-tabs__btn--md,
   .tab_btn--md {
     @apply h-[38px] text-sm;
   }
 
-  .ui-tabs__btn--control,
   .tab_btn--control {
     @apply h-[30px] text-xs px-3 py-1.5;
   }
 
-  .ui-tabs__btn--active,
   .tab_btn--active {
     @apply bg-white text-black shadow-sm;
   }
 
-  .ui-tabs__btn--inactive,
   .tab_btn--inactive {
     @apply text-gray-500 hover:text-gray-900;
   }
 
-  .ui-tabs__btn-icon,
   .tab_btn_icon {
     @apply inline-flex;
   }
 
-  .ui-tabs__btn-text,
   .tab_btn_text {
     @apply inline-flex;
   }
@@ -190,7 +184,7 @@ body {
   }
 
   .avatar {
-    @apply relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-200 text-text-primary font-medium transition-colors group-hover:bg-accent/10 group-hover:text-accent;
+    @apply relative inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden bg-bg-subtle text-text-primary font-medium transition-colors group-hover:bg-accent/10 group-hover:text-accent;
   }
 
   .avatar--sm {
@@ -216,7 +210,7 @@ body {
 
   /* List row base: shared hover/padding/radius for list items (paired with `.list_item` grid layout on Dashboard). */
   .list-row {
-    @apply p-3 mx-2 my-1 rounded-lg flex items-center justify-between hover:bg-bg-surface-hover transition-all duration-200 border border-transparent;
+    @apply p-3 mx-2 my-1 rounded-lg flex items-center justify-between hover:bg-bg-100 transition-all duration-200 border border-transparent;
   }
 
   /* Dashboard: Activity list layout */
@@ -267,7 +261,7 @@ body {
 
   /* Dashboard: Messages list layout */
   .msg_list .msg_header {
-    @apply mx-4 pt-3 pb-2 grid grid-cols-3 gap-x-6 text-sm font-medium text-text-tertiary;
+    @apply h-[38px] w-full grid grid-cols-3 gap-x-6 items-center text-sm font-medium text-text-tertiary;
   }
 
   .msg_list :is(.msg_left, .msg_middle, .msg_right) {
@@ -508,7 +502,7 @@ body {
   }
 
   .ui-checkbox[data-state="checked"] {
-    @apply bg-terracotta border-terracotta;
+    @apply bg-accent-terracotta border-accent-terracotta;
   }
 
   .ui-checkbox[data-state="unchecked"] {
@@ -516,81 +510,64 @@ body {
   }
 
   .group:hover .ui-checkbox[data-state="unchecked"] {
-    @apply border-terracotta/50;
+    @apply border-accent-terracotta/50;
   }
 
-  /* Input */
-  .ui-input_warp,
+  /* ====================================================================== */
+  /* Form Controls: Input / Textarea                                         */
+  /* ====================================================================== */
   .input_warp {
     @apply space-y-2;
   }
 
-  .ui-input_label,
   .input_label {
     @apply text-sm font-medium text-text-secondary;
   }
 
-  .ui-input_field,
   .input_field {
-    @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition-all bg-bg-page;
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg transition-all bg-bg-page;
   }
 
-  .ui-input_field--sm,
   .input_field--sm {
     @apply h-6 text-xs;
   }
 
-  .ui-input_field--md,
   .input_field--md {
     @apply h-[38px] text-sm;
   }
 
-  .ui-input_field--lg,
   .input_field--lg {
     @apply h-[42px] text-sm;
   }
 
-  .ui-input_field--xl,
   .input_field--xl {
     @apply h-[47.6px] text-sm;
   }
 
-  .ui-input_field[data-state="enable"],
   .input_field[data-state="enable"] {
     @apply border-border-200;
   }
 
-  .ui-input_field[data-state="enable"]:focus-within,
-  .input_field[data-state="enable"]:focus-within {
-    @apply border-border-200;
-  }
-
-  /* Literature inputs: hover does not change border (keep it calm like DateButton) */
-
-  /* System focus outline only for keyboard navigation (Tab) */
-  html[data-nav="keyboard"] .ui-input_field[data-state="enable"]:focus-within,
+  /* Keyboard focus ring (component-level outer ring).
+     Note: native outlines are disabled globally; keep a visible keyboard focus indicator here. */
   html[data-nav="keyboard"] .input_field[data-state="enable"]:focus-within {
-    outline: auto;
+    @apply ring-2 ring-accent-terracotta ring-offset-4 ring-offset-bg-page;
   }
 
-  .ui-input_field[data-state="error"],
   .input_field[data-state="error"] {
     @apply border-red-500 ring-1 ring-red-500/10;
   }
 
-  .ui-input_field[data-state="disabled"],
   .input_field[data-state="disabled"] {
     @apply opacity-60 cursor-not-allowed;
   }
 
-  .ui-input_icon,
   .input_icon {
     @apply text-text-tertiary inline-flex;
   }
 
-  .ui-input_native,
   .input_native {
-    @apply flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary;
+    @apply flex-1 min-w-0 bg-transparent border-0 outline-none text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-0;
   }
 
   .ui-textarea_native,
@@ -598,20 +575,21 @@ body {
     @apply w-full min-w-0 flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary text-sm resize-y;
   }
 
-  .ui-input_right,
   .input_right {
     @apply inline-flex items-center;
   }
 
-  .ui-input_error,
   .input_error {
     @apply text-xs text-red-600;
   }
 
-  .ui-input_hint,
   .input_hint {
     @apply text-xs text-text-tertiary;
   }
+
+  /* ====================================================================== */
+  /* End Form Controls: Input / Textarea                                     */
+  /* ====================================================================== */
 
   /* Dropdown */
   .ui-dropdown_warp {

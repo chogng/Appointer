@@ -27,32 +27,29 @@ const mergeSpaceSeparatedIds = (...parts) => {
  * Input (UI)
  * - Controlled: value + onChange(nextValue)
  * - Stable markers: data-style/data-state
- * - Optional DEV-only data-testid (align with Tabs)
  */
 const Input = forwardRef(
   (
     {
       label,
       labelPlacement = "stack", // "stack" | "inline"
-      value,
-      onChange,
-      placeholder,
-      disabled = false,
       id,
       idBase,
       name,
       type = "text",
+      value,
+      onChange,
+      disabled = false,
+      placeholder,
       autoComplete,
       size = "md", // "sm" | "md" | "lg" | "xl"
+      leftIcon: LeftIcon,
+      rightSlot,
+      error,
+      hint,
       className = "",
       fieldClassName = "",
       inputClassName = "",
-      error,
-      hint,
-      leftIcon: LeftIcon,
-      rightSlot,
-      testId,
-      dataUi,
       cta,
       ctaPosition,
       ctaCopy,
@@ -73,18 +70,15 @@ const Input = forwardRef(
       describedByFromProps,
       describedByFromStatus
     );
-    const devTestId = import.meta.env.DEV && testId ? testId : undefined;
     const state = disabled ? "disabled" : error ? "error" : "enable";
     const sizeClass =
       size === "sm"
         ? "input_field--sm"
-        : size === "lg"
+      : size === "lg"
           ? "input_field--lg"
           : size === "xl"
             ? "input_field--xl"
             : "input_field--md";
-    const uiMarker =
-      typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
     const resolvedLabelPlacement =
       labelPlacement === "inline" ? "inline" : "stack";
     const shouldInlineLabel = !!label && resolvedLabelPlacement === "inline";
@@ -93,7 +87,6 @@ const Input = forwardRef(
       <label
         htmlFor={inputId}
         className={cx("input_label", shouldInlineLabel && "whitespace-nowrap")}
-        data-ui={uiMarker ? `${uiMarker}-label` : undefined}
       >
         {label}
       </label>
@@ -104,7 +97,6 @@ const Input = forwardRef(
         className={cx("input_field", sizeClass, fieldClassName)}
         data-icon={LeftIcon ? "with" : "without"}
         data-state={state}
-        data-testid={devTestId}
         data-cta={normalizeCtaName(cta)}
         data-cta-position={normalizeCtaToken(ctaPosition)}
         data-cta-copy={normalizeCtaToken(ctaCopy)}
@@ -123,12 +115,11 @@ const Input = forwardRef(
           type={type}
           value={value ?? ""}
           onChange={(e) => onChange?.(e.target.value)}
-          placeholder={placeholder}
           disabled={disabled}
+          placeholder={placeholder}
           autoComplete={autoComplete}
           aria-invalid={!!error}
           aria-describedby={ariaDescribedBy}
-          data-ui={uiMarker ? `${uiMarker}-input` : undefined}
           className={cx("input_native", inputClassName)}
         />
 
@@ -140,7 +131,6 @@ const Input = forwardRef(
       <div
         className={cx("input_warp", className)}
         data-style="input"
-        data-ui={uiMarker}
       >
         {shouldInlineLabel ? (
           <div className="flex items-center gap-2">

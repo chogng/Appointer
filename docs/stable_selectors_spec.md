@@ -4,7 +4,7 @@
 
 相关：
 - `docs/card_component_spec.md`
-- `docs/input_ui_component_spec.md`
+- `docs/input_component_spec.md`
 - `docs/textarea_ui_component_spec.md`
 - `docs/button_component_spec.md`
 - `docs/tabs_ui_component_spec.md`
