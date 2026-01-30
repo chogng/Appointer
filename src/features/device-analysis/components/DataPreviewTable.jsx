@@ -276,7 +276,7 @@ const DataPreviewTable = ({ processedData }) => {
                   1,
                   Math.ceil(
                     (previewViewportHeight || 300) /
-                      (previewRowHeightPx || DEFAULT_PREVIEW_ROW_HEIGHT_PX),
+                    (previewRowHeightPx || DEFAULT_PREVIEW_ROW_HEIGHT_PX),
                   ),
                 );
                 const startRow = Math.max(

@@ -142,6 +142,20 @@ body {
     @apply h-[70px] pt-3 pr-4 pb-3 pl-4 flex items-center justify-between gap-4;
   }
 
+  /* Device Analysis: Import card header row (Card already has padding) */
+  .import_card_head_warp {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4;
+  }
+
+  .import_card_head_group {
+    @apply flex items-center gap-4 flex-wrap;
+  }
+
+  /* Layout: Control wrap (inputs / dropdown triggers / compact toolbars) */
+  .control_warp {
+    @apply flex items-center p-1 bg-bg-page border border-border-subtle rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-black transition-all;
+  }
+
   /* Layout: Section */
   .section_head {
     @apply flex items-center justify-between mb-4;
@@ -703,6 +717,10 @@ body {
     @apply h-[38px] px-3;
   }
 
+  .ui-dropdown_trigger--xl {
+    @apply h-[47.6px] px-3;
+  }
+
   .ui-dropdown_text {
     @apply text-left font-medium whitespace-nowrap truncate;
   }
@@ -712,6 +730,10 @@ body {
   }
 
   .ui-dropdown_text--md {
+    @apply text-sm;
+  }
+
+  .ui-dropdown_text--xl {
     @apply text-sm;
   }
 

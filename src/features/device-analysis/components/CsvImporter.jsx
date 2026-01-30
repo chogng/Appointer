@@ -14,6 +14,7 @@ import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { createPortal } from "react-dom";
 import { cx } from "../../../utils/cx";
 import { stableItemKey } from "../../../utils/stableKey";
+import { useLanguage } from "../../../hooks/useLanguage";
 import styles from "./CsvImporter.module.css";
 
 /*
@@ -179,11 +180,14 @@ const CsvImporter = forwardRef(
     },
     ref,
   ) => {
+    const { t } = useLanguage();
+
     const VIRTUALIZE_MIN_COUNT = 200;
     const GRID_MIN_COL_WIDTH = 280; // px
     const GRID_GAP = 12; // gap-3 => 0.75rem
     const GRID_ROW_HEIGHT = 56; // p-3 + 32px icon => stable row height
-    const GRID_PADDING_Y = 24; // py-6 => 1.5rem
+    const GRID_PADDING_Y = 12; // p-3 => 0.75rem
+    const GRID_PADDING_X = 24; // p-3 * 2 => 1.5rem
     // Higher overscan reduces the chance of seeing "blank" or content popping at row boundaries.
     // Keep modest to avoid rendering too many items per frame.
     const GRID_OVERSCAN_ROWS = 6;
@@ -518,7 +522,10 @@ const CsvImporter = forwardRef(
 
       const cols = Math.max(
         1,
-        Math.floor((contentWidth + GRID_GAP) / (GRID_MIN_COL_WIDTH + GRID_GAP)),
+        Math.floor(
+          (contentWidth - GRID_PADDING_X + GRID_GAP) /
+          (GRID_MIN_COL_WIDTH + GRID_GAP),
+        ),
       );
       const rowCount = Math.max(0, Math.ceil(files.length / cols));
       const rowStep = GRID_ROW_HEIGHT + GRID_GAP;
@@ -563,11 +570,12 @@ const CsvImporter = forwardRef(
     ]);
 
     return (
-      <div>
+      <>
         <div
           ref={containerRef}
           id="device-analysis-csv-dropzone"
-          aria-label="csv-container"
+          aria-label={t("da_import_section")}
+          data-state={files.length === 0 ? "empty" : "filled"}
           className={cx(
             styles.dropzone,
             "custom-scrollbar",
@@ -586,26 +594,37 @@ const CsvImporter = forwardRef(
             multiple
             accept=".csv"
             className="hidden"
+            aria-label={t("da_import_csv")}
             ref={fileInputRef}
             onChange={handleFileChange}
             onClick={(e) => e.stopPropagation()}
           />
 
           {files.length === 0 ? (
-            <div className={styles.empty}>
+            <div
+              id="device-analysis-csv-empty"
+              data-slot="empty"
+              className={styles.empty}
+            >
               <div className={styles.emptyIcon}>
                 <Upload size={24} />
               </div>
               <div>
-                <h3 className={styles.emptyTitle}>Upload CSV files</h3>
+                <h3 className={styles.emptyTitle}>{t("da_csv_empty_title")}</h3>
                 <p className={styles.emptySubtitle}>
-                  Drag files here or{" "}
-                  <span className={styles.emptyBrowse}>browse</span>
+                  {t("da_csv_empty_subtitle_prefix")}{" "}
+                  <span className={styles.emptyBrowse}>
+                    {t("da_csv_empty_browse")}
+                  </span>
                 </p>
               </div>
             </div>
           ) : (
-            <div id="device-analysis-import-scroll" className="w-full min-h-full flex flex-col py-6">
+            <div
+              id="device-analysis-import-scroll"
+              data-slot="filled"
+              className="w-full min-h-full flex flex-col p-3"
+            >
               {virtual.enabled ? (
                 <div className={styles.virtualStage} style={virtual.stageStyle}>
                   <div
@@ -665,7 +684,7 @@ const CsvImporter = forwardRef(
             onRemove={() => removeFile(activeFile.fileId)}
           />
         )}
-      </div>
+      </>
     );
   },
 );

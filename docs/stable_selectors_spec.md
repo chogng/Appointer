@@ -7,7 +7,7 @@
 - `docs/input_component_spec.md`
 - `docs/textarea_ui_component_spec.md`
 - `docs/button_component_spec.md`
-- `docs/tabs_ui_component_spec.md`
+- `docs/tabs_component_spec.md`
 
 ## 1. 选择器优先级（建议）
 
@@ -55,7 +55,7 @@
 
 ### 4.2 Tabs：`data-tabs` + 可选 `data-cta*`
 
-推荐输出/定位锚点（见 `docs/tabs_ui_component_spec.md`）：
+推荐输出/定位锚点（见 `docs/tabs_component_spec.md`）：
 - Tablist：`data-tabs="menu"`
 - Tab：`data-tabs="tab"`（可选附带 `data-cta*`）
 - Panel：`data-tabs="panel"`

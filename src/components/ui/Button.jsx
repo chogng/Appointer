@@ -14,10 +14,11 @@ const Button = forwardRef(
         children,
         type = "button",
         variant = "primary", // primary | secondary | ghost | text | danger
-       size = "md", // sm | md | lg | control
+        size = "md", // sm | md | lg | control
+        fx = false,
         fullWidth = false,
-       className = "",
-       disabled = false,
+        className = "",
+        disabled = false,
         testId,
         dataIcon,
         cta,
@@ -58,6 +59,7 @@ const Button = forwardRef(
         type={type}
         disabled={isDisabled}
         data-icon={dataIcon}
+        data-fx={fx ? "on" : undefined}
         data-testid={devTestId}
         data-cta={normalizeCtaName(cta)}
         data-cta-position={normalizeCtaToken(ctaPosition)}

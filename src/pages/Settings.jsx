@@ -1046,7 +1046,7 @@ const Settings = () => {
                 <label className="block text-sm font-medium text-text-secondary mb-1.5">
                   {t("displayName")}
                 </label>
-                <div className="flex items-center p-1 bg-bg-page border border-border-subtle rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-black transition-all">
+                <div className="control_warp">
                   <input
                     id="settings-display-name"
                     name="displayName"

@@ -22,12 +22,13 @@ const Dropdown = ({
   placeholder,
   title,
   disabled = false,
-  size = "md", // "sm" | "md"
+  size = "md", // "sm" | "md" | "xl"
   className = "",
   formatDisplay,
   align = "left",
   zIndex = 20,
   id,
+  menuId,
   popupClassName = "min-w-full",
   triggerClassName = "",
   dataUi,
@@ -40,14 +41,22 @@ const Dropdown = ({
   const internalTriggerId = useId();
   const internalMenuId = useId();
   const triggerId = id || `dropdown-${internalTriggerId}`;
-  const menuId = `dropdown-menu-${internalMenuId}`;
+  const resolvedMenuId = menuId || `dropdown-menu-${internalMenuId}`;
   const uiMarker =
     typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
   const devTestId = import.meta.env.DEV && testId ? testId : undefined;
   const sizeClass =
-    size === "sm" ? "ui-dropdown_trigger--sm" : "ui-dropdown_trigger--md";
+    size === "sm"
+      ? "ui-dropdown_trigger--sm"
+      : size === "xl"
+        ? "ui-dropdown_trigger--xl"
+        : "ui-dropdown_trigger--md";
   const textSizeClass =
-    size === "sm" ? "ui-dropdown_text--sm" : "ui-dropdown_text--md";
+    size === "sm"
+      ? "ui-dropdown_text--sm"
+      : size === "xl"
+        ? "ui-dropdown_text--xl"
+        : "ui-dropdown_text--md";
 
   const selectableOptions = useMemo(
     () => (Array.isArray(options) ? options.filter(isSelectableOption) : []),
@@ -211,7 +220,7 @@ const Dropdown = ({
         type="button"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-controls={menuId}
+        aria-controls={resolvedMenuId}
         disabled={disabled}
         data-state={isOpen ? "open" : "closed"}
         data-size={size}
@@ -235,7 +244,7 @@ const Dropdown = ({
         align={align}
         zIndex={zIndex}
         triggerId={triggerId}
-        menuId={menuId}
+        menuId={resolvedMenuId}
         menuDataUi={uiMarker ? `${uiMarker}-menu` : undefined}
         containerRef={containerRef}
         className={popupClassName}

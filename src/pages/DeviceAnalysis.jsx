@@ -10,7 +10,6 @@ import React, {
 import {
   AlertCircle,
   BarChart2,
-  Table as TableIcon,
   Trash2,
   Upload,
   RefreshCw,
@@ -19,7 +18,6 @@ import Papa from "papaparse";
 import JSZip from "jszip";
 import CsvImporter from "../features/device-analysis/components/CsvImporter";
 import TemplateManager from "../features/device-analysis/components/TemplateManager";
-import DataPreviewTable from "../features/device-analysis/components/DataPreviewTable";
 import AnalysisCharts from "../features/device-analysis/components/AnalysisCharts";
 import Card from "../components/ui/Card";
 import {
@@ -46,8 +44,6 @@ const DeviceAnalysis = () => {
     setProcessedData = () => { },
     extractionErrors = [],
     setExtractionErrors = () => { },
-    viewMode = "chart",
-    setViewMode = () => { },
     ssMethod = "auto",
     setSsMethod = () => { },
     ssDiagnosticsEnabled = true,
@@ -1251,35 +1247,44 @@ Note:
       <div className="page_content">
         <section aria-label={t("da_import_section")}>
           <h2 className="section_title">{t("da_import")}</h2>
-          <Card>
-            <div className="toolbar_row">
-              <button
-                type="button"
-                id="device-analysis-import-csv-btn"
-                data-icon="with"
-                data-cta="Device analysis"
-                data-cta-position="import"
-                data-cta-copy="import csv"
-                className="action-btn action-btn--md action-btn--primary"
-                aria-label={t("da_import_csv")}
-                onClick={() => importerRef.current?.openFileDialog()}
-              >
-                <span className="action-btn__content">
-                  <Upload size={16} />
-                  {t("da_import_csv")}
+          <Card
+            id="device-analysis-import-card"
+            cta="Device analysis"
+            ctaPosition="data-import"
+            ctaCopy="csv importer"
+            className="p-4"
+          >
+            <div className="import_card_head_warp">
+              <div className="import_card_head_group">
+                <button
+                  type="button"
+                  id="device-analysis-import-csv-btn"
+                  data-icon="with"
+                  data-cta="Device analysis"
+                  data-cta-position="data-import"
+                  data-cta-copy="import csv"
+                  className="action-btn action-btn--md action-btn--primary"
+                  aria-label={t("da_import_csv")}
+                  onClick={() => importerRef.current?.openFileDialog()}
+                >
+                  <span className="action-btn__content">
+                    <Upload size={16} />
+                    {t("da_import_csv")}
+                  </span>
+                </button>
+                <span className="meta_text whitespace-nowrap">
+                  {t("da_loaded_csv_files", { count: rawData.length })}
                 </span>
-              </button>
-              <span className="meta_text whitespace-nowrap">
-                {t("da_loaded_csv_files", { count: rawData.length })}
-              </span>
+              </div>
+
               <button
                 type="button"
                 id="device-analysis-clear-session-btn"
                 data-icon="with"
                 data-cta="Device analysis"
-                data-cta-position="import"
+                data-cta-position="data-import"
                 data-cta-copy="reset session"
-                className={`toolbar_spacer action-btn action-btn--control ${
+                className={`action-btn action-btn--control ${
                   hasSessionData ? "action-btn--danger" : "action-btn--disabled"
                 }`}
                 aria-label={t("da_reset_session")}
@@ -1288,7 +1293,10 @@ Note:
                 disabled={!hasSessionData}
               >
                 <span className="action-btn__content">
-                  <RefreshCw size={16} className="transition-transform duration-500 hover:rotate-180" />
+                  <RefreshCw
+                    size={16}
+                    className="transition-transform duration-500 hover:rotate-180"
+                  />
                 </span>
               </button>
             </div>
@@ -1355,61 +1363,30 @@ Note:
         )}
 
         <section aria-label={t("da_analysis_visualization")}>
-          <div className="section_head section_head--gap">
-            <h2 className="section_title mb-0">{t("da_analysis_visualization")}</h2>
-
-            {/* View Toggles */}
-            <div
-              id="device-analysis-view-toggle"
-              className="tab_menu"
-            >
-              <button
-                id="device-analysis-view-table-btn"
-                type="button"
-                onClick={() => setViewMode("table")}
-                className={`tab_btn tab_btn--md ${viewMode === "table" ? "tab_btn--active" : "tab_btn--inactive"}`}
-              >
-                <span className="tab_btn_icon">
-                  <TableIcon size={18} />
-                </span>
-                <span className="tab_btn_text">{t("da_view_table")}</span>
-              </button>
-              <button
-                id="device-analysis-view-chart-btn"
-                type="button"
-                onClick={() => setViewMode("chart")}
-                className={`tab_btn tab_btn--md ${viewMode === "chart" ? "tab_btn--active" : "tab_btn--inactive"}`}
-              >
-                <span className="tab_btn_icon">
-                  <BarChart2 size={18} />
-                </span>
-                <span className="tab_btn_text">{t("da_view_charts")}</span>
-              </button>
-            </div>
-          </div>
+          <h2 className="section_title">{t("da_analysis_visualization")}</h2>
 
           {processedData.length > 0 ? (
-            viewMode === "table" ? (
-              <DataPreviewTable processedData={processedData} />
-            ) : (
-              <AnalysisCharts
-                processedData={processedData}
-                processingStatus={_processingStatus}
-                ssMethod={ssMethod}
-                setSsMethod={setSsMethod}
-                ssDiagnosticsEnabled={ssDiagnosticsEnabled}
-                setSsDiagnosticsEnabled={setSsDiagnosticsEnabled}
-                ssShowFitLine={ssShowFitLine}
-                setSsShowFitLine={setSsShowFitLine}
-                ssIdWindow={ssIdWindow}
-                setSsIdWindow={setSsIdWindow}
-                ssManualRanges={ssManualRanges}
-                setSsManualRanges={setSsManualRanges}
-              />
-            )
+            <AnalysisCharts
+              processedData={processedData}
+              processingStatus={_processingStatus}
+              ssMethod={ssMethod}
+              setSsMethod={setSsMethod}
+              ssDiagnosticsEnabled={ssDiagnosticsEnabled}
+              setSsDiagnosticsEnabled={setSsDiagnosticsEnabled}
+              ssShowFitLine={ssShowFitLine}
+              setSsShowFitLine={setSsShowFitLine}
+              ssIdWindow={ssIdWindow}
+              setSsIdWindow={setSsIdWindow}
+              ssManualRanges={ssManualRanges}
+              setSsManualRanges={setSsManualRanges}
+            />
           ) : (
             <Card
+              id="device-analysis-empty-processed-data-card"
               variant="panel"
+              cta="Device analysis"
+              ctaPosition="analysis"
+              ctaCopy="empty processed data"
               className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border bg-bg-surface/50 text-text-secondary"
             >
               <BarChart2 size={48} className="mb-4 opacity-20" />

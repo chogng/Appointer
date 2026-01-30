@@ -6,7 +6,6 @@ export const DeviceAnalysisSessionProvider = ({ children }) => {
   const [selectedPreviewFileId, setSelectedPreviewFileId] = useState(null);
   const [processedData, setProcessedData] = useState([]);
   const [extractionErrors, setExtractionErrors] = useState([]);
-  const [viewMode, setViewMode] = useState("chart"); // 'table' | 'chart'
 
   // Device analysis SS (session state; defaults overridden by user settings if loaded).
   const [ssMethod, setSsMethod] = useState("auto"); // auto | manual | idWindow | legacy
@@ -29,8 +28,6 @@ export const DeviceAnalysisSessionProvider = ({ children }) => {
       setProcessedData,
       extractionErrors,
       setExtractionErrors,
-      viewMode,
-      setViewMode,
       ssMethod,
       setSsMethod,
       ssDiagnosticsEnabled,
@@ -47,7 +44,6 @@ export const DeviceAnalysisSessionProvider = ({ children }) => {
       processedData,
       rawData,
       selectedPreviewFileId,
-      viewMode,
       ssDiagnosticsEnabled,
       ssIdWindow,
       ssManualRanges,

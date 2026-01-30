@@ -23,7 +23,8 @@
 对应组件：[`src/features/device-analysis/components/CsvImporter.jsx`](../src/features/device-analysis/components/CsvImporter.jsx)
 
 **必须锚点**：
-- Dropzone 容器：`#device-analysis-csv-dropzone`（兼容：`[aria-label="csv-container"]`）
+- Dropzone 容器：`#device-analysis-csv-dropzone`
+- 空态内容容器：`#device-analysis-csv-empty`（配合 `#device-analysis-csv-dropzone[data-state="empty"]`）
 - 文件选择 input：`#device-analysis-csv-file-input`（用于自动化上传）
 - CSV 列表项（稳定建议）：`[data-ui="csv-file-item"][data-item-key="name::size"]`
 - 删除 CSV（稳定建议）：`[data-ui="csv-file-remove-btn"][data-item-key="name::size"]`
@@ -47,7 +48,7 @@
 - 模板名输入：`#device-analysis-template-name`
 - 打开模板下拉：`#device-analysis-template-dropdown-btn`
 - 新建模板入口：`#device-analysis-template-new-btn`
-- 模板行：`[data-template-id="..."]`
+- 模板条目（容器）：`[data-template-id="..."]`
 - 删除模板：`button[aria-label="Delete template"][data-template-id="..."]`
 - 保存模板：`#device-analysis-template-save-btn`
 
@@ -88,25 +89,7 @@
 
 ## 7. 分析区（Analysis & Visualization）
 
-### 7.1 视图切换（Charts / Data Table）
-
-**必须锚点**：
-- 视图切换容器：`#device-analysis-view-toggle`
-- Data Table：`#device-analysis-view-table-btn`
-- Charts：`#device-analysis-view-chart-btn`
-
-### 7.2 Data Table（DataPreviewTable）
-
-对应组件：[`src/features/device-analysis/components/DataPreviewTable.jsx`](../src/features/device-analysis/components/DataPreviewTable.jsx)
-
-**必须锚点**：
-- 表格模块根：`#device-analysis-data-preview`
-- 文件 tabs：`#device-analysis-data-preview-file-tabs`
-- 文件 tab：`button[data-file-id="..."]`
-- Series 下拉：`#device-analysis-data-preview-series-select`
-- 表格滚动容器：`#device-analysis-data-preview-scroll`
-
-### 7.3 Charts（AnalysisCharts）
+### 7.1 Charts（AnalysisCharts）
 
 对应组件：[`src/features/device-analysis/components/AnalysisCharts.jsx`](../src/features/device-analysis/components/AnalysisCharts.jsx)
 
