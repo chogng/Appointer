@@ -614,7 +614,7 @@ const TemplateManager = ({
         ];
       });
       setConfig((prev) => ({ ...prev, name: "" }));
-      showToast("Template saved", "success");
+      showToast(t("da_template_saved"), "success");
       setTemplateMode("select");
     } catch (err) {
       showToast(err.message || "Failed to save template", "warning");
@@ -1491,6 +1491,7 @@ const TemplateManager = ({
                 id={
                   includeIds ? "device-analysis-template-x-data-start" : undefined
                 }
+                name="xDataStart"
                 value={config.xDataStart}
                 disabled={saveIsSelectMode}
                 onChange={(next) => {
@@ -1498,13 +1499,13 @@ const TemplateManager = ({
                   markFieldSource("xDataStart", "manual");
                 }}
                 placeholder="Start"
-                name="xDataStart"
                 autoComplete="off"
               />
             </div>
             <div>
               <Input
                 id={includeIds ? "device-analysis-template-x-data-end" : undefined}
+                name="xDataEnd"
                 value={config.xDataEnd}
                 disabled={saveIsSelectMode}
                 onChange={(next) => {
@@ -1526,13 +1527,13 @@ const TemplateManager = ({
                   }
                 }}
                 placeholder="End"
-                name="xDataEnd"
                 autoComplete="off"
               />
             </div>
             <div>
               <Input
                 id={includeIds ? "device-analysis-template-x-points" : undefined}
+                name="xPoints"
                 value={config.xPoints}
                 disabled={saveIsSelectMode}
                 onChange={(next) => {
@@ -1540,7 +1541,6 @@ const TemplateManager = ({
                   markFieldSource("xPoints", "manual");
                 }}
                 placeholder="Points"
-                name="xPoints"
                 autoComplete="off"
                 inputClassName="no-spinner"
               />

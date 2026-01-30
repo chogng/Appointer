@@ -575,6 +575,7 @@ const translations = {
       'Y Data Count cell {cell} must contain a positive integer.',
     da_extractYStepCellPositiveNumber:
       'Y Data Step cell {cell} must contain a positive number.',
+    da_template_saved: 'Template saved',
   },
   zh: {
     bg_scale_compare_title: '背景色阶色卡',
@@ -1100,6 +1101,7 @@ const translations = {
     da_extractYStepPositiveNumberOrCell: 'Y Data Step 必须为正数（或单元格如 B2）。',
     da_extractYCountCellPositiveInt: 'Y Data Count 单元格 {cell} 必须为正整数。',
     da_extractYStepCellPositiveNumber: 'Y Data Step 单元格 {cell} 必须为正数。',
+    da_template_saved: '模板已保存',
     recentMessages: '消息通知',
     dashboard_applied_for_account: '\u8d26\u53f7\u7533\u8bf7',
     dashboard_inventory_request: '\u5e93\u5b58\u8bf7\u6c42',
