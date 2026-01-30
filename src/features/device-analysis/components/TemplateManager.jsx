@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,6 +27,7 @@ import Input from "../../../components/ui/Input";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
+import Avatar from "../../../components/ui/Avatar";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,
@@ -249,6 +251,76 @@ const TemplateManager = ({
   const [templateMode, setTemplateMode] = useState("select"); // "select" | "save"
   const dropdownRef = useRef(null);
   const isSelectMode = templateMode === "select";
+  const leftPanelRef = useRef(null);
+  const basePanelRef = useRef(null);
+  const savePanelMeasureRef = useRef(null);
+  const [panelMinHeightPx, setPanelMinHeightPx] = useState(null);
+  const minHeightRafRef = useRef(0);
+  const basePanelMaxHeightRef = useRef(0);
+  const lastPanelWidthRef = useRef(0);
+
+  useLayoutEffect(() => {
+    const panelEl = leftPanelRef.current;
+    const baseEl = basePanelRef.current;
+    const saveEl = savePanelMeasureRef.current;
+    if (!panelEl || !baseEl || !saveEl) return;
+
+    const SAVE_PANEL_GAP_PX = 16; // matches `space-y-4`
+
+    const measureNow = () => {
+      const panelWidth = panelEl.getBoundingClientRect().width;
+      if (Math.abs(panelWidth - lastPanelWidthRef.current) > 1) {
+        lastPanelWidthRef.current = panelWidth;
+        basePanelMaxHeightRef.current = 0;
+      }
+
+      const panelStyles = window.getComputedStyle(panelEl);
+      const panelPaddingY =
+        (Number.parseFloat(panelStyles.paddingTop) || 0) +
+        (Number.parseFloat(panelStyles.paddingBottom) || 0);
+      const baseHeightRaw = baseEl.getBoundingClientRect().height;
+      const baseHeight = Math.max(basePanelMaxHeightRef.current, baseHeightRaw);
+      basePanelMaxHeightRef.current = baseHeight;
+      const saveHeight = saveEl.getBoundingClientRect().height;
+      const next = Math.ceil(
+        panelPaddingY + baseHeight + SAVE_PANEL_GAP_PX + saveHeight,
+      );
+      setPanelMinHeightPx((prev) => (prev === next ? prev : next));
+    };
+
+    const scheduleMeasure = () => {
+      if (minHeightRafRef.current) return;
+      minHeightRafRef.current = window.requestAnimationFrame(() => {
+        minHeightRafRef.current = 0;
+        measureNow();
+      });
+    };
+
+    scheduleMeasure();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", scheduleMeasure);
+      return () => {
+        window.removeEventListener("resize", scheduleMeasure);
+        if (minHeightRafRef.current) {
+          window.cancelAnimationFrame(minHeightRafRef.current);
+          minHeightRafRef.current = 0;
+        }
+      };
+    }
+
+    const ro = new ResizeObserver(() => scheduleMeasure());
+    ro.observe(panelEl);
+    ro.observe(baseEl);
+    ro.observe(saveEl);
+    return () => {
+      ro.disconnect();
+      if (minHeightRafRef.current) {
+        window.cancelAnimationFrame(minHeightRafRef.current);
+        minHeightRafRef.current = 0;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (didInitConfigFromSettingsRef.current) return;
@@ -1401,6 +1473,306 @@ const TemplateManager = ({
     }
   }, [buildSelectionTsv, ensurePreviewRows, previewFile, selections]);
 
+  const renderSavePanel = ({
+    includeIds = true,
+    selectModeForDisabled = false,
+  } = {}) => {
+    const saveIsSelectMode = Boolean(selectModeForDisabled);
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            X data
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+            <div>
+              <Input
+                id={
+                  includeIds ? "device-analysis-template-x-data-start" : undefined
+                }
+                value={config.xDataStart}
+                disabled={saveIsSelectMode}
+                onChange={(next) => {
+                  setConfig((prev) => ({ ...prev, xDataStart: next }));
+                  markFieldSource("xDataStart", "manual");
+                }}
+                placeholder="Start"
+                name="xDataStart"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Input
+                id={includeIds ? "device-analysis-template-x-data-end" : undefined}
+                value={config.xDataEnd}
+                disabled={saveIsSelectMode}
+                onChange={(next) => {
+                  setConfig((prev) => ({ ...prev, xDataEnd: next }));
+                  markFieldSource("xDataEnd", "manual");
+                }}
+                onBlur={(e) => {
+                  const value = String(e?.target?.value ?? "").trim();
+                  if (!value) {
+                    const startCell = String(config.xDataStart ?? "").trim();
+                    setConfig((prev) => ({
+                      ...prev,
+                      xDataEnd: startCell ? "End" : "",
+                    }));
+                    return;
+                  }
+                  if (value.toLowerCase() === "end" && value !== "End") {
+                    setConfig((prev) => ({ ...prev, xDataEnd: "End" }));
+                  }
+                }}
+                placeholder="End"
+                name="xDataEnd"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Input
+                id={includeIds ? "device-analysis-template-x-points" : undefined}
+                value={config.xPoints}
+                disabled={saveIsSelectMode}
+                onChange={(next) => {
+                  setConfig((prev) => ({ ...prev, xPoints: next }));
+                  markFieldSource("xPoints", "manual");
+                }}
+                placeholder="Points"
+                name="xPoints"
+                autoComplete="off"
+                inputClassName="no-spinner"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+            <div>
+              <Input
+                id={
+                  includeIds
+                    ? "device-analysis-template-var1-bottom-title"
+                    : undefined
+                }
+                label="Var1"
+                value={config.bottomTitle || ""}
+                name="bottomTitle"
+                autoComplete="off"
+                disabled={disableVarInputs}
+                onChange={(next) => {
+                  setConfig((prev) => ({ ...prev, bottomTitle: next }));
+                  markFieldSource("bottomTitle", "manual");
+                }}
+                onBlur={toastVarPairIfInvalid}
+                placeholder="Curve type"
+              />
+            </div>
+            <div>
+              <Input
+                id={
+                  includeIds
+                    ? "device-analysis-template-var2-legend-prefix"
+                    : undefined
+                }
+                label="Var2"
+                value={config.legendPrefix || ""}
+                name="legendPrefix"
+                autoComplete="off"
+                disabled={disableVarInputs}
+                onChange={(next) => {
+                  setConfig((prev) => ({ ...prev, legendPrefix: next }));
+                  markFieldSource("legendPrefix", "manual");
+                }}
+                onBlur={toastVarPairIfInvalid}
+                placeholder="Legend"
+              />
+            </div>
+            <div>
+              <Input
+                id={
+                  includeIds
+                    ? "device-analysis-template-var3-left-title"
+                    : undefined
+                }
+                label="Var3"
+                value={config.leftTitle || ""}
+                name="leftTitle"
+                autoComplete="off"
+                onChange={(next) => {
+                  setConfig((prev) => ({ ...prev, leftTitle: next }));
+                  markFieldSource("leftTitle", "manual");
+                }}
+                placeholder="Left Title"
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              {t("da_match_by_file_name")}
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                <Input
+                  id={
+                    includeIds
+                      ? "device-analysis-template-file-name-vg-keywords"
+                      : undefined
+                  }
+                  value={config.fileNameVgKeywords || ""}
+                  name="fileNameVgKeywords"
+                  autoComplete="off"
+                  disabled={disableFileNameInputs}
+                  onChange={(next) => {
+                    setConfig((prev) => ({
+                      ...prev,
+                      fileNameVgKeywords: next,
+                    }));
+                    markFieldSource("fileNameVgKeywords", "manual");
+                  }}
+                  placeholder="Transfer"
+                />
+              </div>
+              <div className="min-w-0">
+                <Input
+                  id={
+                    includeIds
+                      ? "device-analysis-template-file-name-vd-keywords"
+                      : undefined
+                  }
+                  value={config.fileNameVdKeywords || ""}
+                  name="fileNameVdKeywords"
+                  autoComplete="off"
+                  disabled={disableFileNameInputs}
+                  onChange={(next) => {
+                    setConfig((prev) => ({
+                      ...prev,
+                      fileNameVdKeywords: next,
+                    }));
+                    markFieldSource("fileNameVdKeywords", "manual");
+                  }}
+                  placeholder="Output"
+                />
+              </div>
+            </div>
+            {curveTaggingConflict && (
+              <p className="text-xs text-red-600 mt-1">
+                Var1/Var2 and file-name keywords cannot be used together. Please
+                clear one.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            Y data
+          </label>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                <Input
+                  id={
+                    includeIds
+                      ? "device-analysis-template-selected-columns"
+                      : undefined
+                  }
+                  value={
+                    config.selectedColumns.length > 0
+                      ? config.selectedColumns
+                        .slice()
+                        .sort((a, b) => a - b)
+                        .map((col) => getExcelColumnLabel(col))
+                        .join(", ")
+                      : ""
+                  }
+                  placeholder="Check columns"
+                  disabled
+                  readOnly
+                />
+              </div>
+              <div className="min-w-0">
+                <Input
+                  id={includeIds ? "device-analysis-template-y-points" : undefined}
+                  value={config.xPoints || config.yPoints}
+                  name="yPoints"
+                  autoComplete="off"
+                  disabled={saveIsSelectMode || !!config.xPoints}
+                  onChange={(next) => {
+                    setConfig((prev) => ({
+                      ...prev,
+                      yPoints: next,
+                    }));
+                    markFieldSource("yPoints", "manual");
+                  }}
+                  placeholder="Points"
+                  inputClassName="no-spinner"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4">
+              <div className="min-w-0">
+                <Input
+                  id={
+                    includeIds
+                      ? "device-analysis-template-y-data-start"
+                      : undefined
+                  }
+                  value={config.yDataStart}
+                  name="yDataStart"
+                  autoComplete="off"
+                  disabled={saveIsSelectMode}
+                  onChange={(next) => {
+                    setConfig((prev) => ({
+                      ...prev,
+                      yDataStart: next,
+                    }));
+                    markFieldSource("yDataStart", "manual");
+                  }}
+                  placeholder="Start"
+                />
+              </div>
+              <div className="min-w-0">
+                <Input
+                  id={includeIds ? "device-analysis-template-y-count" : undefined}
+                  value={config.yCount}
+                  name="yCount"
+                  autoComplete="off"
+                  disabled={saveIsSelectMode}
+                  onChange={(next) => {
+                    setConfig((prev) => ({ ...prev, yCount: next }));
+                    markFieldSource("yCount", "manual");
+                  }}
+                  placeholder="Count"
+                  inputClassName="no-spinner"
+                />
+              </div>
+              <div className="min-w-0">
+                <Input
+                  id={includeIds ? "device-analysis-template-y-step" : undefined}
+                  value={config.yStep}
+                  name="yStep"
+                  autoComplete="off"
+                  disabled={saveIsSelectMode}
+                  onChange={(next) => {
+                    setConfig((prev) => ({ ...prev, yStep: next }));
+                    markFieldSource("yStep", "manual");
+                  }}
+                  placeholder="Step"
+                  inputClassName="no-spinner"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section aria-label={t("da_data_extraction_template")}>
       <h2 className="section_title">{t("da_data_extraction_template")}</h2>
@@ -1409,11 +1781,23 @@ const TemplateManager = ({
         ref={containerRef}
         id="device-analysis-template-manager"
         className="p-4"
+        style={{
+          "--da-template-panel-min-h": panelMinHeightPx
+            ? `${panelMinHeightPx}px`
+            : "0px",
+        }}
       >
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Configuration Panel */}
-          <div className="lg:col-span-1 space-y-4">
-            <div>
+          <div
+            ref={leftPanelRef}
+            className="lg:col-span-1 rounded-lg flex flex-col min-h-0 lg:min-h-[var(--da-template-panel-min-h)]"
+          >
+            <div
+              className="relative flex flex-col gap-4 flex-1 min-h-0"
+              id="device-analysis-template-config-panel-content"
+            >
+            <div ref={basePanelRef}>
               <div className="flex items-center justify-start gap-3 mb-2">
                 <Tabs
                   value={templateMode}
@@ -1602,249 +1986,19 @@ const TemplateManager = ({
               </div>
             </div>
 
-            {templateMode === "save" && (
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  X data
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <Input
-                      value={config.xDataStart}
-                      disabled={isSelectMode}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, xDataStart: next }));
-                        markFieldSource("xDataStart", "manual");
-                      }}
-                      placeholder="Start"
-                      name="xDataStart"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={config.xDataEnd}
-                      disabled={isSelectMode}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, xDataEnd: next }));
-                        markFieldSource("xDataEnd", "manual");
-                      }}
-                      onBlur={(e) => {
-                        const value = String(e?.target?.value ?? "").trim();
-                        if (!value) {
-                          const startCell = String(
-                            config.xDataStart ?? "",
-                          ).trim();
-                          setConfig((prev) => ({
-                            ...prev,
-                            xDataEnd: startCell ? "End" : "",
-                          }));
-                          return;
-                        }
-                        if (value.toLowerCase() === "end" && value !== "End") {
-                          setConfig((prev) => ({ ...prev, xDataEnd: "End" }));
-                        }
-                      }}
-                      placeholder="End"
-                      name="xDataEnd"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={config.xPoints}
-                      disabled={isSelectMode}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, xPoints: next }));
-                        markFieldSource("xPoints", "manual");
-                      }}
-                      placeholder="Points"
-                      name="xPoints"
-                      autoComplete="off"
-                      inputClassName="no-spinner"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+            {templateMode === "save" &&
+              renderSavePanel({
+                includeIds: true,
+                selectModeForDisabled: isSelectMode,
+              })}
 
-            {templateMode === "save" && (
-              <div className="mt-2">
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <Input
-                      label="Var1"
-                      value={config.bottomTitle || ""}
-                      name="bottomTitle"
-                      autoComplete="off"
-                      disabled={disableVarInputs}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, bottomTitle: next }));
-                        markFieldSource("bottomTitle", "manual");
-                      }}
-                      onBlur={toastVarPairIfInvalid}
-                      placeholder="Curve type"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      label="Var2"
-                      value={config.legendPrefix || ""}
-                      name="legendPrefix"
-                      autoComplete="off"
-                      disabled={disableVarInputs}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, legendPrefix: next }));
-                        markFieldSource("legendPrefix", "manual");
-                      }}
-                      onBlur={toastVarPairIfInvalid}
-                      placeholder="Legend"
-                    />
-
-                  </div>
-                  <div>
-                    <Input
-                      label="Var3"
-                      value={config.leftTitle || ""}
-                      name="leftTitle"
-                      autoComplete="off"
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, leftTitle: next }));
-                        markFieldSource("leftTitle", "manual");
-                      }}
-                      placeholder="Left Title"
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-text-secondary mb-1">
-                    {t("da_match_by_file_name")}
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Input
-                        value={config.fileNameVgKeywords || ""}
-                        name="fileNameVgKeywords"
-                        autoComplete="off"
-                        disabled={disableFileNameInputs}
-                        onChange={(next) => {
-                          setConfig((prev) => ({
-                            ...prev,
-                            fileNameVgKeywords: next,
-                          }));
-                          markFieldSource("fileNameVgKeywords", "manual");
-                        }}
-                        placeholder="Transfer"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={config.fileNameVdKeywords || ""}
-                        name="fileNameVdKeywords"
-                        autoComplete="off"
-                        disabled={disableFileNameInputs}
-                        onChange={(next) => {
-                          setConfig((prev) => ({
-                            ...prev,
-                            fileNameVdKeywords: next,
-                          }));
-                          markFieldSource("fileNameVdKeywords", "manual");
-                        }}
-                        placeholder="Output"
-                      />
-                    </div>
-                  </div>
-                  {curveTaggingConflict && (
-                    <p className="text-xs text-red-600 mt-1">
-                      Var1/Var2 and file-name keywords cannot be used together.
-                      Please clear one.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {templateMode === "save" && (
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Y data
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
-                  <div className="sm:col-span-2">
-                    <Input
-                      value={
-                        config.selectedColumns.length > 0
-                          ? config.selectedColumns
-                            .slice()
-                            .sort((a, b) => a - b)
-                            .map((col) => getExcelColumnLabel(col))
-                            .join(", ")
-                          : ""
-                      }
-                      placeholder="Check columns"
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={config.xPoints || config.yPoints}
-                      name="yPoints"
-                      autoComplete="off"
-                      disabled={isSelectMode || !!config.xPoints}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, yPoints: next }));
-                        markFieldSource("yPoints", "manual");
-                      }}
-                      placeholder="Points"
-                      inputClassName="no-spinner"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={config.yDataStart}
-                      name="yDataStart"
-                      autoComplete="off"
-                      disabled={isSelectMode}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, yDataStart: next }));
-                        markFieldSource("yDataStart", "manual");
-                      }}
-                      placeholder="Start"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={config.yCount}
-                      name="yCount"
-                      autoComplete="off"
-                      disabled={isSelectMode}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, yCount: next }));
-                        markFieldSource("yCount", "manual");
-                      }}
-                      placeholder="Count"
-                      inputClassName="no-spinner"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={config.yStep}
-                      name="yStep"
-                      autoComplete="off"
-                      disabled={isSelectMode}
-                      onChange={(next) => {
-                        setConfig((prev) => ({ ...prev, yStep: next }));
-                        markFieldSource("yStep", "manual");
-                      }}
-                      placeholder="Step"
-                      inputClassName="no-spinner"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+            <div
+              ref={savePanelMeasureRef}
+              aria-hidden="true"
+              className="absolute left-0 top-0 w-full invisible pointer-events-none"
+            >
+              {renderSavePanel({ includeIds: false })}
+            </div>
 
             {templateMode !== "save" && (
               <button
@@ -1885,15 +2039,15 @@ const TemplateManager = ({
               </div>
             )}
 
-
+            </div>
           </div>
 
           {/* Preview Panel */}
-          <div className="lg:col-span-3 bg-bg-page border border-border rounded-lg p-4 overflow-hidden flex flex-col">
+          <div className="lg:col-span-3 bg-bg-page rounded-lg p-4 overflow-hidden flex flex-col min-h-0 lg:h-[var(--da-template-panel-min-h)] lg:min-h-[var(--da-template-panel-min-h)]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-text-secondary">
                 Preview:{" "}
-                {previewFile ? previewFile.fileName : "(No file loaded)"}
+                {previewFile ? previewFile.fileName : ""}
               </span>
               {previewStatus?.state === "loading" ? (
                 <span className="text-xs text-text-secondary">
@@ -1918,41 +2072,45 @@ const TemplateManager = ({
             </div>
 
             {previewStatus?.state === "loading" ? (
-              <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50 h-[500px]">
-                <div className="p-4 bg-white rounded-full shadow-sm mb-4">
-                  <FileSpreadsheet
-                    width={32}
-                    height={32}
-                    className="text-gray-300"
-                  />
-                </div>
+              <div
+                id="device-analysis-preview-placeholder"
+                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50"
+              >
+                <Avatar
+                  icon={FileSpreadsheet}
+                  size="lg"
+                  variant="empty"
+                  className="mb-4"
+                />
                 <p className="text-sm font-medium text-text-secondary mb-1">
                   {previewStatus.message || t("da_preview_loading")}
                 </p>
-                <p className="text-xs text-text-tertiary">
+                <p className="text-sm text-text-tertiary">
                   {t("da_preview_loading_hint")}
                 </p>
               </div>
             ) : previewStatus?.state === "error" ? (
-              <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50 h-[500px]">
-                <div className="p-4 bg-white rounded-full shadow-sm mb-4">
-                  <FileSpreadsheet
-                    width={32}
-                    height={32}
-                    className="text-gray-300"
-                  />
-                </div>
+              <div
+                id="device-analysis-preview-placeholder"
+                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50"
+              >
+                <Avatar
+                  icon={FileSpreadsheet}
+                  size="lg"
+                  variant="empty"
+                  className="mb-4"
+                />
                 <p className="text-sm font-medium text-text-secondary mb-1">
                   {previewStatus.message || t("da_preview_error")}
                 </p>
-                <p className="text-xs text-text-tertiary">
+                <p className="text-sm text-text-tertiary">
                   {t("da_preview_error_hint")}
                 </p>
               </div>
             ) : previewFile ? (
               <div
                 ref={previewScrollRef}
-                className={`overflow-auto border border-border rounded h-[500px] custom-scrollbar ${isColumnResizing ? "cursor-col-resize select-none" : ""}`}
+                className={`flex-1 min-h-0 overflow-auto border border-border rounded custom-scrollbar ${isColumnResizing ? "cursor-col-resize select-none" : ""}`}
               >
                 <div
                   ref={gridRef}
@@ -2086,19 +2244,18 @@ const TemplateManager = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50 h-[500px]">
-                <div className="p-4 bg-white rounded-full shadow-sm mb-4">
-                  <FileSpreadsheet
-                    width={32}
-                    height={32}
-                    className="text-gray-300"
-                  />
-                </div>
-                <p className="text-sm font-medium text-text-secondary mb-1">
-                  No file loaded
-                </p>
-                <p className="text-xs text-text-tertiary">
-                  Select a file from the list to preview data
+              <div
+                id="device-analysis-preview-placeholder"
+                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50"
+              >
+                <Avatar
+                  icon={FileSpreadsheet}
+                  size="lg"
+                  variant="empty"
+                  className="mb-4"
+                />
+                <p className="text-sm text-text-tertiary">
+                  {t("da_preview_select_file_hint")}
                 </p>
               </div>
             )}

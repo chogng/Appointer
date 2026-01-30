@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { cx } from "../../../utils/cx";
 import { stableItemKey } from "../../../utils/stableKey";
 import { useLanguage } from "../../../hooks/useLanguage";
+import Avatar from "../../../components/ui/Avatar";
 import styles from "./CsvImporter.module.css";
 
 /*
@@ -601,23 +602,18 @@ const CsvImporter = forwardRef(
           />
 
           {files.length === 0 ? (
-            <div
-              id="device-analysis-csv-empty"
-              data-slot="empty"
-              className={styles.empty}
-            >
-              <div className={styles.emptyIcon}>
-                <Upload size={24} />
-              </div>
-              <div>
-                <h3 className={styles.emptyTitle}>{t("da_csv_empty_title")}</h3>
+              <div
+                id="device-analysis-csv-empty"
+                data-slot="empty"
+                className={styles.empty}
+              >
+                <Avatar icon={Upload} size="lg" variant="empty" />
                 <p className={styles.emptySubtitle}>
                   {t("da_csv_empty_subtitle_prefix")}{" "}
                   <span className={styles.emptyBrowse}>
                     {t("da_csv_empty_browse")}
                   </span>
                 </p>
-              </div>
             </div>
           ) : (
             <div

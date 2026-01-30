@@ -3417,6 +3417,7 @@ How to use (manual fallback):
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
+                      id="device-analysis-axis-x-min"
                       value={axis.xMin}
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, xMin: e.target.value }))
@@ -3425,6 +3426,7 @@ How to use (manual fallback):
                       className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                     />
                     <input
+                      id="device-analysis-axis-x-max"
                       value={axis.xMax}
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, xMax: e.target.value }))
@@ -3448,6 +3450,7 @@ How to use (manual fallback):
                       <option value="step">ticks: step</option>
                     </select>
                     <input
+                      id="device-analysis-axis-x-tick-count"
                       value={axis.xTickCount}
                       onChange={(e) =>
                         setAxis((prev) => ({
@@ -3461,6 +3464,7 @@ How to use (manual fallback):
                       title="Nice tick count"
                     />
                     <input
+                      id="device-analysis-axis-x-step"
                       value={axis.xStep}
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, xStep: e.target.value }))
@@ -3479,6 +3483,7 @@ How to use (manual fallback):
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
+                      id="device-analysis-axis-y-min"
                       value={axis.yMin}
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, yMin: e.target.value }))
@@ -3487,6 +3492,7 @@ How to use (manual fallback):
                       className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
                     />
                     <input
+                      id="device-analysis-axis-y-max"
                       value={axis.yMax}
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, yMax: e.target.value }))
@@ -3549,6 +3555,7 @@ How to use (manual fallback):
                     {effectiveYScale === "linear" ? (
                       axis.yTicks === "step" ? (
                         <input
+                          id="device-analysis-axis-y-step"
                           value={axis.yStep}
                           onChange={(e) =>
                             setAxis((prev) => ({
@@ -3562,6 +3569,7 @@ How to use (manual fallback):
                         />
                       ) : (
                         <input
+                          id="device-analysis-axis-y-tick-count"
                           value={axis.yTickCount}
                           onChange={(e) =>
                             setAxis((prev) => ({
@@ -3577,6 +3585,7 @@ How to use (manual fallback):
                       )
                     ) : (
                       <input
+                        id="device-analysis-axis-y-decade-step"
                         value={axis.yDecadeStep}
                         onChange={(e) =>
                           setAxis((prev) => ({

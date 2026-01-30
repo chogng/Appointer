@@ -17,16 +17,12 @@
   @apply flex flex-col items-center justify-center h-full gap-3 py-6 px-6 text-center cursor-pointer;
 }
 
-.emptyIcon {
-  @apply w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent;
-}
-
 .emptyTitle {
-  @apply text-lg font-semibold text-text-primary;
+  @apply text-sm font-medium text-text-secondary;
 }
 
 .emptySubtitle {
-  @apply text-sm text-text-secondary mt-1;
+  @apply text-sm text-text-tertiary;
 }
 
 .emptyBrowse {
