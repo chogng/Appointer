@@ -138,7 +138,7 @@ const Dashboard = () => {
               <Card
                 key={stat.id}
                 id={`dashboard-overview-stat-${stat.id}`}
-                className="flex items-center gap-4"
+                className="p-4 flex items-center gap-4"
                 cta="Dashboard"
                 ctaPosition="overview"
                 ctaCopy={stat.id}
@@ -285,9 +285,12 @@ const Dashboard = () => {
                   </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2">
-                    <div className="w-12 h-12 rounded-full bg-bg-200/50 flex items-center justify-center">
-                      <Search size={20} className="opacity-50" />
-                    </div>
+                    <Avatar
+                      icon={Search}
+                      size="lg"
+                      variant="empty"
+                      iconClassName="opacity-50"
+                    />
                     <p className="text-sm">{t("noActivity")}</p>
                   </div>
                 )}
@@ -482,9 +485,12 @@ const Dashboard = () => {
                   </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2 py-8">
-                    <div className="w-12 h-12 rounded-full bg-bg-200/50 flex items-center justify-center">
-                      <Inbox size={20} className="opacity-50" />
-                    </div>
+                    <Avatar
+                      icon={Inbox}
+                      size="lg"
+                      variant="empty"
+                      iconClassName="opacity-50"
+                    />
                     <p className="text-sm">
                       {messageTab === "reviewed"
                         ? t("dashboard_no_reviewed_requests")
@@ -502,6 +508,7 @@ const Dashboard = () => {
       <Modal
         isOpen={!!selectedMessage}
         onClose={() => inbox.setSelectedMessage(null)}
+        idBase="message-details"
         title={
           selectedMessage?.msgType === "USER_REGISTRATION"
             ? t("dashboard_application_details")
@@ -543,22 +550,6 @@ const Dashboard = () => {
       >
         {selectedMessage && selectedMessage.msgType === "USER_REGISTRATION" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-4 mb-6">
-              <Avatar
-                size="xl"
-                fallback={selectedMessage.name || "?"}
-                className="bg-bg-200 font-serif"
-              />
-              <div>
-                <h3 className="text-lg font-medium text-text-primary">
-                  {selectedMessage.name}
-                </h3>
-                <p className="text-text-secondary">
-                  {selectedMessage.username}
-                </p>
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-bg-200/50 rounded-xl">
                 <div className="text-xs text-text-tertiary mb-1">
@@ -590,31 +581,7 @@ const Dashboard = () => {
           (selectedMessage.msgType === "INVENTORY_REQUEST" ||
             selectedMessage.type === "INVENTORY_ADD") && (
             <div className="space-y-4">
-              <div className="flex items-center gap-4 mb-6">
-                <Avatar
-                  size="xl"
-                  icon={Package}
-                  className="bg-bg-200 font-serif"
-                />
-                <div>
-                  <h3 className="text-lg font-medium text-text-primary">
-                    {selectedMessage.type === "INVENTORY_ADD"
-                      ? t("inventory_new_item")
-                      : t("inventory_modification")}
-                  </h3>
-                  <p className="text-text-secondary">
-                    {t("requested_by", { name: selectedMessage.requesterName })}
-                  </p>
-                </div>
-              </div>
-
               <div className="bg-bg-200/50 rounded-xl p-4">
-                <h4 className="text-sm font-medium text-text-primary mb-3">
-                  {selectedMessage.type === "INVENTORY_ADD"
-                    ? t("inventory_item_details")
-                    : t("inventory_changes_breakdown")}
-                </h4>
-
                 {(() => {
                   const original =
                     (selectedMessage.originalData
@@ -625,10 +592,10 @@ const Dashboard = () => {
 
                   return (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-3 text-xs text-text-tertiary mb-1 border-b border-border/50 pb-2">
-                        <div>{t("inventory_field")}</div>
-                        <div>{t("inventory_original")}</div>
-                        <div>{t("inventory_new_value")}</div>
+                      <div className="grid grid-cols-3 text-sm text-text-primary mb-1 border-b border-border/50 pb-2">
+                        <div className="text-center">{t("inventory_field")}</div>
+                        <div className="text-center">{t("inventory_original")}</div>
+                        <div className="text-center">{t("inventory_new_value")}</div>
                       </div>
 
                       {["name", "category", "quantity"].map((field) => {
@@ -640,14 +607,14 @@ const Dashboard = () => {
                             key={field}
                             className={`grid grid-cols-3 text-sm ${isChanged && selectedMessage.type !== "INVENTORY_ADD" ? "bg-accent/5 -mx-2 px-2 py-1 rounded" : ""}`}
                           >
-                            <div className="text-text-secondary capitalize">
+                            <div className="text-text-secondary capitalize text-center">
                               {t(fieldLabelKey)}
                             </div>
-                            <div className="text-text-secondary">
+                            <div className="text-text-secondary text-center">
                               {original[field] || "-"}
                             </div>
                             <div
-                              className={`font-medium ${isChanged ? "text-accent" : "text-text-primary"}`}
+                              className={`font-medium text-center ${isChanged ? "text-accent" : "text-text-primary"}`}
                             >
                               {newData[field]}
                             </div>

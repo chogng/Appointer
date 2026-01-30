@@ -54,6 +54,85 @@ body {
     @apply p-0 overflow-hidden flex-1 min-h-0 flex flex-col;
   }
 
+  /* Modal */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  }
+
+  .modal-backdrop {
+    @apply absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity;
+  }
+
+  .modal {
+    @apply relative w-full rounded-2xl flex flex-col;
+    animation: modal-in 200ms ease-out;
+  }
+
+  .modal--primary {
+    @apply bg-white/80 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
+  }
+
+  .modal--solid {
+    @apply bg-white border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.12)];
+  }
+
+  .modal--flat {
+    @apply bg-white/80 backdrop-blur-xl;
+  }
+
+  .modal--sm {
+    @apply max-w-sm;
+  }
+
+  .modal--md {
+    @apply max-w-md;
+  }
+
+  .modal--lg {
+    @apply max-w-lg;
+  }
+
+  .modal--xl {
+    @apply max-w-xl;
+  }
+
+  .modal_header {
+    @apply flex items-center pt-4 px-4 pb-0;
+  }
+
+  .modal_title {
+    @apply text-xl font-serif font-medium text-text-primary;
+  }
+
+  .modal_headerRight {
+    @apply shrink-0;
+  }
+
+  .modal_body {
+    @apply py-2 px-4;
+  }
+
+  .modal_footer {
+    @apply pt-0 px-4 pb-4 flex justify-end gap-3;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal {
+      animation: none;
+    }
+  }
+
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   .card_head_warp,
   .activity_card_head_warp {
     @apply p-4 flex items-center justify-between gap-4;
@@ -201,6 +280,10 @@ body {
 
   .avatar--xl {
     @apply w-16 h-16 text-2xl;
+  }
+
+  .avatar--empty {
+    @apply bg-bg-200/50 text-text-tertiary group-hover:bg-bg-200/50 group-hover:text-text-tertiary;
   }
 
   /* Image-mode: keep container neutral (icon/text share the default `.avatar` styling). */

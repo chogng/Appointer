@@ -26,16 +26,19 @@ Non-goals:
 
 - `isOpen`: boolean; when `false`, returns `null` (no render)
 - `onClose()`: called on backdrop click and Escape
+- `idBase`: optional string; provides stable ids for automation/a11y (`${idBase}-dialog`, `${idBase}-title`)
 - `title`: `ReactNode` (optional); when present, dialog sets `aria-labelledby`
+- `headerRight`: `ReactNode` (optional); renders on the header right side
 - `children`: `ReactNode`; dialog body
 - `footer`: `ReactNode` (optional); rendered in the footer container
+- `variant`: `'primary' | 'solid' | 'flat'` (optional); controls dialog surface styling (`'glass'` is a legacy alias)
+- `size`: `'sm' | 'md' | 'lg' | 'xl'` (optional); controls dialog max width
+- `initialFocus`: `'dialog' | 'first'` (default: `'dialog'`)
 - `className`: extra classes appended to the dialog container
-- `closeAriaLabel`: optional string; overrides the close button accessible name
-  - default: `t("common_close")` (requires `LanguageProvider`)
+- `cta`, `ctaPosition`, `ctaCopy`: optional strings; emitted as `data-cta*` markers on the dialog container
 
 i18n rules:
 - Do not hardcode user-facing copy in modal content; prefer `t("key")` and update `src/context/LanguageContext.jsx` (`en`/`zh`).
-- `Modal` itself defaults the close button `aria-label` to `t("common_close")`; callers can override via `closeAriaLabel`.
 
 Legacy markers:
 - `data-ui` is in the deprecation path across the app. Do not add new `dataUi` usages for Modal.
@@ -45,7 +48,7 @@ Legacy markers:
 
 For consistency (and easier diff/review), keep this order when writing `Modal`:
 
-`isOpen` → `onClose` → `title` → `footer` → `className` → `closeAriaLabel` → children
+`isOpen` → `onClose` → `idBase` → `title` → `headerRight` → `footer` → `variant` → `size` → `initialFocus` → `className` → `cta*` → children
 
 Notes:
 - Footer actions should follow `docs/button_component_spec.md` attribute order.
@@ -60,13 +63,11 @@ When `isOpen === true`, the component portals the following structure to `docume
 - Backdrop:
   - `<div class="absolute inset-0 ..." onClick={onClose}>`
 - Dialog:
-  - `<div role="dialog" aria-modal="true" tabIndex={-1} ...>`
+  - `<div id="<idBase>-dialog" role="dialog" aria-modal="true" tabIndex={-1} ...>`
   - If `title != null`: `aria-labelledby="<titleId>"`
   - Header:
-    - Title element: `id="<titleId>"`
-    - Close button:
-      - `type="button"`
-      - `aria-label={closeAriaLabel ?? t("common_close")}`
+    - Title element (optional): `id="<idBase>-title"` (or generated when `idBase` is not provided)
+    - `headerRight` (optional)
   - Body: renders `children`
   - Footer (optional): renders `footer`
 
@@ -75,7 +76,9 @@ When `isOpen === true`, the component portals the following structure to `docume
 - Escape closes: listens for `keydown` and calls `onClose()` on `Escape`.
 - Focus on open:
   - stores `document.activeElement`
-  - focuses the first focusable element inside the dialog; falls back to the dialog container
+  - focuses `[data-autofocus]` / `[autofocus]` when present
+  - otherwise focuses the dialog container by default (`initialFocus="dialog"`)
+  - optional legacy behavior: `initialFocus="first"` focuses the first focusable element
 - Focus on close:
   - restores focus to the previously focused element when possible
 - Scroll lock:

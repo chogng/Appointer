@@ -23,8 +23,10 @@ Related:
   - first-letter placeholder (when `src` and `icon` are absent)
 - `icon`: a React component (e.g. Lucide icon) used as a placeholder when no `src`
 - `size`: `"sm" | "md" | "lg" | "xl"` (default: `"md"`)
+- `variant`: `"default" | "empty"` (default: `"default"`)
 - `className`: extra classes appended to the root container
 - `imageClassName`: extra classes appended to the inner `<img>`
+- `iconClassName`: extra classes appended to the `<Icon>` (icon mode only)
 - `cta` / `ctaPosition` / `ctaCopy`: optional markers (analytics)
   - emits: `data-cta`, `data-cta-position`, `data-cta-copy`
 - `...props`: forwarded to the root `<div>` (including `id`, `aria-*`, events, etc.)
@@ -70,6 +72,11 @@ Size map (owned by the component):
 - `md`: `avatar--md`
 - `lg`: `avatar--lg`
 - `xl`: `avatar--xl`
+
+Variant map (owned by the component):
+
+- `default`: (no extra class)
+- `empty`: `avatar--empty` (muted placeholder surface)
 
 Mode modifiers (owned by the component):
 

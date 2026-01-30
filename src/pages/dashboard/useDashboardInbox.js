@@ -246,7 +246,7 @@ export function useDashboardInbox({
               reviewedAt: nowIso,
               timestamp: nowIso,
             },
-            ...prev,
+            ...prev.filter((u) => u?.id !== msg.id),
           ].slice(0, reviewedInboxLimit),
         );
         return;
@@ -260,7 +260,7 @@ export function useDashboardInbox({
               status,
               timestamp: nowIso,
             },
-            ...prev,
+            ...prev.filter((r) => r?.id !== msg.id),
           ].slice(0, reviewedInboxLimit),
         );
       }
@@ -433,25 +433,53 @@ export function useDashboardInbox({
         showProcessing();
 
         const toApprove = pendingMessages.slice();
-        setPendingUsers([]);
-        setPendingRequests([]);
-        for (const msg of toApprove) {
-          addToReviewed(msg, "APPROVED");
+        const selectedId = selectedMessage?.id;
+        const selectedType = selectedMessage?.msgType;
+        if (
+          selectedId &&
+          toApprove.some((msg) => msg?.id === selectedId && msg?.msgType === selectedType)
+        ) {
+          setSelectedMessage(null);
         }
 
-        await Promise.all(
-          toApprove.map((msg) => {
-            if (msg.msgType === "USER_REGISTRATION") {
-              return apiService.approveUserApplication(msg.id);
-            }
-            if (msg.msgType === "INVENTORY_REQUEST") {
-              return apiService.approveRequest(msg.id);
-            }
-            return Promise.resolve();
-          }),
+        const userApplicationsToApprove = toApprove.filter(
+          (msg) => msg.msgType === "USER_REGISTRATION",
+        );
+        const requestsToApprove = toApprove.filter(
+          (msg) => msg.msgType === "INVENTORY_REQUEST",
         );
 
-        showToast?.(t("approveAllSuccess"), "success");
+        const settleUserApplications = await Promise.allSettled(
+          userApplicationsToApprove.map((msg) =>
+            apiService.approveUserApplication(msg.id),
+          ),
+        );
+        settleUserApplications.forEach((result, index) => {
+          if (result.status !== "fulfilled") return;
+          const msg = userApplicationsToApprove[index];
+          removeFromPending(msg);
+          addToReviewed(msg, "APPROVED");
+        });
+
+        const settleRequests = await Promise.allSettled(
+          requestsToApprove.map((msg) => apiService.approveRequest(msg.id)),
+        );
+        settleRequests.forEach((result, index) => {
+          if (result.status !== "fulfilled") return;
+          const msg = requestsToApprove[index];
+          removeFromPending(msg);
+          addToReviewed(msg, "APPROVED");
+        });
+
+        const failureCount =
+          settleUserApplications.filter((r) => r.status === "rejected").length +
+          settleRequests.filter((r) => r.status === "rejected").length;
+
+        if (failureCount === 0) {
+          showToast?.(t("approveAllSuccess"), "success");
+        } else {
+          showToast?.(t("approveAllFailed"), "error");
+        }
       } catch (error) {
         console.error("Failed to approve all:", error);
         showToast?.(t("approveAllFailed"), "error");
@@ -465,6 +493,9 @@ export function useDashboardInbox({
     isAdmin,
     pendingMessages,
     refreshCurrentTab,
+    removeFromPending,
+    selectedMessage?.id,
+    selectedMessage?.msgType,
     showProcessing,
     showToast,
     t,

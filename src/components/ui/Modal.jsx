@@ -1,29 +1,48 @@
 import React, { useEffect, useId, useRef } from 'react';
-import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useLanguage } from '../../hooks/useLanguage';
+import { normalizeCtaName, normalizeCtaToken } from '../../utils/cta';
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
-const MODAL_OVERLAY_CLASS = 'fixed inset-0 z-50 flex items-center justify-center p-4';
-const MODAL_BACKDROP_CLASS = 'absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity';
-const MODAL_DIALOG_BASE_CLASS =
-    'relative w-full max-w-md bg-white/80 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-2xl flex flex-col';
-const MODAL_DIALOG_ANIMATION_CLASS = 'animate-in fade-in zoom-in-95 duration-200';
+const MODAL_OVERLAY_CLASS = 'modal-overlay';
+const MODAL_BACKDROP_CLASS = 'modal-backdrop';
+const MODAL_DIALOG_BASE_CLASS = 'modal';
+
+const MODAL_DIALOG_VARIANTS = {
+    default: 'modal--primary',
+    primary: 'modal--primary',
+    glass: 'modal--primary',
+    solid: 'modal--solid',
+    flat: 'modal--flat',
+};
+
+const MODAL_DIALOG_SIZES = {
+    sm: 'modal--sm',
+    md: 'modal--md',
+    lg: 'modal--lg',
+    xl: 'modal--xl',
+};
 
 const Modal = ({
     isOpen,
     onClose,
+    idBase,
     title,
+    headerRight,
     children,
     footer,
+    variant = 'primary',
+    size = 'md',
+    initialFocus = 'dialog', // 'dialog' | 'first'
     className = '',
     dataUi,
-    closeAriaLabel,
+    cta,
+    ctaPosition,
+    ctaCopy,
 }) => {
-    const { t } = useLanguage();
     const reactId = useId();
-    const titleId = `modal-title-${reactId}`;
+    const stableIdBase = normalizeCtaToken(idBase);
+    const titleId = stableIdBase ? `${stableIdBase}-title` : `modal-title-${reactId}`;
     const uiMarker = typeof dataUi === 'string' && dataUi.trim() ? dataUi.trim() : undefined;
 
     const dialogRef = useRef(null);
@@ -48,11 +67,21 @@ const Modal = ({
                 const dialog = dialogRef.current;
                 if (!dialog) return;
 
-                const focusable = dialog.querySelector(
-                    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                const autoFocusTarget = dialog.querySelector(
+                    '[data-autofocus], [autofocus]',
                 );
 
-                const target = focusable instanceof HTMLElement ? focusable : dialog;
+                const focusable =
+                    initialFocus === 'first'
+                        ? dialog.querySelector(
+                            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                        )
+                        : null;
+
+                const target =
+                    (autoFocusTarget instanceof HTMLElement && autoFocusTarget) ||
+                    (focusable instanceof HTMLElement && focusable) ||
+                    dialog;
                 if (typeof target.focus === 'function') target.focus();
             });
         }
@@ -80,6 +109,14 @@ const Modal = ({
 
     if (!isOpen) return null;
 
+    const hasHeader = title != null || headerRight != null;
+    const dialogClassName = cx(
+        MODAL_DIALOG_BASE_CLASS,
+        MODAL_DIALOG_VARIANTS[variant] || MODAL_DIALOG_VARIANTS.default,
+        MODAL_DIALOG_SIZES[size] || MODAL_DIALOG_SIZES.md,
+        className,
+    );
+
     return createPortal(
         <div
             className={MODAL_OVERLAY_CLASS}
@@ -95,41 +132,50 @@ const Modal = ({
 
             {/* Modal Content */}
             <div
-                className={cx(MODAL_DIALOG_BASE_CLASS, MODAL_DIALOG_ANIMATION_CLASS, className)}
+                className={dialogClassName}
+                id={stableIdBase ? `${stableIdBase}-dialog` : undefined}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={title != null ? titleId : undefined}
                 tabIndex={-1}
                 ref={dialogRef}
                 data-ui={uiMarker ? `${uiMarker}-dialog` : undefined}
+                data-cta={normalizeCtaName(cta)}
+                data-cta-position={normalizeCtaToken(ctaPosition)}
+                data-cta-copy={normalizeCtaToken(ctaCopy)}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 pb-2">
-                    <h3
-                        id={titleId}
-                        className="text-xl font-serif font-medium text-text-primary"
+                {hasHeader && (
+                    <div
+                        className={cx(
+                            'modal_header',
+                            headerRight ? 'justify-between gap-4' : undefined,
+                        )}
                     >
-                        {title}
-                    </h3>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-2 text-text-tertiary hover:text-text-primary hover:bg-black/5 rounded-full transition-colors"
-                        aria-label={closeAriaLabel ?? t('common_close')}
-                        data-ui={uiMarker ? `${uiMarker}-close` : undefined}
-                    >
-                        <X size={20} aria-hidden="true" />
-                    </button>
-                </div>
+                        {title != null && (
+                            <h3
+                                id={titleId}
+                                className="modal_title"
+                            >
+                                {title}
+                            </h3>
+                        )}
+                        {headerRight != null && (
+                            <div className="modal_headerRight">
+                                {headerRight}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Body */}
-                <div className="p-6 pt-2">
+                <div className="modal_body">
                     {children}
                 </div>
 
                 {/* Footer */}
                 {footer && (
-                    <div className="p-6 pt-0 flex justify-end gap-3">
+                    <div className="modal_footer">
                         {footer}
                     </div>
                 )}

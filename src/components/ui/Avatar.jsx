@@ -8,8 +8,10 @@ const Avatar = ({
     fallback,
     icon: Icon,
     size = "md",
+    variant = "default",
     className,
     imageClassName,
+    iconClassName,
     cta,
     ctaPosition,
     ctaCopy,
@@ -24,6 +26,11 @@ const Avatar = ({
         xl: "avatar--xl",
     };
 
+    const variantClasses = {
+        default: null,
+        empty: "avatar--empty",
+    };
+
     const baseClasses = "avatar";
 
     return (
@@ -31,6 +38,7 @@ const Avatar = ({
             className={cx(
                 baseClasses,
                 sizeClasses[size],
+                variantClasses[variant] || null,
                 src && "avatar--image",
                 className,
             )}
@@ -47,7 +55,7 @@ const Avatar = ({
                     className={cx("w-full h-full object-cover", imageClassName)}
                 />
             ) : Icon ? (
-                <Icon className={cx("w-[60%] h-[60%]")} />
+                <Icon className={cx("w-[60%] h-[60%]", iconClassName)} />
             ) : (
                 <span>{fallback?.slice(0, 1).toUpperCase()}</span>
             )}
