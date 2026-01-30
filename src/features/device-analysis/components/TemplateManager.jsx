@@ -129,7 +129,7 @@ const PreviewRow = React.memo(
 
 PreviewRow.displayName = "PreviewRow";
 
-const PreviewTbody = ({
+const PreviewTbody = React.memo(({
   subscribePreviewRowsVersion,
   getPreviewRowsVersion,
   previewWindow,
@@ -199,7 +199,7 @@ const PreviewTbody = ({
       )}
     </tbody>
   );
-};
+});
 
 PreviewTbody.displayName = "PreviewTbody";
 
@@ -1172,6 +1172,66 @@ const TemplateManager = ({
     };
   }, []);
 
+  const getRectFromRange = useCallback(
+    (range) => {
+      if (!range) return null;
+      const startRow = Number(range.startRow);
+      const endRow = Number(range.endRow);
+      const startCol = Number(range.startCol);
+      const endCol = Number(range.endCol);
+      if (
+        !Number.isFinite(startRow) ||
+        !Number.isFinite(endRow) ||
+        !Number.isFinite(startCol) ||
+        !Number.isFinite(endCol)
+      ) {
+        return null;
+      }
+
+      const gridEl = gridRef.current;
+      if (gridEl) {
+        const startCellEl = gridEl.querySelector(
+          `td[data-row="${startRow}"][data-col="${startCol}"]`,
+        );
+        const endCellEl = gridEl.querySelector(
+          `td[data-row="${endRow}"][data-col="${endCol}"]`,
+        );
+        if (startCellEl && endCellEl) {
+          return getRectFromCells(startCellEl, endCellEl);
+        }
+      }
+
+      const colStart = columnStartOffsetsPx[startCol] ?? 0;
+      const colEnd = columnStartOffsetsPx[endCol + 1] ?? colStart;
+
+      const headerHeight = (() => {
+        const thead = previewTableRef.current?.tHead;
+        const row = thead?.rows?.[0];
+        const h = row?.getBoundingClientRect?.().height;
+        return Number.isFinite(h) && h > 0 ? h : PREVIEW_ROW_HEIGHT_PX;
+      })();
+      const rowTop = headerHeight + Math.max(0, startRow) * PREVIEW_ROW_HEIGHT_PX;
+      const rowBottom =
+        headerHeight + (Math.max(0, endRow) + 1) * PREVIEW_ROW_HEIGHT_PX;
+
+      const left = PREVIEW_ROW_INDEX_COL_PX + Math.max(0, colStart);
+      const right = PREVIEW_ROW_INDEX_COL_PX + Math.max(left, colEnd);
+
+      return {
+        left,
+        top: rowTop,
+        width: right - left,
+        height: rowBottom - rowTop,
+      };
+    },
+    [
+      PREVIEW_ROW_HEIGHT_PX,
+      PREVIEW_ROW_INDEX_COL_PX,
+      columnStartOffsetsPx,
+      getRectFromCells,
+    ],
+  );
+
   const renderDragOverlay = useCallback(
     (startCellEl, endCellEl) => {
       const overlay = dragOverlayRef.current;
@@ -1368,8 +1428,6 @@ const TemplateManager = ({
         endCol: current.endCol,
       });
 
-      const rect = getRectFromCells(current.startCellEl, current.endCellEl);
-
       dragRef.current = {
         startRow: null,
         startCol: null,
@@ -1381,13 +1439,12 @@ const TemplateManager = ({
 
       hideDragOverlay();
 
-      if (!normalized || !rect) return;
+      if (!normalized) return;
 
       setSelections([
         {
           id: `${Date.now()}_${Math.random()}`,
           range: normalized,
-          rect,
         },
       ]);
     };
@@ -2117,18 +2174,22 @@ const TemplateManager = ({
                   className="relative min-w-full align-top select-none"
                 >
                   <div className="absolute inset-0 pointer-events-none z-20">
-                    {selections.map((selection) => (
-                      <div
-                        key={selection.id}
-                        className="absolute border border-accent bg-accent/5 z-10"
-                        style={{
-                          left: selection.rect.left,
-                          top: selection.rect.top,
-                          width: selection.rect.width,
-                          height: selection.rect.height,
-                        }}
-                      />
-                    ))}
+                    {selections.map((selection) => {
+                      const rect = getRectFromRange(selection.range);
+                      if (!rect) return null;
+                      return (
+                        <div
+                          key={selection.id}
+                          className="absolute border border-accent bg-accent/5 z-10"
+                          style={{
+                            left: rect.left,
+                            top: rect.top,
+                            width: rect.width,
+                            height: rect.height,
+                          }}
+                        />
+                      );
+                    })}
                     <div
                       ref={dragOverlayRef}
                       className="absolute border border-accent bg-accent/5 z-20"

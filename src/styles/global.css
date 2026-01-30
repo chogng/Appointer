@@ -679,6 +679,10 @@ body {
     @apply flex-1 min-w-0 bg-transparent border-0 outline-none text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-0;
   }
 
+  .input_native:disabled {
+    cursor: not-allowed;
+  }
+
   .ui-textarea_native,
   .textarea_native {
     @apply w-full min-w-0 flex-1 bg-transparent text-text-primary placeholder:text-text-tertiary text-sm resize-y;
