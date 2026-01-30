@@ -12,7 +12,6 @@ import Devices from "../pages/Devices";
 import CreateDevice from "../pages/CreateDevice";
 import DeviceBooking from "../pages/DeviceBooking";
 import MyReservations from "../pages/MyReservations";
-import Messages from "../pages/Messages";
 import Settings from "../pages/Settings";
 import Inventory from "../pages/Inventory";
 import Users from "../pages/Users";
@@ -54,7 +53,6 @@ const AppRoutes = () => {
           />
           <Route path="/devices/:id" element={<DeviceBooking />} />
           <Route path="/reservations" element={<MyReservations />} />
-          <Route path="/messages" element={<Messages />} />
           <Route
             path="/users"
             element={

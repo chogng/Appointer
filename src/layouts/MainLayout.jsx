@@ -313,7 +313,6 @@ const MainLayout = () => {
     { icon: DevicesIcon, label: t("devices"), path: "/devices" },
     { icon: Package, label: t("inventory"), path: "/inventory" },
     { icon: BookingIcon, label: t("booking"), path: "/reservations" },
-    { icon: MessageIcon, label: t("messages"), path: "/messages" },
   ];
 
   if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {

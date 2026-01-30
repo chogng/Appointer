@@ -2424,14 +2424,14 @@ const LiteratureResearch = () => {
 
   return (
     <div className="w-full min-h-screen relative" ref={containerRef}>
-      <div className="page_head">
+      <header className="page_head">
         <h1 className="page_title">
           {t("literature_research_title")}
         </h1>
         <p className="page_subtitle">
           {t("literature_research_subtitle")}
         </p>
-      </div>
+      </header>
 
       <div className="page_content">
         <JournalLinksCard

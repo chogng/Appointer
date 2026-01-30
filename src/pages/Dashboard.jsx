@@ -121,12 +121,12 @@ const Dashboard = () => {
       ref={containerRef}
       className="dashboard_page w-full relative h-full min-h-0 flex flex-col"
     >
-      <div className="page_head">
+      <header className="page_head">
         <h1 className="page_title">{t("dashboard")}</h1>
         <p className="page_subtitle">
           {t("welcomeBack")}, {user?.name}
         </p>
-      </div>
+      </header>
 
       <div className="page_content flex-1 min-h-0">
         <section aria-labelledby="dashboard-overview-title">

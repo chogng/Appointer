@@ -15,10 +15,10 @@ Recommended structure:
 ```jsx
 return (
   <div className="w-full min-h-screen relative">
-    <div className="page_head">
+    <header className="page_head">
       <h1 className="page_title">...</h1>
       <p className="page_subtitle">...</p>
-    </div>
+    </header>
 
     <div className="page_content">
       <section aria-label="...">
@@ -52,6 +52,7 @@ Current spacing:
 
 Notes:
 
+- Prefer a semantic `<header className="page_head">` wrapper for the page head.
 - Keep `h1` semantic for the page title.
 - Subtitle is a `p` element; do not merge it into `page_title`.
 
@@ -60,7 +61,7 @@ Notes:
 Use `page_content` as the single wrapper for the main page sections.
 
 - Layout: `flex flex-col`
-- Spacing: controlled via `gap-*` (currently `gap-6`)
+- Spacing: controlled via `gap-*` (currently `gap-12`)
 
 Rationale:
 
@@ -80,7 +81,7 @@ Each section should be:
 `section_title` defines:
 
 - Left padding: `pl-2` (aligned inset relative to cards/content)
-- Bottom spacing: `mb-4` (distance to the following card/content)
+- Bottom spacing: `mb-2` (distance to the following card/content)
 
 ## Anchors
 
