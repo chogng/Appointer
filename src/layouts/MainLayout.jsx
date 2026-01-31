@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
@@ -253,12 +253,38 @@ const ActivityIcon = ({ size = 20, className = "" }) => (
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isSidebarAnimating, setIsSidebarAnimating] = useState(false);
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   const collapseMenuLabel = language === "zh" ? "收起菜单" : "Collapse menu";
   const collapseTestId = import.meta.env.DEV ? "sidebar-collapse" : undefined;
   const expandTestId = import.meta.env.DEV ? "sidebar-expand" : undefined;
   const logoutTestId = import.meta.env.DEV ? "sidebar-logout" : undefined;
+  const sidebarAnimTimeoutRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (sidebarAnimTimeoutRef.current) {
+        clearTimeout(sidebarAnimTimeoutRef.current);
+        sidebarAnimTimeoutRef.current = 0;
+      }
+    };
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarAnimating(true);
+    setIsCollapsed((prev) => !prev);
+
+    if (sidebarAnimTimeoutRef.current) {
+      clearTimeout(sidebarAnimTimeoutRef.current);
+    }
+
+    // Match the width transition duration (250ms) with a small buffer.
+    sidebarAnimTimeoutRef.current = setTimeout(() => {
+      sidebarAnimTimeoutRef.current = 0;
+      setIsSidebarAnimating(false);
+    }, 280);
+  }, []);
 
   const navItems = [
     { icon: DashboardIcon, label: t("dashboard"), path: "/dashboard" },
@@ -310,20 +336,28 @@ const MainLayout = () => {
 
       <aside
         className={`
-                    h-full bg-bg-surface/70 backdrop-blur-2xl border-r border-border flex flex-col z-50 flex-shrink-0 relative
-                    transition-all duration-500 ease-in-out overflow-hidden
+                    h-full border-r border-border flex flex-col z-50 flex-shrink-0 relative
+                    bg-bg-surface/70 ${isSidebarAnimating ? "backdrop-blur-none" : "backdrop-blur-2xl"}
+                    transition-[width] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none overflow-hidden [will-change:width]
+                    [contain:layout_paint_style]
                     ${isCollapsed ? "w-20" : "w-[280px]"}
                 `}
       >
         <div
-          className={`flex items-center mb-10 text-text-primary pt-6 transition-all duration-500 pl-[28px] pr-6 gap-2.5 relative`}
+          className="flex items-center mb-10 text-text-primary pt-6 pl-[28px] pr-6 gap-2.5 relative"
         >
-          <div
+          <button
+            type="button"
             className={`
               relative group w-8 h-8 -ml-1 flex items-center justify-center shrink-0 cursor-pointer rounded-md transition-colors 
               ${isCollapsed ? "hover:bg-black/5" : ""}
             `}
-            onClick={() => isCollapsed && setIsCollapsed(!isCollapsed)}
+            onClick={() => isCollapsed && toggleSidebar()}
+            aria-label={t("expandMenu")}
+            data-testid={expandTestId}
+            data-cta="Navigation"
+            data-cta-position="sidebar"
+            data-cta-copy="expand"
           >
             <img
               src="/logo.svg"
@@ -340,10 +374,10 @@ const MainLayout = () => {
             >
               <PanelLeftOpen size={20} className="text-text-primary" />
             </div>
-          </div>
+          </button>
 
           <span
-            className={`text-xl font-bold truncate transition-all duration-500 ${isCollapsed
+            className={`text-xl font-bold truncate transition-[max-width,opacity,margin] duration-150 ease-out motion-reduce:transition-none ${isCollapsed
               ? "max-w-0 opacity-0 ml-0"
               : "max-w-[150px] opacity-100"
               }`}
@@ -354,10 +388,10 @@ const MainLayout = () => {
           {/* Toggle Button in Header (Visible only when Expanded) */}
           <button
             type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={toggleSidebar}
             className={`
-                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
-                             ${isCollapsed
+                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-opacity duration-100 ease-out motion-reduce:transition-none
+                             ${(isCollapsed || isSidebarAnimating)
                 ? "opacity-0 pointer-events-none"
                 : "opacity-100"
               }
@@ -386,7 +420,7 @@ const MainLayout = () => {
               data-cta-copy={item.path}
               className={({ isActive }) => `
                                  flex items-center rounded-2xl mb-1.5 h-12
-                                 transition-all duration-500 text-[15px] group relative
+                                 transition-colors duration-150 ease-out motion-reduce:transition-none text-[15px] group relative
                                  mx-3 pl-2.5 pr-4 gap-3.5
                                  ${isActive
                   ? "bg-accent text-white font-semibold shadow-lg shadow-accent/25"
@@ -397,7 +431,7 @@ const MainLayout = () => {
             >
               <item.icon size={20} className="shrink-0" />
               <span
-                className={`truncate transition-all duration-500 ${isCollapsed
+                className={`truncate transition-[max-width,opacity,margin] duration-150 ease-out motion-reduce:transition-none ${isCollapsed
                   ? "max-w-0 opacity-0 ml-0"
                   : "max-w-[150px] opacity-100"
                   }`}
@@ -410,7 +444,7 @@ const MainLayout = () => {
 
         {/* MiniCalendar */}
         <div
-          className={`mb-4 px-2 transition-all duration-500 overflow-hidden ${isCollapsed ? "opacity-0 max-h-0" : "opacity-100 max-h-[300px]"
+          className={`mb-4 px-2 transition-[max-height,opacity] duration-150 ease-out motion-reduce:transition-none overflow-hidden ${isCollapsed ? "opacity-0 max-h-0 pointer-events-none" : "opacity-100 max-h-[300px]"
             }`}
         >
           <MiniCalendar className="bg-transparent p-0" />
@@ -419,13 +453,13 @@ const MainLayout = () => {
         {/* User Info Section */}
         <div
           className={`
-                    mt-auto border-t border-border-subtle flex-shrink-0 transition-all duration-500 relative overflow-hidden
+                    mt-auto border-t border-border-subtle flex-shrink-0 transition-[height] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none relative overflow-hidden
                     ${isCollapsed ? "h-[148px]" : "h-24"}
                 `}
         >
           {/* User Icon - Maintains fixed horizontal position (centered at 40px) */}
           <div
-            className="absolute w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center transition-all duration-500 -translate-y-1/2"
+            className="absolute w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center transition-[top] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none -translate-y-1/2"
             style={{
               left: "20px",
               top: isCollapsed ? "44px" : "48px",
@@ -437,7 +471,7 @@ const MainLayout = () => {
           {/* User Text - Click to go to Settings */}
           <div
             className={`
-                            absolute transition-all duration-500 overflow-hidden -translate-y-1/2 cursor-pointer
+                            absolute transition-[opacity,width] duration-150 ease-out motion-reduce:transition-none overflow-hidden -translate-y-1/2 cursor-pointer
                             ${isCollapsed
                 ? "opacity-0 pointer-events-none"
                 : "opacity-100"
@@ -465,7 +499,7 @@ const MainLayout = () => {
           <button
             type="button"
             onClick={logout}
-            className="absolute p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all duration-500 -translate-y-1/2"
+            className="absolute p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-[top,left] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none -translate-y-1/2"
             style={{
               left: isCollapsed ? "23px" : "234px",
               top: isCollapsed ? "108px" : "48px",
