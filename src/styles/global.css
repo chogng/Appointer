@@ -594,19 +594,19 @@ body {
     @apply opacity-100 scale-100;
   }
 
-  .ui-checkbox {
+  .clickable-ckb {
     @apply w-[18px] h-[18px] rounded border-2 flex items-center justify-center transition-all;
   }
 
-  .ui-checkbox[data-state="checked"] {
+  .clickable-ckb[data-state="checked"] {
     @apply bg-accent-terracotta border-accent-terracotta;
   }
 
-  .ui-checkbox[data-state="unchecked"] {
+  .clickable-ckb[data-state="unchecked"] {
     @apply bg-white border-gray-300;
   }
 
-  .group:hover .ui-checkbox[data-state="unchecked"] {
+  .group:hover .clickable-ckb[data-state="unchecked"] {
     @apply border-accent-terracotta/50;
   }
 

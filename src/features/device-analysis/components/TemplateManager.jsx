@@ -2088,6 +2088,7 @@ const TemplateManager = ({
 
             {templateMode !== "save" && (
               <button
+                id="device-analysis-template-apply-to-all"
                 type="button"
                 onClick={applyConfiguration}
                 className="action-btn action-btn--md action-btn--primary w-full mt-4"
@@ -2098,6 +2099,7 @@ const TemplateManager = ({
 
             {templateMode === "select" && (
               <div
+                id="device-analysis-stop-on-first-invalid-toggle"
                 onClick={() =>
                   setConfig((prev) => {
                     const nextStopOnError = !prev.stopOnError;
@@ -2115,11 +2117,11 @@ const TemplateManager = ({
                 className="mt-3 flex items-center gap-2 text-sm text-text-secondary select-none cursor-pointer group w-fit"
               >
                 {config.stopOnError ? (
-                  <div className="ui-checkbox" data-state="checked">
+                  <div className="clickable-ckb" data-state="checked">
                     <Check size={14} className="text-white" strokeWidth={3} />
                   </div>
                 ) : (
-                  <div className="ui-checkbox" data-state="unchecked" />
+                  <div className="clickable-ckb" data-state="unchecked" />
                 )}
                 <span>{t("da_stop_on_first_invalid_file")}</span>
               </div>
@@ -2146,6 +2148,7 @@ const TemplateManager = ({
               ) : null}
               <div className="flex items-center gap-2">
                 <button
+                  id="device-analysis-preview-copy-selection"
                   type="button"
                   onClick={copySelection}
                   disabled={selections.length === 0}

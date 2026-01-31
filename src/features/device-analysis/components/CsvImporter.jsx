@@ -107,6 +107,7 @@ const ExpandedCard = ({
         </div>
 
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
@@ -130,11 +131,21 @@ const buildItemKey = (file) => {
   return stableItemKey("csv", raw);
 };
 
+const toDomIdToken = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .slice(0, 120);
+
 const CsvFileItem = React.memo(
   ({ fileEntry, isSelected, isInvisible, onSelect, onRemove }) => (
     <div
       aria-label="csv-file-item"
-      data-ui="csv-file-item"
+      id={
+        fileEntry?.itemKey
+          ? `csv-file-item-${toDomIdToken(fileEntry.itemKey)}`
+          : undefined
+      }
       data-item-key={fileEntry?.itemKey || undefined}
       data-selected={isSelected ? "true" : undefined}
       onClick={() => onSelect?.(fileEntry?.fileId ?? null)}
@@ -154,7 +165,11 @@ const CsvFileItem = React.memo(
       <button
         type="button"
         aria-label="Remove CSV file"
-        data-ui="csv-file-remove-btn"
+        id={
+          fileEntry?.itemKey
+            ? `csv-file-remove-${toDomIdToken(fileEntry.itemKey)}`
+            : undefined
+        }
         data-item-key={fileEntry?.itemKey || undefined}
         onClick={(e) => {
           e.stopPropagation();

@@ -52,7 +52,7 @@
 }
 
 .fileRemove {
-  @apply text-text-secondary hover:text-red-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-bg-page p-1 rounded;
+  @apply text-text-secondary hover:text-red-500 transition-colors opacity-100 hover:bg-bg-page p-1 rounded;
 }
 
 .fileGrid {
