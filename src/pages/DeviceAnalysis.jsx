@@ -727,25 +727,33 @@ const DeviceAnalysis = () => {
     processNext();
 
     const groupSizeText = meta.groupSizeCell
-      ? `points from ${meta.pointsRawUpper || ""}`
-      : `points=${meta.groupSize}`;
+      ? t("da_extract_points_from_cell", { cell: meta.pointsRawUpper || "" })
+      : t("da_extract_points_fixed", { points: meta.groupSize });
+
     const groupsText =
       meta.groupSizeCell &&
         Number.isInteger(meta.groupSizePreview) &&
         meta.groupSizePreview > 0
-        ? `, ${meta.total / meta.groupSizePreview} group(s)`
+        ? t("da_extract_groups_suffix", {
+          groups: Math.max(0, meta.total / meta.groupSizePreview),
+        })
         : !meta.groupSizeCell
-          ? `, ${meta.groups} group(s)`
+          ? t("da_extract_groups_suffix", { groups: meta.groups })
           : "";
 
     const warningText = warnings.length
-      ? `\n\nWarnings:\n- ${warnings.join("\n- ")}`
+      ? t("da_extract_warnings_block", { warnings: warnings.join("\n- ") })
       : "";
 
     return {
       ok: true,
       type: warnings.length ? "warning" : "success",
-      message: `Started extracting ${queue.length} file(s) (${groupSizeText}${groupsText}). Charts will appear progressively.${warningText}`,
+      message: t("da_extract_started", {
+        count: queue.length,
+        detail: groupSizeText,
+        groups: groupsText,
+        warnings: warningText,
+      }),
     };
   }, [
     getPreviewRow,

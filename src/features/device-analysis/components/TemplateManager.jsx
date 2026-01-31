@@ -28,12 +28,20 @@ import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Avatar from "../../../components/ui/Avatar";
+import Modal from "../../../components/ui/Modal";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,
   validateTemplateForSave,
   validateVarPair,
 } from "./templateValidation";
+
+const cloneTemplateConfig = (cfg) => ({
+  ...cfg,
+  selectedColumns: Array.isArray(cfg?.selectedColumns)
+    ? [...cfg.selectedColumns]
+    : [],
+});
 
 const formatPreviewCell = (value) => {
   if (value === null || value === undefined) return "";
@@ -249,6 +257,10 @@ const TemplateManager = ({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [templateMode, setTemplateMode] = useState("select"); // "select" | "save"
+  const saveDraftTouchedRef = useRef(false);
+  const saveDraftBaseConfigRef = useRef(null);
+  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+  const [pendingTemplateMode, setPendingTemplateMode] = useState(null);
   const dropdownRef = useRef(null);
   const isSelectMode = templateMode === "select";
   const leftPanelRef = useRef(null);
@@ -591,6 +603,8 @@ const TemplateManager = ({
     }
 
     try {
+      saveDraftTouchedRef.current = false;
+      saveDraftBaseConfigRef.current = null;
       const created = await apiService.createDeviceAnalysisTemplate({
         ...validation.normalized,
         name,
@@ -702,6 +716,37 @@ const TemplateManager = ({
     },
     [onUpdateDeviceAnalysisSettings],
   );
+
+  const discardUnsavedSaveEdits = useCallback(() => {
+    if (!saveDraftTouchedRef.current) return;
+    saveDraftTouchedRef.current = false;
+
+    const base = saveDraftBaseConfigRef.current;
+    if (base) {
+      setConfig(cloneTemplateConfig(base));
+      return;
+    }
+
+    if (!selectedTemplateId) return;
+    const found = Array.isArray(templates)
+      ? templates.find((t) => t?.id === selectedTemplateId)
+      : null;
+    if (!found) return;
+    loadTemplate(found, { persist: false });
+  }, [loadTemplate, selectedTemplateId, templates]);
+
+  const closeDiscardConfirm = useCallback(() => {
+    setIsDiscardConfirmOpen(false);
+    setPendingTemplateMode(null);
+  }, []);
+
+  const confirmDiscardAndSwitch = useCallback(() => {
+    discardUnsavedSaveEdits();
+    saveDraftBaseConfigRef.current = null;
+    setIsDiscardConfirmOpen(false);
+    setTemplateMode(pendingTemplateMode || "select");
+    setPendingTemplateMode(null);
+  }, [discardUnsavedSaveEdits, pendingTemplateMode]);
 
   // No auto-load from browser storage.
 
@@ -1564,6 +1609,10 @@ const TemplateManager = ({
     selectModeForDisabled = false,
   } = {}) => {
     const saveIsSelectMode = Boolean(selectModeForDisabled);
+    const setConfigFromSave = (updater) => {
+      saveDraftTouchedRef.current = true;
+      setConfig(updater);
+    };
 
     return (
       <div className="space-y-4">
@@ -1581,7 +1630,7 @@ const TemplateManager = ({
                 value={config.xDataStart}
                 disabled={saveIsSelectMode}
                 onChange={(next) => {
-                  setConfig((prev) => ({ ...prev, xDataStart: next }));
+                  setConfigFromSave((prev) => ({ ...prev, xDataStart: next }));
                   markFieldSource("xDataStart", "manual");
                 }}
                 placeholder="Start"
@@ -1595,21 +1644,21 @@ const TemplateManager = ({
                 value={config.xDataEnd}
                 disabled={saveIsSelectMode}
                 onChange={(next) => {
-                  setConfig((prev) => ({ ...prev, xDataEnd: next }));
+                  setConfigFromSave((prev) => ({ ...prev, xDataEnd: next }));
                   markFieldSource("xDataEnd", "manual");
                 }}
                 onBlur={(e) => {
                   const value = String(e?.target?.value ?? "").trim();
                   if (!value) {
                     const startCell = String(config.xDataStart ?? "").trim();
-                    setConfig((prev) => ({
+                    setConfigFromSave((prev) => ({
                       ...prev,
                       xDataEnd: startCell ? "End" : "",
                     }));
                     return;
                   }
                   if (value.toLowerCase() === "end" && value !== "End") {
-                    setConfig((prev) => ({ ...prev, xDataEnd: "End" }));
+                    setConfigFromSave((prev) => ({ ...prev, xDataEnd: "End" }));
                   }
                 }}
                 placeholder="End"
@@ -1623,7 +1672,7 @@ const TemplateManager = ({
                 value={config.xPoints}
                 disabled={saveIsSelectMode}
                 onChange={(next) => {
-                  setConfig((prev) => ({ ...prev, xPoints: next }));
+                  setConfigFromSave((prev) => ({ ...prev, xPoints: next }));
                   markFieldSource("xPoints", "manual");
                 }}
                 placeholder="Points"
@@ -1649,7 +1698,7 @@ const TemplateManager = ({
                 autoComplete="off"
                 disabled={disableVarInputs}
                 onChange={(next) => {
-                  setConfig((prev) => ({ ...prev, bottomTitle: next }));
+                  setConfigFromSave((prev) => ({ ...prev, bottomTitle: next }));
                   markFieldSource("bottomTitle", "manual");
                 }}
                 onBlur={toastVarPairIfInvalid}
@@ -1669,7 +1718,7 @@ const TemplateManager = ({
                 autoComplete="off"
                 disabled={disableVarInputs}
                 onChange={(next) => {
-                  setConfig((prev) => ({ ...prev, legendPrefix: next }));
+                  setConfigFromSave((prev) => ({ ...prev, legendPrefix: next }));
                   markFieldSource("legendPrefix", "manual");
                 }}
                 onBlur={toastVarPairIfInvalid}
@@ -1688,7 +1737,7 @@ const TemplateManager = ({
                 name="leftTitle"
                 autoComplete="off"
                 onChange={(next) => {
-                  setConfig((prev) => ({ ...prev, leftTitle: next }));
+                  setConfigFromSave((prev) => ({ ...prev, leftTitle: next }));
                   markFieldSource("leftTitle", "manual");
                 }}
                 placeholder="Left Title"
@@ -1713,7 +1762,7 @@ const TemplateManager = ({
                   autoComplete="off"
                   disabled={disableFileNameInputs}
                   onChange={(next) => {
-                    setConfig((prev) => ({
+                    setConfigFromSave((prev) => ({
                       ...prev,
                       fileNameVgKeywords: next,
                     }));
@@ -1734,7 +1783,7 @@ const TemplateManager = ({
                   autoComplete="off"
                   disabled={disableFileNameInputs}
                   onChange={(next) => {
-                    setConfig((prev) => ({
+                    setConfigFromSave((prev) => ({
                       ...prev,
                       fileNameVdKeywords: next,
                     }));
@@ -1788,7 +1837,7 @@ const TemplateManager = ({
                   autoComplete="off"
                   disabled={saveIsSelectMode || !!config.xPoints}
                   onChange={(next) => {
-                    setConfig((prev) => ({
+                    setConfigFromSave((prev) => ({
                       ...prev,
                       yPoints: next,
                     }));
@@ -1813,7 +1862,7 @@ const TemplateManager = ({
                   autoComplete="off"
                   disabled={saveIsSelectMode}
                   onChange={(next) => {
-                    setConfig((prev) => ({
+                    setConfigFromSave((prev) => ({
                       ...prev,
                       yDataStart: next,
                     }));
@@ -1830,7 +1879,7 @@ const TemplateManager = ({
                   autoComplete="off"
                   disabled={saveIsSelectMode}
                   onChange={(next) => {
-                    setConfig((prev) => ({ ...prev, yCount: next }));
+                    setConfigFromSave((prev) => ({ ...prev, yCount: next }));
                     markFieldSource("yCount", "manual");
                   }}
                   placeholder="Count"
@@ -1845,7 +1894,7 @@ const TemplateManager = ({
                   autoComplete="off"
                   disabled={saveIsSelectMode}
                   onChange={(next) => {
-                    setConfig((prev) => ({ ...prev, yStep: next }));
+                    setConfigFromSave((prev) => ({ ...prev, yStep: next }));
                     markFieldSource("yStep", "manual");
                   }}
                   placeholder="Step"
@@ -1888,8 +1937,26 @@ const TemplateManager = ({
                 <Tabs
                   value={templateMode}
                   onChange={(val) => {
+                    if (val === templateMode) return;
+
+                    if (templateMode === "save" && val === "select") {
+                      if (saveDraftTouchedRef.current) {
+                        setPendingTemplateMode(val);
+                        setIsDiscardConfirmOpen(true);
+                        return;
+                      }
+                      saveDraftBaseConfigRef.current = null;
+                      setTemplateMode(val);
+                      return;
+                    }
+
+                    if (val === "save") {
+                      saveDraftTouchedRef.current = false;
+                      saveDraftBaseConfigRef.current = cloneTemplateConfig(config);
+                      setIsDropdownOpen(false);
+                    }
+
                     setTemplateMode(val);
-                    if (val === "save") setIsDropdownOpen(false);
                   }}
                   idBase="device-analysis-template-mode"
                   groupLabel={t("da_template_mode")}
@@ -2134,8 +2201,10 @@ const TemplateManager = ({
           <div className="lg:col-span-3 bg-bg-page rounded-lg p-4 overflow-hidden flex flex-col min-h-0 lg:h-[var(--da-template-panel-min-h)] lg:min-h-[var(--da-template-panel-min-h)]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-text-secondary">
-                Preview:{" "}
-                {previewFile ? previewFile.fileName : ""}
+                {t("da_preview_filename_label")}:{" "}
+                {previewFile
+                  ? String(previewFile.fileName || "").replace(/\.csv$/i, "")
+                  : ""}
               </span>
               {previewStatus?.state === "loading" ? (
                 <span className="text-xs text-text-secondary">
@@ -2368,6 +2437,36 @@ const TemplateManager = ({
           containerRef={containerRef}
           position="absolute"
         />
+
+        <Modal
+          isOpen={isDiscardConfirmOpen}
+          onClose={closeDiscardConfirm}
+          idBase="device-analysis-template-discard-confirm"
+          title={t("da_template_discard_changes_title")}
+          footer={
+            <>
+              <Button
+                id="device-analysis-template-discard-confirm-keep-editing"
+                variant="ghost"
+                onClick={closeDiscardConfirm}
+              >
+                {t("da_template_discard_changes_keep_editing")}
+              </Button>
+              <Button
+                id="device-analysis-template-discard-confirm-discard"
+                variant="primary"
+                onClick={confirmDiscardAndSwitch}
+              >
+                {t("da_template_discard_changes_discard")}
+              </Button>
+            </>
+          }
+          size="sm"
+        >
+          <p className="text-sm text-text-secondary">
+            {t("da_template_discard_changes_desc")}
+          </p>
+        </Modal>
       </Card>
     </section>
   );
