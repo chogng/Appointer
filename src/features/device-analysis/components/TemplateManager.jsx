@@ -461,6 +461,7 @@ const TemplateManager = ({
   const [previewViewportHeight, setPreviewViewportHeight] = useState(0);
   const [previewViewportWidth, setPreviewViewportWidth] = useState(0);
   const [isColumnResizing, setIsColumnResizing] = useState(false);
+  const [selectionRects, setSelectionRects] = useState([]);
 
   const [columnWidthOverridesByFile, setColumnWidthOverridesByFile] = useState(
     {},
@@ -497,22 +498,8 @@ const TemplateManager = ({
     const el = previewScrollRef.current;
     if (!el) return;
 
-    const handleScroll = () => {
-      handlePreviewScroll(el.scrollTop, el.scrollLeft);
-    };
-
-    el.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-    };
-  }, [handlePreviewScroll, previewFile?.fileId]);
-
-  useEffect(() => {
-    const el = previewScrollRef.current;
-    if (!el) return;
-
     let rafId = 0;
+    let initRafId = 0;
     const commitSize = (height, width) => {
       setPreviewViewportHeight((prev) => (prev === height ? prev : height));
       setPreviewViewportWidth((prev) => (prev === width ? prev : width));
@@ -526,30 +513,37 @@ const TemplateManager = ({
       });
     };
 
-    if (typeof ResizeObserver === "undefined") {
-      const updateSizeFallback = () => {
-        const rect = el.getBoundingClientRect();
-        scheduleCommit(Math.round(rect.height), Math.round(rect.width));
-      };
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      scheduleCommit(Math.round(rect.height), Math.round(rect.width));
+    };
 
-      updateSizeFallback();
-      window.addEventListener("resize", updateSizeFallback);
-      return () => {
-        window.removeEventListener("resize", updateSizeFallback);
-        if (rafId) cancelAnimationFrame(rafId);
-      };
+    // Always do an eager measurement (and one more on the next frame). In some
+    // flex/conditional-render paths, ResizeObserver may not fire immediately,
+    // leaving viewport sizes stuck at 0 and causing the virtualized preview to
+    // render only a tiny window (e.g. ~42 rows / ~2 cols).
+    measure();
+    initRafId = requestAnimationFrame(measure);
+
+    // Keep a window-resize fallback even when ResizeObserver exists.
+    window.addEventListener("resize", measure);
+
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver((entries) => {
+        const entry = Array.isArray(entries) ? entries[0] : null;
+        const rect = entry?.contentRect;
+        if (!rect) return;
+        scheduleCommit(Math.round(rect.height), Math.round(rect.width));
+      });
+      ro.observe(el);
     }
 
-    const ro = new ResizeObserver((entries) => {
-      const entry = Array.isArray(entries) ? entries[0] : null;
-      const rect = entry?.contentRect;
-      if (!rect) return;
-      scheduleCommit(Math.round(rect.height), Math.round(rect.width));
-    });
-    ro.observe(el);
     return () => {
-      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      if (ro) ro.disconnect();
       if (rafId) cancelAnimationFrame(rafId);
+      if (initRafId) cancelAnimationFrame(initRafId);
     };
   }, [previewFile?.fileId]);
 
@@ -1231,6 +1225,41 @@ const TemplateManager = ({
       getRectFromCells,
     ],
   );
+
+  useLayoutEffect(() => {
+    const next = [];
+    for (const selection of Array.isArray(selections) ? selections : []) {
+      if (!selection?.id) continue;
+      const rect = getRectFromRange(selection.range);
+      if (!rect) continue;
+      next.push({ id: selection.id, rect });
+    }
+
+    const sameRect = (a, b) =>
+      a &&
+      b &&
+      a.left === b.left &&
+      a.top === b.top &&
+      a.width === b.width &&
+      a.height === b.height;
+
+    setSelectionRects((prev) => {
+      if (!Array.isArray(prev) || prev.length !== next.length) return next;
+      for (let i = 0; i < next.length; i++) {
+        if (prev[i]?.id !== next[i]?.id) return next;
+        if (!sameRect(prev[i]?.rect, next[i]?.rect)) return next;
+      }
+      return prev;
+    });
+  }, [
+    getRectFromRange,
+    previewColWindow.endCol,
+    previewColWindow.startCol,
+    previewFile?.fileId,
+    previewWindow.endRow,
+    previewWindow.startRow,
+    selections,
+  ]);
 
   const renderDragOverlay = useCallback(
     (startCellEl, endCellEl) => {
@@ -2167,6 +2196,12 @@ const TemplateManager = ({
             ) : previewFile ? (
               <div
                 ref={previewScrollRef}
+                onScroll={(e) =>
+                  handlePreviewScroll(
+                    e.currentTarget.scrollTop,
+                    e.currentTarget.scrollLeft,
+                  )
+                }
                 className={`flex-1 min-h-0 overflow-auto border border-border rounded custom-scrollbar ${isColumnResizing ? "cursor-col-resize select-none" : ""}`}
               >
                 <div
@@ -2174,9 +2209,8 @@ const TemplateManager = ({
                   className="relative min-w-full align-top select-none"
                 >
                   <div className="absolute inset-0 pointer-events-none z-20">
-                    {selections.map((selection) => {
-                      const rect = getRectFromRange(selection.range);
-                      if (!rect) return null;
+                    {selectionRects.map((selection) => {
+                      const rect = selection.rect;
                       return (
                         <div
                           key={selection.id}
