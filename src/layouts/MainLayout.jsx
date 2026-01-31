@@ -286,6 +286,10 @@ const MainLayout = () => {
     }, 280);
   }, []);
 
+  // Avoid "shape jumps" during the width transition by only switching to the
+  // collapsed layout after the animation finishes.
+  const isCollapsedLayout = isCollapsed;
+
   const navItems = [
     { icon: DashboardIcon, label: t("dashboard"), path: "/dashboard" },
     {
@@ -410,7 +414,7 @@ const MainLayout = () => {
 
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto mb-4 px-2">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden mb-4 px-4">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -419,22 +423,24 @@ const MainLayout = () => {
               data-cta-position="sidebar"
               data-cta-copy={item.path}
               className={({ isActive }) => `
-                                 flex items-center rounded-2xl mb-1.5 h-12
-                                 transition-colors duration-150 ease-out motion-reduce:transition-none text-[15px] group relative
-                                 mx-3 pl-2.5 pr-4 gap-3.5
+                                 flex items-center mb-1.5 h-12
+                                 transition-[width,background-color,color] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none text-[15px] group relative
+                                 rounded-lg p-0
+                                 ${isCollapsedLayout ? "w-12" : "w-full"}
                                  ${isActive
-                  ? "bg-accent text-white font-semibold shadow-lg shadow-accent/25"
+                  ? "bg-accent text-white font-semibold"
                   : "text-text-secondary hover:text-text-primary hover:bg-accent/5"
                 }
                             `}
-              title={isCollapsed ? item.label : ""}
+              title={isCollapsedLayout ? item.label : ""}
             >
-              <item.icon size={20} className="shrink-0" />
+              {/* Fixed width icon container to prevent jitter */}
+              <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                <item.icon size={20} className="shrink-0" />
+              </div>
+
               <span
-                className={`truncate transition-[max-width,opacity,margin] duration-150 ease-out motion-reduce:transition-none ${isCollapsed
-                  ? "max-w-0 opacity-0 ml-0"
-                  : "max-w-[150px] opacity-100"
-                  }`}
+                className={isCollapsedLayout ? "sr-only" : "truncate pr-4"}
               >
                 {item.label}
               </span>
