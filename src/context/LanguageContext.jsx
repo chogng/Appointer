@@ -75,19 +75,6 @@ const translations = {
     da_select_series: 'Select series',
     common_clear: 'Clear',
     common_close: 'Close',
-    button_fx_demo_title: 'Button FX Demo',
-    button_fx_demo_desc:
-      'Standalone visual sandbox for the button hover ring behavior (two-ring box-shadow spread).',
-    button_fx_demo_primary_fx: 'Primary + FX',
-    button_fx_demo_ghost_fx: 'Ghost + FX (transparent)',
-    button_fx_demo_ghost_no_fx: 'Ghost (no FX)',
-    button_fx_demo_ghost_fx_light: 'Ghost + FX (light bg / may show double ring)',
-    button_fx_demo_ghost_fx_forced_border:
-      'Ghost + FX (light bg / force real border — double stroke)',
-    button_fx_demo_ghost_fx_light_no_border: 'Ghost + FX (light bg / remove border)',
-    button_fx_demo_disabled: 'Disabled',
-    button_fx_demo_note:
-      'Note: The "scale" feel comes from box-shadow spread; computed transform is usually none.',
     bg_scale_compare_title: 'Background scale swatches',
     bg_scale_compare_desc: 'Preview Tailwind tokens and the proposed warm scale.',
     bg_scale_compare_current: 'Current (Tailwind tokens)',
@@ -585,19 +572,6 @@ const translations = {
     typography_demo_title: 'Typography Demo',
     typography_demo_desc:
       'Preview the project type scale (families + sizes). Numbers are Tailwind defaults unless overridden.',
-    button_fx_demo_title: 'Button FX Demo',
-    button_fx_demo_desc:
-      '用于单独验证按钮 hover 的 ring 效果（两圈 box-shadow 的 spread 外扩）。',
-    button_fx_demo_primary_fx: 'Primary + FX',
-    button_fx_demo_ghost_fx_forced_border:
-      'Ghost + FX（浅底 / 强制真实 border，会出现双描边）',
-    button_fx_demo_ghost_fx: 'Ghost + FX（透明底）',
-    button_fx_demo_ghost_no_fx: 'Ghost（无 FX，对照）',
-    button_fx_demo_ghost_fx_light: 'Ghost + FX（浅底 / 可能双圈）',
-    button_fx_demo_ghost_fx_light_no_border: 'Ghost + FX（浅底 / 强制无 border）',
-    button_fx_demo_disabled: 'Disabled',
-    button_fx_demo_note:
-      '说明：当前“变大感”来自 box-shadow 的 spread 外扩，按钮本体 computed transform 通常是 none。',
     card_demo_title: 'Card Demo',
     card_demo_desc:
       '在 DevTools 检查 Card 根元素：`data-cta*` / `id` / `aria-label`。',

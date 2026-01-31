@@ -38,7 +38,7 @@
 
 ## 3. 命名约定
 
-- `id`：`kebab-case`，建议带路由/页面前缀避免冲突（例如 `button-fx-demo-card-demo-default`）
+- `id`：`kebab-case`，建议带路由/页面前缀避免冲突（例如 `device-analysis-preview-copy-selection`）
 - `data-cta-position` / `data-cta-copy`：`kebab-case`
 
 ## 4. 推荐模式

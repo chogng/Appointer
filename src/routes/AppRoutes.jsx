@@ -18,7 +18,6 @@ import Users from "../pages/Users";
 import Leaderboard from "../pages/Leaderboard";
 import DeviceAnalysis from "../pages/DeviceAnalysis";
 import LiteratureResearch from "../pages/LiteratureResearch";
-import ButtonFxDemo from "../pages/ButtonFxDemo";
 import { useAuth } from "../hooks/useAuth";
 
 const AppRoutes = () => {
@@ -71,7 +70,6 @@ const AppRoutes = () => {
           />
           <Route path="/device-analysis" element={<DeviceAnalysis />} />
           <Route path="/literature-research" element={<LiteratureResearch />} />
-          <Route path="/button-fx-demo" element={<ButtonFxDemo />} />
         </Route>
 
         <Route
