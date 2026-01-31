@@ -31,6 +31,11 @@ import { prepareDeviceAnalysisExtraction } from "../features/device-analysis/dev
 import { useLanguage } from "../hooks/useLanguage";
 import { useDeviceAnalysisSession } from "../hooks/useDeviceAnalysisSession";
 import { apiService } from "../services/apiService";
+import {
+  DA_PREVIEW_MAX_CACHED_FILES,
+  DA_PREVIEW_MAX_CACHED_UI_ROWS_PER_FILE,
+  DA_PREVIEW_UI_CHUNK_SIZE_ROWS,
+} from "../features/device-analysis/deviceAnalysisPreviewLimits";
 
 const DeviceAnalysis = () => {
   const { t } = useLanguage();
@@ -54,29 +59,27 @@ const DeviceAnalysis = () => {
     setSsIdWindow = () => { },
     ssManualRanges = {},
     setSsManualRanges = () => { },
+    previewFile = null,
+    setPreviewFile = () => { },
+    previewStatus = { state: "idle", message: "" },
+    setPreviewStatus = () => { },
+    previewWorkerRef = { current: null },
+    previewRequestIdRef = { current: 0 },
+    previewRowsRequestIdRef = { current: 0 },
+    previewRowsRequestsRef = { current: new Map() },
+    previewRowsCacheByFileIdRef = { current: new Map() },
+    previewLoadedChunksByFileIdRef = { current: new Map() },
+    previewRowsCacheRef = { current: new Map() },
+    previewLoadedChunksRef = { current: new Set() },
+    previewCacheFileIdRef = { current: null },
+    previewCacheFileLruRef = { current: new Set() },
   } = session || {};
   const importerRef = useRef(null);
-  const [previewFile, setPreviewFile] = useState(null);
-  const [previewStatus, setPreviewStatus] = useState({
-    state: "idle", // 'idle' | 'loading' | 'ready' | 'error'
-    message: "",
-  });
   const [_processingStatus, setProcessingStatus] = useState({
     state: "idle", // 'idle' | 'processing' | 'done' | 'error'
     processed: 0,
     total: 0,
   });
-
-  const previewWorkerRef = useRef(null);
-  const previewRequestIdRef = useRef(0);
-  const previewRowsRequestIdRef = useRef(0);
-  const previewRowsRequestsRef = useRef(new Map());
-
-  const previewRowsCacheByFileIdRef = useRef(new Map());
-  const previewLoadedChunksByFileIdRef = useRef(new Map());
-  const previewRowsCacheRef = useRef(new Map());
-  const previewLoadedChunksRef = useRef(new Set());
-  const previewCacheFileIdRef = useRef(null);
 
   const previewRowsVersionRef = useRef(0);
   const previewRowsSubscribersRef = useRef(new Set());
@@ -109,7 +112,7 @@ const DeviceAnalysis = () => {
     });
   }, []);
 
-  const PREVIEW_ROW_CHUNK_SIZE = 50;
+  const PREVIEW_ROW_CHUNK_SIZE = DA_PREVIEW_UI_CHUNK_SIZE_ROWS;
 
   const processingWorkerRef = useRef(null);
   const processingJobIdRef = useRef(0);
@@ -149,7 +152,7 @@ const DeviceAnalysis = () => {
       }
     }
     pending.clear();
-  }, []);
+  }, [previewRowsRequestsRef]);
 
   const handlePreviewWorkerMessage = useCallback((event) => {
     const { type, payload } = event.data ?? {};
@@ -162,6 +165,7 @@ const DeviceAnalysis = () => {
       if (!fileId) {
         previewRowsCacheRef.current = new Map();
         previewLoadedChunksRef.current = new Set();
+        previewCacheFileLruRef.current = new Set();
       } else {
         const cacheByFileId = previewRowsCacheByFileIdRef.current;
         const chunksByFileId = previewLoadedChunksByFileIdRef.current;
@@ -180,6 +184,28 @@ const DeviceAnalysis = () => {
 
         previewRowsCacheRef.current = rowCache;
         previewLoadedChunksRef.current = loadedChunks;
+
+        const fileLru = previewCacheFileLruRef.current;
+        fileLru.delete(fileId);
+        fileLru.add(fileId);
+
+        while (fileLru.size > DA_PREVIEW_MAX_CACHED_FILES) {
+          const oldest = fileLru.values().next().value;
+          if (!oldest) break;
+          if (oldest === fileId) break;
+
+          fileLru.delete(oldest);
+          cacheByFileId.delete(oldest);
+          chunksByFileId.delete(oldest);
+
+          const worker = previewWorkerRef.current;
+          if (worker) {
+            worker.postMessage({
+              type: "previewDispose",
+              payload: { fileId: oldest },
+            });
+          }
+        }
       }
 
       startTransition(() => {
@@ -251,7 +277,20 @@ const DeviceAnalysis = () => {
         });
       });
     }
-  }, [notifyPreviewRowsVersion]);
+  }, [
+    notifyPreviewRowsVersion,
+    previewCacheFileIdRef,
+    previewCacheFileLruRef,
+    previewRowsRequestsRef,
+    previewLoadedChunksByFileIdRef,
+    previewLoadedChunksRef,
+    previewRequestIdRef,
+    previewRowsCacheByFileIdRef,
+    previewRowsCacheRef,
+    previewWorkerRef,
+    setPreviewFile,
+    setPreviewStatus,
+  ]);
 
   const createPreviewWorker = useCallback(() => {
     const worker = new Worker(
@@ -262,7 +301,7 @@ const DeviceAnalysis = () => {
     worker.onmessage = handlePreviewWorkerMessage;
     previewWorkerRef.current = worker;
     return worker;
-  }, [handlePreviewWorkerMessage]);
+  }, [handlePreviewWorkerMessage, previewWorkerRef]);
 
   const resetPreviewWorker = useCallback(() => {
     cancelPendingPreviewRowRequests("Preview reset");
@@ -273,7 +312,12 @@ const DeviceAnalysis = () => {
     }
 
     createPreviewWorker();
-  }, [cancelPendingPreviewRowRequests, createPreviewWorker]);
+  }, [cancelPendingPreviewRowRequests, createPreviewWorker, previewWorkerRef]);
+
+  useEffect(() => {
+    if (previewWorkerRef.current) return;
+    createPreviewWorker();
+  }, [createPreviewWorker, previewWorkerRef]);
 
   const resetProcessingWorker = useCallback(() => {
     processingJobIdRef.current += 1;
@@ -315,6 +359,7 @@ const DeviceAnalysis = () => {
     previewRowsCacheRef.current = new Map();
     previewLoadedChunksRef.current = new Set();
     previewCacheFileIdRef.current = null;
+    previewCacheFileLruRef.current = new Set();
     if (previewRowsNotifyRafRef.current) {
       cancelAnimationFrame(previewRowsNotifyRafRef.current);
       previewRowsNotifyRafRef.current = 0;
@@ -333,10 +378,19 @@ const DeviceAnalysis = () => {
     cancelPendingPreviewRowRequests,
     hasSessionData,
     notifyPreviewRowsVersion,
+    previewCacheFileIdRef,
+    previewCacheFileLruRef,
+    previewLoadedChunksByFileIdRef,
+    previewLoadedChunksRef,
+    previewRequestIdRef,
+    previewRowsCacheByFileIdRef,
+    previewRowsCacheRef,
     resetPreviewWorker,
     resetProcessingWorker,
     setExtractionErrors,
     setProcessedData,
+    setPreviewFile,
+    setPreviewStatus,
     setRawData,
     setSelectedPreviewFileId,
     setSsManualRanges,
@@ -396,22 +450,6 @@ const DeviceAnalysis = () => {
 
 
   useEffect(() => {
-    createPreviewWorker();
-
-    return () => {
-      cancelPendingPreviewRowRequests("Preview unmounted");
-      if (previewRowsNotifyRafRef.current) {
-        cancelAnimationFrame(previewRowsNotifyRafRef.current);
-        previewRowsNotifyRafRef.current = 0;
-      }
-      if (previewWorkerRef.current) {
-        previewWorkerRef.current.terminate();
-        previewWorkerRef.current = null;
-      }
-    };
-  }, [cancelPendingPreviewRowRequests, createPreviewWorker]);
-
-  useEffect(() => {
     return () => {
       if (processingWorkerRef.current) {
         processingWorkerRef.current.terminate();
@@ -432,6 +470,7 @@ const DeviceAnalysis = () => {
       previewRowsCacheRef.current = new Map();
       previewLoadedChunksRef.current = new Set();
       previewCacheFileIdRef.current = null;
+      previewCacheFileLruRef.current = new Set();
       if (previewRowsNotifyRafRef.current) {
         cancelAnimationFrame(previewRowsNotifyRafRef.current);
         previewRowsNotifyRafRef.current = 0;
@@ -466,8 +505,7 @@ const DeviceAnalysis = () => {
         requestId,
         fileId: target.fileId,
         file: target.file,
-        // 0 = no limit (cache all rows in worker)
-        maxPreviewRows: 0,
+        maxPreviewRows: DA_PREVIEW_MAX_CACHED_UI_ROWS_PER_FILE,
       },
     });
   }, [
@@ -478,13 +516,24 @@ const DeviceAnalysis = () => {
     cancelPendingPreviewRowRequests,
     notifyPreviewRowsVersion,
     setSelectedPreviewFileId,
+    setPreviewFile,
+    setPreviewStatus,
+    t,
+    previewCacheFileIdRef,
+    previewLoadedChunksByFileIdRef,
+    previewLoadedChunksRef,
+    previewRequestIdRef,
+    previewRowsCacheByFileIdRef,
+    previewRowsCacheRef,
+    previewWorkerRef,
+    previewCacheFileLruRef,
   ]);
 
   const getPreviewRow = useCallback((rowIndex) => {
     const idx = Number(rowIndex);
     if (!Number.isInteger(idx) || idx < 0) return null;
     return previewRowsCacheRef.current.get(idx) ?? null;
-  }, []);
+  }, [previewRowsCacheRef]);
 
   const requestPreviewRowsRange = useCallback((fileId, startRow, endRow) => {
     const worker = previewWorkerRef.current;
@@ -508,7 +557,7 @@ const DeviceAnalysis = () => {
         },
       });
     });
-  }, []);
+  }, [previewRowsRequestIdRef, previewRowsRequestsRef, previewWorkerRef]);
 
   const ensurePreviewRows = useCallback(
     async (fileId, startRow, endRow) => {
@@ -533,7 +582,21 @@ const DeviceAnalysis = () => {
         chunkStart += PREVIEW_ROW_CHUNK_SIZE
       ) {
         if (previewLoadedChunksRef.current.has(chunkStart)) continue;
+        previewLoadedChunksRef.current.delete(chunkStart);
         previewLoadedChunksRef.current.add(chunkStart);
+
+        const maxChunks = Math.max(
+          1,
+          Math.ceil(DA_PREVIEW_MAX_CACHED_UI_ROWS_PER_FILE / PREVIEW_ROW_CHUNK_SIZE),
+        );
+        while (previewLoadedChunksRef.current.size > maxChunks) {
+          const evictChunkStart = previewLoadedChunksRef.current.values().next().value;
+          if (evictChunkStart === undefined) break;
+          previewLoadedChunksRef.current.delete(evictChunkStart);
+          for (let r = evictChunkStart; r < evictChunkStart + PREVIEW_ROW_CHUNK_SIZE; r++) {
+            previewRowsCacheRef.current.delete(r);
+          }
+        }
 
         const chunkEnd = Math.min(
           totalRows,
@@ -553,7 +616,7 @@ const DeviceAnalysis = () => {
       if (!promises.length) return;
       await Promise.all(promises);
     },
-    [PREVIEW_ROW_CHUNK_SIZE, previewFile, requestPreviewRowsRange],
+    [PREVIEW_ROW_CHUNK_SIZE, previewFile, previewLoadedChunksRef, previewRowsCacheRef, requestPreviewRowsRange],
   );
 
   // Handler when CSV is imported
@@ -584,6 +647,7 @@ const DeviceAnalysis = () => {
 
     previewRowsCacheByFileIdRef.current.delete(fileId);
     previewLoadedChunksByFileIdRef.current.delete(fileId);
+    previewCacheFileLruRef.current.delete(fileId);
     if (previewCacheFileIdRef.current === fileId) {
       previewCacheFileIdRef.current = null;
       previewRowsCacheRef.current = new Map();

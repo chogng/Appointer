@@ -22,6 +22,7 @@ import {
 import { apiService } from "../../../services/apiService";
 import { useAuth } from "../../../hooks/useAuth";
 import { useLanguage } from "../../../hooks/useLanguage";
+import { useDeviceAnalysisSession } from "../../../hooks/useDeviceAnalysisSession";
 import Toast from "../../../components/ui/Toast";
 import Input from "../../../components/ui/Input";
 import Tabs from "../../../components/ui/Tabs";
@@ -225,13 +226,18 @@ const TemplateManager = ({
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const deviceSession = useDeviceAnalysisSession();
   const [templates, setTemplates] = useState([]);
   const [, setInputSources] = useState({}); // { [fieldName]: 'manual' | 'picked' }
-  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const didInitConfigFromSettingsRef = useRef(false);
 
-  // Default config
-  const [config, setConfig] = useState({
+  const [localSelectedTemplateId, setLocalSelectedTemplateId] = useState(null);
+  const selectedTemplateId =
+    deviceSession?.selectedTemplateId ?? localSelectedTemplateId;
+  const setSelectedTemplateId =
+    deviceSession?.setSelectedTemplateId ?? setLocalSelectedTemplateId;
+
+  const [localConfig, setLocalConfig] = useState({
     name: "",
     xDataStart: "",
     xDataEnd: "",
@@ -249,6 +255,8 @@ const TemplateManager = ({
     fileNameVdKeywords: "",
     selectedColumns: [], // Array of indices
   });
+  const config = deviceSession?.templateConfig ?? localConfig;
+  const setConfig = deviceSession?.setTemplateConfig ?? setLocalConfig;
 
   const [toast, setToast] = useState({
     isVisible: false,
@@ -257,7 +265,9 @@ const TemplateManager = ({
   });
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [templateMode, setTemplateMode] = useState("select"); // "select" | "save"
+  const [localTemplateMode, setLocalTemplateMode] = useState("select"); // "select" | "save"
+  const templateMode = deviceSession?.templateMode ?? localTemplateMode;
+  const setTemplateMode = deviceSession?.setTemplateMode ?? setLocalTemplateMode;
   const saveDraftTouchedRef = useRef(false);
   const saveDraftBaseConfigRef = useRef(null);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
@@ -342,7 +352,7 @@ const TemplateManager = ({
 
     const nextStopOnError = Boolean(deviceAnalysisSettings?.stopOnErrorDefault);
     setConfig((prev) => ({ ...prev, stopOnError: nextStopOnError }));
-  }, [deviceAnalysisSettings]);
+  }, [deviceAnalysisSettings, setConfig]);
 
   const showToast = useCallback((message, type = "warning") => {
     setToast({ isVisible: true, message, type });
@@ -391,7 +401,7 @@ const TemplateManager = ({
       setConfig((prev) => ({ ...prev, [field]: value }));
       markFieldSource(field, "picked");
     },
-    [markFieldSource],
+    [markFieldSource, setConfig],
   );
 
   useEffect(() => {
@@ -649,7 +659,7 @@ const TemplateManager = ({
     if (endValue && endValue.toLowerCase() === "end") {
       setConfig((prev) => ({ ...prev, xDataEnd: "" }));
     }
-  }, [config.xDataEnd, config.xDataStart]);
+  }, [config.xDataEnd, config.xDataStart, setConfig]);
 
   const loadTemplate = useCallback(
     (template, { persist } = {}) => {
@@ -705,7 +715,7 @@ const TemplateManager = ({
         });
       }
     },
-    [onUpdateDeviceAnalysisSettings],
+    [onUpdateDeviceAnalysisSettings, setConfig, setSelectedTemplateId],
   );
 
   const discardUnsavedSaveEdits = useCallback(() => {
@@ -724,7 +734,7 @@ const TemplateManager = ({
       : null;
     if (!found) return;
     loadTemplate(found, { persist: false });
-  }, [loadTemplate, selectedTemplateId, templates]);
+  }, [loadTemplate, selectedTemplateId, setConfig, templates]);
 
   const closeDiscardConfirm = useCallback(() => {
     setIsDiscardConfirmOpen(false);
@@ -737,7 +747,7 @@ const TemplateManager = ({
     setIsDiscardConfirmOpen(false);
     setTemplateMode(pendingTemplateMode || "select");
     setPendingTemplateMode(null);
-  }, [discardUnsavedSaveEdits, pendingTemplateMode]);
+  }, [discardUnsavedSaveEdits, pendingTemplateMode, setTemplateMode]);
 
   // No auto-load from browser storage.
 
@@ -1999,6 +2009,10 @@ const TemplateManager = ({
                       readOnly
                       value={config.name?.trim() ? config.name : ""}
                       placeholder={t("da_template_name")}
+                      onMouseDown={(e) => {
+                        if (e.detail > 1) e.preventDefault();
+                      }}
+                      onDoubleClick={(e) => e.preventDefault()}
                       onClick={() => setIsDropdownOpen((prev) => !prev)}
                       onKeyDown={(e) => {
                         if (e.key === "Escape") {
@@ -2011,7 +2025,7 @@ const TemplateManager = ({
                           setIsDropdownOpen(true);
                         }
                       }}
-                      className="input_native no-focus-outline pr-8 text-left cursor-pointer"
+                      className="input_native no-focus-outline pr-8 text-left cursor-pointer select-none caret-transparent"
                     />
                   ) : (
                     <div className="relative flex items-center w-full h-full">
