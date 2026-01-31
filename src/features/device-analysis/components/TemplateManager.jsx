@@ -29,6 +29,7 @@ import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Avatar from "../../../components/ui/Avatar";
 import Modal from "../../../components/ui/Modal";
+import DropdownMenu from "../../../components/ui/DropdownMenu";
 import { formatNumber } from "./analysisMath";
 import {
   validateTemplateForApply,
@@ -342,16 +343,6 @@ const TemplateManager = ({
     const nextStopOnError = Boolean(deviceAnalysisSettings?.stopOnErrorDefault);
     setConfig((prev) => ({ ...prev, stopOnError: nextStopOnError }));
   }, [deviceAnalysisSettings]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const showToast = useCallback((message, type = "warning") => {
     setToast({ isVisible: true, message, type });
@@ -2064,12 +2055,13 @@ const TemplateManager = ({
                   )}
                 </div>
 
-                {templateMode === "select" && isDropdownOpen && (
-                  <div
-                    id="device-analysis-template-dropdown-menu"
-                    role="menu"
-                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto p-1.5"
-                  >
+                <DropdownMenu
+                  isOpen={templateMode === "select" && isDropdownOpen}
+                  onClose={() => setIsDropdownOpen(false)}
+                  anchorRef={dropdownRef}
+                  id="device-analysis-template-dropdown-menu"
+                  role="menu"
+                >
                     <div
                       className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-1 text-accent"
                       onClick={() => {
@@ -2134,8 +2126,7 @@ const TemplateManager = ({
                         No saved templates
                       </div>
                     )}
-                  </div>
-                )}
+                </DropdownMenu>
               </div>
             </div>
 
