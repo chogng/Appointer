@@ -13,6 +13,8 @@ import {
   Users,
   Trophy,
   Activity,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import MiniCalendar from "../components/MiniCalendar";
 
@@ -193,42 +195,7 @@ const LogoutIcon = ({ size = 24, className = "" }) => (
   </svg>
 );
 
-const SidebarCollapseIcon = ({ size = 24, className = "" }) => (
-  <svg
-    fill="none"
-    height={size}
-    viewBox="0 0 24 24"
-    width={size}
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    <rect
-      height="18"
-      rx="2"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      width="18"
-      x="3"
-      y="3"
-    ></rect>
-    <path
-      d="M9 3V21"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-    ></path>
-    <path
-      d="M15 15L12 12L15 9"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-    ></path>
-  </svg>
-);
+
 
 const UserIcon = ({ size = 24, className = "" }) => (
   <svg
@@ -351,32 +318,49 @@ const MainLayout = () => {
         <div
           className={`flex items-center mb-10 text-text-primary pt-6 transition-all duration-500 pl-[28px] pr-6 gap-2.5 relative`}
         >
-          <img
-            src="/logo.svg"
-            alt="Appointer Logo"
-            className="w-6 h-6 object-contain shrink-0"
-          />
+          <div
+            className={`
+              relative group w-8 h-8 -ml-1 flex items-center justify-center shrink-0 cursor-pointer rounded-md transition-colors 
+              ${isCollapsed ? "hover:bg-black/5" : ""}
+            `}
+            onClick={() => isCollapsed && setIsCollapsed(!isCollapsed)}
+          >
+            <img
+              src="/logo.svg"
+              alt="Appointer Logo"
+              className={`w-6 h-6 object-contain ${isCollapsed ? "group-hover:hidden" : ""}`}
+            />
+
+            {/* Toggle Icon showing on hover when collapsed */}
+            <div
+              className={`
+                absolute inset-0 flex items-center justify-center 
+                ${isCollapsed ? "hidden group-hover:flex" : "hidden"}
+              `}
+            >
+              <PanelLeftOpen size={20} className="text-text-primary" />
+            </div>
+          </div>
+
           <span
-            className={`text-xl font-bold truncate transition-all duration-500 ${
-              isCollapsed
-                ? "max-w-0 opacity-0 ml-0"
-                : "max-w-[150px] opacity-100"
-            }`}
+            className={`text-xl font-bold truncate transition-all duration-500 ${isCollapsed
+              ? "max-w-0 opacity-0 ml-0"
+              : "max-w-[150px] opacity-100"
+              }`}
           >
             Appointer
           </span>
 
-          {/* Toggle Button in Header */}
+          {/* Toggle Button in Header (Visible only when Expanded) */}
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`
                              absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-all duration-300
-                             ${
-                               isCollapsed
-                                 ? "opacity-0 pointer-events-none"
-                                 : "opacity-100"
-                             }
+                             ${isCollapsed
+                ? "opacity-0 pointer-events-none"
+                : "opacity-100"
+              }
                          `}
             aria-label={collapseMenuLabel}
             data-testid={collapseTestId}
@@ -384,23 +368,12 @@ const MainLayout = () => {
             data-cta-position="sidebar"
             data-cta-copy="collapse"
           >
-            <SidebarCollapseIcon size={20} />
+            <PanelLeftClose size={20} />
           </button>
         </div>
 
         {/* Invisible Toggle Overlay on Logo for Collapsed State */}
-          {isCollapsed && (
-            <button
-              type="button"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="absolute top-6 left-[28px] w-6 h-6 z-50 cursor-pointer"
-              aria-label={t("expandMenu")}
-              data-testid={expandTestId}
-              data-cta="Navigation"
-              data-cta-position="sidebar"
-              data-cta-copy="expand"
-            />
-          )}
+
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto mb-4 px-2">
@@ -415,21 +388,19 @@ const MainLayout = () => {
                                  flex items-center rounded-2xl mb-1.5 h-12
                                  transition-all duration-500 text-[15px] group relative
                                  mx-3 pl-2.5 pr-4 gap-3.5
-                                 ${
-                                  isActive
-                                    ? "bg-accent text-white font-semibold shadow-lg shadow-accent/25"
-                                    : "text-text-secondary hover:text-text-primary hover:bg-accent/5"
-                                }
+                                 ${isActive
+                  ? "bg-accent text-white font-semibold shadow-lg shadow-accent/25"
+                  : "text-text-secondary hover:text-text-primary hover:bg-accent/5"
+                }
                             `}
               title={isCollapsed ? item.label : ""}
             >
               <item.icon size={20} className="shrink-0" />
               <span
-                className={`truncate transition-all duration-500 ${
-                  isCollapsed
-                    ? "max-w-0 opacity-0 ml-0"
-                    : "max-w-[150px] opacity-100"
-                }`}
+                className={`truncate transition-all duration-500 ${isCollapsed
+                  ? "max-w-0 opacity-0 ml-0"
+                  : "max-w-[150px] opacity-100"
+                  }`}
               >
                 {item.label}
               </span>
@@ -439,9 +410,8 @@ const MainLayout = () => {
 
         {/* MiniCalendar */}
         <div
-          className={`mb-4 px-2 transition-all duration-500 overflow-hidden ${
-            isCollapsed ? "opacity-0 max-h-0" : "opacity-100 max-h-[300px]"
-          }`}
+          className={`mb-4 px-2 transition-all duration-500 overflow-hidden ${isCollapsed ? "opacity-0 max-h-0" : "opacity-100 max-h-[300px]"
+            }`}
         >
           <MiniCalendar className="bg-transparent p-0" />
         </div>
@@ -468,11 +438,10 @@ const MainLayout = () => {
           <div
             className={`
                             absolute transition-all duration-500 overflow-hidden -translate-y-1/2 cursor-pointer
-                            ${
-                              isCollapsed
-                                ? "opacity-0 pointer-events-none"
-                                : "opacity-100"
-                            }
+                            ${isCollapsed
+                ? "opacity-0 pointer-events-none"
+                : "opacity-100"
+              }
                         `}
             onClick={() => navigate("/settings")}
             data-cta="Navigation"
