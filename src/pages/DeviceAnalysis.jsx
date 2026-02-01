@@ -37,6 +37,26 @@ import {
   DA_PREVIEW_UI_CHUNK_SIZE_ROWS,
 } from "../features/device-analysis/deviceAnalysisPreviewLimits";
 
+const stableStringify = (value) => {
+  const seen = new WeakSet();
+
+  const normalize = (input) => {
+    if (!input || typeof input !== "object") return input;
+    if (seen.has(input)) return null;
+    seen.add(input);
+
+    if (Array.isArray(input)) return input.map(normalize);
+
+    const out = {};
+    for (const key of Object.keys(input).sort()) {
+      out[key] = normalize(input[key]);
+    }
+    return out;
+  };
+
+  return JSON.stringify(normalize(value));
+};
+
 const DeviceAnalysis = () => {
   const { t } = useLanguage();
   const session = useDeviceAnalysisSession();
@@ -118,6 +138,7 @@ const DeviceAnalysis = () => {
   const processingJobIdRef = useRef(0);
   const processingQueueRef = useRef([]);
   const processingStopOnErrorRef = useRef(false);
+  const lastAppliedTemplateConfigFingerprintRef = useRef(null);
 
   const [deviceAnalysisSettings, setDeviceAnalysisSettings] = useState(null);
 
@@ -131,6 +152,10 @@ const DeviceAnalysis = () => {
     }
     return map;
   }, [rawData]);
+  const rawDataByIdRef = useRef(new Map());
+  useEffect(() => {
+    rawDataByIdRef.current = rawDataById;
+  }, [rawDataById]);
 
   const _getExcelColumnLabel = (index) => {
     let label = "";
@@ -635,10 +660,27 @@ const DeviceAnalysis = () => {
     }
 
     setRawData((prev) => prev.filter((f) => f.fileId !== fileId));
+    setProcessedData((prev) =>
+      (Array.isArray(prev) ? prev : []).filter((f) => f?.fileId !== fileId),
+    );
     if (removedFileName) {
       setExtractionErrors((prev) =>
         prev.filter((e) => e.fileName !== removedFileName),
       );
+    }
+
+    if (_processingStatus.state === "processing") {
+      const before = processingQueueRef.current.length;
+      processingQueueRef.current = processingQueueRef.current.filter(
+        (entry) => entry?.fileId !== fileId,
+      );
+      const removedCount = before - processingQueueRef.current.length;
+      if (removedCount > 0) {
+        setProcessingStatus((prev) => ({
+          ...prev,
+          total: Math.max(prev.processed, prev.total - removedCount),
+        }));
+      }
     }
     if (previewFile?.fileId === fileId) {
       setPreviewFile(null);
@@ -679,6 +721,123 @@ const DeviceAnalysis = () => {
   );
 
   // Handler when template is applied
+  const startExtractionJob = useCallback(
+    ({
+      queue,
+      extractionConfig,
+      stopOnError,
+      resetProcessedData,
+      resetExtractionErrors,
+    }) => {
+      if (!Array.isArray(queue) || queue.length === 0) return;
+      const workQueue = [...queue];
+
+      if (resetProcessedData) setProcessedData([]);
+      if (resetExtractionErrors) setExtractionErrors([]);
+      processingStopOnErrorRef.current = Boolean(stopOnError);
+
+      processingJobIdRef.current += 1;
+      const jobId = processingJobIdRef.current;
+
+      if (processingWorkerRef.current) {
+        processingWorkerRef.current.terminate();
+        processingWorkerRef.current = null;
+      }
+
+      const worker = new Worker(
+        new URL("../workers/deviceAnalysis.worker.js", import.meta.url),
+        { type: "module" },
+      );
+      processingWorkerRef.current = worker;
+
+      processingQueueRef.current = workQueue;
+      setProcessingStatus({
+        state: "processing",
+        processed: 0,
+        total: workQueue.length,
+      });
+
+      const processNext = () => {
+        const next = processingQueueRef.current.shift();
+        if (!next) {
+          setProcessingStatus((prev) => ({ ...prev, state: "done" }));
+          worker.terminate();
+          if (processingWorkerRef.current === worker) {
+            processingWorkerRef.current = null;
+          }
+          return;
+        }
+
+        worker.postMessage({
+          type: "processFile",
+          payload: {
+            jobId,
+            fileId: next.fileId,
+            fileName: next.fileName,
+            file: next.file,
+            config: extractionConfig,
+            maxPoints: 600,
+          },
+        });
+      };
+
+      worker.onmessage = (event) => {
+        const { type, payload } = event.data ?? {};
+
+        if (type === "processResult") {
+          if (payload?.jobId !== jobId) return;
+          const nextProcessed = payload?.processed;
+          const nextFileId = nextProcessed?.fileId;
+          if (nextFileId && !rawDataByIdRef.current.has(nextFileId)) {
+            // The user removed this CSV while it was being processed; don't re-add it.
+            setProcessingStatus((prev) => ({
+              ...prev,
+              processed: prev.processed + 1,
+            }));
+            processNext();
+            return;
+          }
+
+          setProcessedData((prev) => [...prev, nextProcessed]);
+          setProcessingStatus((prev) => ({
+            ...prev,
+            processed: prev.processed + 1,
+          }));
+          processNext();
+          return;
+        }
+
+        if (type === "workerError") {
+          if (payload?.jobId !== jobId) return;
+          const errFileName = payload?.fileName ?? "Unknown file";
+          const errMessage = payload?.message ?? "Unknown error";
+          setExtractionErrors((prev) => [
+            ...prev,
+            { fileName: errFileName, message: errMessage },
+          ]);
+          setProcessingStatus((prev) => ({
+            ...prev,
+            processed: prev.processed + 1,
+          }));
+
+          if (processingStopOnErrorRef.current) {
+            setProcessingStatus((prev) => ({ ...prev, state: "error" }));
+            worker.terminate();
+            if (processingWorkerRef.current === worker) {
+              processingWorkerRef.current = null;
+            }
+            return;
+          }
+
+          processNext();
+        }
+      };
+
+      processNext();
+    },
+    [setExtractionErrors, setProcessedData, setProcessingStatus],
+  );
+
   const handleTemplateApplied = useCallback((config) => {
     const prepared = prepareDeviceAnalysisExtraction({
       rawData,
@@ -695,100 +854,18 @@ const DeviceAnalysis = () => {
     const meta = prepared.meta ?? {};
     const stopOnError = Boolean(config?.stopOnError);
 
-    setProcessedData([]);
-    setExtractionErrors([]);
-    processingStopOnErrorRef.current = stopOnError;
-
-    processingJobIdRef.current += 1;
-    const jobId = processingJobIdRef.current;
-
-    if (processingWorkerRef.current) {
-      processingWorkerRef.current.terminate();
-      processingWorkerRef.current = null;
-    }
-
-    const worker = new Worker(
-      new URL("../workers/deviceAnalysis.worker.js", import.meta.url),
-      { type: "module" },
-    );
-    processingWorkerRef.current = worker;
-
     const queue = rawData
       .filter((f) => f?.file)
       .map((f) => ({ fileId: f.fileId, fileName: f.fileName, file: f.file }));
 
-    processingQueueRef.current = queue;
-    setProcessingStatus({
-      state: "processing",
-      processed: 0,
-      total: queue.length,
+    lastAppliedTemplateConfigFingerprintRef.current = stableStringify(config);
+    startExtractionJob({
+      queue,
+      extractionConfig,
+      stopOnError,
+      resetProcessedData: true,
+      resetExtractionErrors: true,
     });
-
-    const processNext = () => {
-      const next = processingQueueRef.current.shift();
-      if (!next) {
-        setProcessingStatus((prev) => ({ ...prev, state: "done" }));
-        worker.terminate();
-        if (processingWorkerRef.current === worker) {
-          processingWorkerRef.current = null;
-        }
-        return;
-      }
-
-      worker.postMessage({
-        type: "processFile",
-        payload: {
-          jobId,
-          fileId: next.fileId,
-          fileName: next.fileName,
-          file: next.file,
-          config: extractionConfig,
-          maxPoints: 600,
-        },
-      });
-    };
-
-    worker.onmessage = (event) => {
-      const { type, payload } = event.data ?? {};
-
-      if (type === "processResult") {
-        if (payload?.jobId !== jobId) return;
-        setProcessedData((prev) => [...prev, payload.processed]);
-        setProcessingStatus((prev) => ({
-          ...prev,
-          processed: prev.processed + 1,
-        }));
-        processNext();
-        return;
-      }
-
-      if (type === "workerError") {
-        if (payload?.jobId !== jobId) return;
-        const errFileName = payload?.fileName ?? "Unknown file";
-        const errMessage = payload?.message ?? "Unknown error";
-        setExtractionErrors((prev) => [
-          ...prev,
-          { fileName: errFileName, message: errMessage },
-        ]);
-        setProcessingStatus((prev) => ({
-          ...prev,
-          processed: prev.processed + 1,
-        }));
-
-        if (processingStopOnErrorRef.current) {
-          setProcessingStatus((prev) => ({ ...prev, state: "error" }));
-          worker.terminate();
-          if (processingWorkerRef.current === worker) {
-            processingWorkerRef.current = null;
-          }
-          return;
-        }
-
-        processNext();
-      }
-    };
-
-    processNext();
 
     const groupSizeText = meta.groupSizeCell
       ? t("da_extract_points_from_cell", { cell: meta.pointsRawUpper || "" })
@@ -819,15 +896,113 @@ const DeviceAnalysis = () => {
         warnings: warningText,
       }),
     };
-  }, [
-    getPreviewRow,
-    previewFile,
-    rawData,
-    setExtractionErrors,
-    setProcessedData,
-    setProcessingStatus,
-    t,
-  ]);
+  }, [getPreviewRow, previewFile, rawData, startExtractionJob, t]);
+
+  const handleTemplateAppliedIncremental = useCallback((config) => {
+    if (_processingStatus.state === "processing") {
+      return {
+        ok: false,
+        type: "warning",
+        message: t("da_apply_to_new_files_busy"),
+      };
+    }
+
+    const lastFingerprint = lastAppliedTemplateConfigFingerprintRef.current;
+    if (!lastFingerprint) {
+      return {
+        ok: false,
+        type: "warning",
+        message: t("da_apply_to_new_files_requires_full_apply"),
+      };
+    }
+
+    if (stableStringify(config) !== lastFingerprint) {
+      return {
+        ok: false,
+        type: "warning",
+        message: t("da_apply_to_new_files_requires_same_config"),
+      };
+    }
+
+    const processedIds = new Set(
+      (Array.isArray(processedData) ? processedData : [])
+        .map((f) => f?.fileId)
+        .filter(Boolean),
+    );
+
+    const queue = [];
+    const queuedIds = new Set();
+    for (const entry of Array.isArray(rawData) ? rawData : []) {
+      const fileId = entry?.fileId;
+      if (typeof fileId !== "string" || !fileId) continue;
+      if (!entry?.file) continue;
+      if (processedIds.has(fileId)) continue;
+      if (queuedIds.has(fileId)) continue;
+      queuedIds.add(fileId);
+      queue.push({ fileId, fileName: entry.fileName, file: entry.file });
+    }
+
+    if (queue.length === 0) {
+      return {
+        ok: true,
+        type: "info",
+        message: t("da_apply_to_new_files_no_new"),
+      };
+    }
+
+    const prepared = prepareDeviceAnalysisExtraction({
+      rawData,
+      config,
+      previewFile,
+      getPreviewRow,
+      t,
+    });
+
+    if (!prepared.ok) return prepared;
+
+    const warnings = Array.isArray(prepared.warnings) ? prepared.warnings : [];
+    const extractionConfig = prepared.extractionConfig;
+    const meta = prepared.meta ?? {};
+    const stopOnError = Boolean(config?.stopOnError);
+
+    startExtractionJob({
+      queue,
+      extractionConfig,
+      stopOnError,
+      resetProcessedData: false,
+      resetExtractionErrors: false,
+    });
+
+    const groupSizeText = meta.groupSizeCell
+      ? t("da_extract_points_from_cell", { cell: meta.pointsRawUpper || "" })
+      : t("da_extract_points_fixed", { points: meta.groupSize });
+
+    const groupsText =
+      meta.groupSizeCell &&
+        Number.isInteger(meta.groupSizePreview) &&
+        meta.groupSizePreview > 0
+        ? t("da_extract_groups_suffix", {
+          groups: Math.max(0, meta.total / meta.groupSizePreview),
+        })
+        : !meta.groupSizeCell
+          ? t("da_extract_groups_suffix", { groups: meta.groups })
+          : "";
+
+    const warningText = warnings.length
+      ? t("da_extract_warnings_block", { warnings: warnings.join("\n- ") })
+      : "";
+
+    return {
+      ok: true,
+      type: warnings.length ? "warning" : "success",
+      message: t("da_extract_started_incremental", {
+        count: queue.length,
+        detail: groupSizeText,
+        groups: groupsText,
+        warnings: warningText,
+      }),
+    };
+  }, [_processingStatus.state, getPreviewRow, previewFile, processedData, rawData, startExtractionJob, t]);
 
   const handleExport = async () => {
     if (processedData.length === 0) return;
@@ -1389,6 +1564,7 @@ Note:
           getPreviewRow={getPreviewRow}
           ensurePreviewRows={ensurePreviewRows}
           onTemplateApplied={handleTemplateApplied}
+          onTemplateAppliedIncremental={handleTemplateAppliedIncremental}
           subscribePreviewRowsVersion={subscribePreviewRowsVersion}
           getPreviewRowsVersion={getPreviewRowsVersion}
           deviceAnalysisSettings={deviceAnalysisSettings}

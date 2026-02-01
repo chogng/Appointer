@@ -1094,6 +1094,21 @@ const AnalysisCharts = ({
   const cachePrefetchJobIdRef = useRef(0);
   const cachePrefetchHandleRef = useRef(null);
 
+  useEffect(() => {
+    const store = fileAnalysisCacheRef.current;
+    if (!store || store.size === 0) return;
+
+    const keep = new Set(
+      (Array.isArray(processedData) ? processedData : [])
+        .map((f) => f?.fileId)
+        .filter(Boolean),
+    );
+
+    for (const fileId of Array.from(store.keys())) {
+      if (!keep.has(fileId)) store.delete(fileId);
+    }
+  }, [processedData]);
+
   const getFileCache = React.useCallback((fileId) => {
     if (!fileId) return null;
     const store = fileAnalysisCacheRef.current;
@@ -1232,6 +1247,20 @@ const AnalysisCharts = ({
       return activeFileId;
     }
     return processedData[0].fileId;
+  }, [activeFileId, processedData]);
+
+  useEffect(() => {
+    if (!processedData?.length) {
+      if (activeFileId !== null) setActiveFileId(null);
+      return;
+    }
+
+    if (activeFileId && processedData.some((f) => f.fileId === activeFileId)) {
+      return;
+    }
+
+    const next = processedData[0]?.fileId ?? null;
+    if (next !== activeFileId) setActiveFileId(next);
   }, [activeFileId, processedData]);
 
   const activeFile = useMemo(

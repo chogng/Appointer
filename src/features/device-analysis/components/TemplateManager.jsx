@@ -219,6 +219,7 @@ const TemplateManager = ({
   getPreviewRow,
   ensurePreviewRows,
   onTemplateApplied,
+  onTemplateAppliedIncremental,
   subscribePreviewRowsVersion,
   getPreviewRowsVersion,
   deviceAnalysisSettings,
@@ -769,7 +770,9 @@ const TemplateManager = ({
     templates,
   ]);
 
-  const applyConfiguration = () => {
+  const applyWithHandler = (handler) => {
+    if (typeof handler !== "function") return;
+
     const validation = validateTemplateForApply(config, t);
     if (!validation.ok) {
       showToast(validation.message || "Invalid configuration", "warning");
@@ -786,7 +789,7 @@ const TemplateManager = ({
       setConfig(validation.normalized);
     }
 
-    const result = onTemplateApplied?.(validation.normalized);
+    const result = handler(validation.normalized);
     if (result && typeof result === "object") {
       if (result.ok === false) {
         showToast(result.message || "Invalid configuration", result.type);
@@ -797,6 +800,10 @@ const TemplateManager = ({
       }
     }
   };
+
+  const applyConfiguration = () => applyWithHandler(onTemplateApplied);
+  const applyNewFilesConfiguration = () =>
+    applyWithHandler(onTemplateAppliedIncremental);
 
   const normalizeRange = useCallback((range) => {
     if (!range) return null;
@@ -2159,14 +2166,27 @@ const TemplateManager = ({
             </div>
 
             {templateMode !== "save" && (
-              <button
-                id="device-analysis-template-apply-to-all"
-                type="button"
-                onClick={applyConfiguration}
-                className="action-btn action-btn--md action-btn--primary w-full mt-4"
-              >
-                <span className="action-btn__content">{t("da_apply_to_all_files")}</span>
-              </button>
+              <div className="mt-4 flex items-center gap-3">
+                <Button
+                  id="device-analysis-template-apply-to-all"
+                  variant="primary"
+                  size="md"
+                  className="flex-1"
+                  onClick={applyConfiguration}
+                >
+                  {t("da_apply_to_all_files")}
+                </Button>
+                <Button
+                  id="device-analysis-template-apply-to-new"
+                  variant="secondary"
+                  size="md"
+                  className="flex-1"
+                  onClick={applyNewFilesConfiguration}
+                  disabled={typeof onTemplateAppliedIncremental !== "function"}
+                >
+                  {t("da_apply_to_new_files")}
+                </Button>
+              </div>
             )}
 
             {templateMode === "select" && (

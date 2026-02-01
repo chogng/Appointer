@@ -50,6 +50,12 @@ const translations = {
     da_extraction_errors: 'Extraction errors',
     da_data_extraction_template: 'Data Extraction Template',
     da_apply_to_all_files: 'Apply to All',
+    da_apply_to_new_files: 'Apply to New',
+    da_apply_to_new_files_busy: 'Extraction is already running.',
+    da_apply_to_new_files_no_new: 'No new files to extract.',
+    da_apply_to_new_files_requires_full_apply: 'Apply to All first.',
+    da_apply_to_new_files_requires_same_config:
+      'Template changed. Please Apply to All again.',
     da_stop_on_first_invalid_file: 'Stop on first invalid file',
     da_save_template: 'Save template',
     da_template_discard_changes_title: 'Discard changes?',
@@ -80,6 +86,8 @@ const translations = {
     da_preview_filename_label: 'Filename',
     da_extract_started:
       'Started extracting {count} file(s) ({detail}{groups}). Charts will appear progressively.{warnings}',
+    da_extract_started_incremental:
+      'Started extracting {count} new file(s) ({detail}{groups}). Charts will appear progressively.{warnings}',
     da_extract_points_from_cell: 'points from {cell}',
     da_extract_points_fixed: 'points={points}',
     da_extract_groups_suffix: ', {groups} group(s)',
@@ -578,6 +586,8 @@ const translations = {
   },
   zh: {
     da_extract_started: '开始提取 {count} 个文件（{detail}{groups}）。图表将逐步显示。{warnings}',
+    da_extract_started_incremental:
+      '开始提取 {count} 个新增文件（{detail}{groups}）。图表将逐步显示。{warnings}',
     da_extract_points_from_cell: '点数来自 {cell}',
     da_extract_points_fixed: '点数={points}',
     da_extract_groups_suffix: '，{groups} 组',
@@ -644,6 +654,11 @@ const translations = {
     da_extraction_errors: '提取错误',
     da_data_extraction_template: '数据提取',
     da_apply_to_all_files: '应用到所有',
+    da_apply_to_new_files: '仅新增文件',
+    da_apply_to_new_files_busy: '正在提取中，请稍后。',
+    da_apply_to_new_files_no_new: '没有需要新增提取的文件。',
+    da_apply_to_new_files_requires_full_apply: '请先点击“应用到所有”。',
+    da_apply_to_new_files_requires_same_config: '模板配置已变更，请重新“应用到所有”。',
     da_stop_on_first_invalid_file: '首个无效即停止',
     da_save_template: '保存模板',
     da_template_discard_changes_title: '放弃修改？',
