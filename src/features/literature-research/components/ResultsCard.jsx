@@ -207,14 +207,12 @@ const ResultsCard = ({
                     <div
                       className="mt-1 text-xs text-text-secondary truncate"
                       title={group.seedUrl || ""}
-                      data-ui="literature-results-group-seed-url"
                       data-group-key={group.key}
                     >
                       {group.seedUrl || "-"}
                     </div>
                     <div
                       className="mt-1 text-xs text-text-secondary"
-                      data-ui="literature-results-group-count"
                       data-group-key={group.key}
                     >
                       {group.visibleItems.length}/{group.allItems.length} • {groupSelectedCount} selected
