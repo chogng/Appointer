@@ -3,6 +3,7 @@ import { FileDown, Loader2, ListChecks, ListX, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../../hooks/useLanguage";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
+import CollapsiblePanel from "../../../components/ui/CollapsiblePanel";
 
 const ResultsCard = ({
   resultView,
@@ -22,6 +23,7 @@ const ResultsCard = ({
   onClearPageSession,
   isAnyTranslationInFlight,
   renderResultCards,
+  groupCollapseEpoch = 0,
 }) => {
   const { t } = useLanguage();
 
@@ -163,22 +165,21 @@ const ResultsCard = ({
           .filter((group) => Array.isArray(group?.visibleItems) && group.visibleItems.length > 0)
           .map((group) => {
             return (
-              <Card key={group.key} className="mt-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div
-                      className="text-sm font-semibold text-text-primary truncate"
-                      title={group.title}
-                      data-ui="literature-results-group-title"
-                      data-group-key={group.key}
-                    >
-                      {group.title}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4">{renderResultCards(group.visibleItems)}</div>
-              </Card>
+              <CollapsiblePanel
+                key={`${groupCollapseEpoch}:${group.key}`}
+                className="mt-4"
+                title={group.title}
+                meta={`${group.visibleItems.length}/${group.allItems.length}`}
+                defaultOpen={false}
+                cta="Literature research"
+                ctaPosition="result-group"
+                ctaCopy="panel"
+                toggleCta="Literature research"
+                toggleCtaPosition="result-group"
+                toggleCtaCopy="toggle"
+              >
+                {renderResultCards(group.visibleItems)}
+              </CollapsiblePanel>
             );
           })}
       </Card>

@@ -147,6 +147,7 @@ const LiteratureResearch = () => {
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(today);
   const [maxResults, setMaxResults] = useState("");
+  const [groupCollapseEpoch, setGroupCollapseEpoch] = useState(0);
 
   const seedUrlsRef = useRef(seedUrls);
   const seedUrlTitlesRef = useRef(seedUrlTitles);
@@ -1533,6 +1534,7 @@ const LiteratureResearch = () => {
     setStatus({ state: "loading", message: "" });
     setResults([]);
     setSelectedIds([]);
+    setGroupCollapseEpoch((prev) => prev + 1);
     setFetchProgress({
       state: "running",
       completed: 0,
@@ -2119,6 +2121,7 @@ const LiteratureResearch = () => {
           selectedIdSet={selectedIdSet}
           getLiteratureItemId={getLiteratureItemId}
           renderResultCards={renderResultCards}
+          groupCollapseEpoch={groupCollapseEpoch}
         />
       </div>
 
