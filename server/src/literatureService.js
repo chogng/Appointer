@@ -703,31 +703,6 @@ function stripAcsTrackingParams(articleUrl) {
   }
 }
 
-function crossrefDateToDateString(message) {
-  const candidates = [
-    message?.["published-online"],
-    message?.["published-print"],
-    message?.issued,
-    message?.created,
-  ];
-
-  for (const candidate of candidates) {
-    const parts = candidate?.["date-parts"];
-    const first = Array.isArray(parts) ? parts[0] : null;
-    if (!Array.isArray(first) || first.length === 0) continue;
-
-    const year = Number(first[0]);
-    if (!Number.isInteger(year) || year < 1000) continue;
-    const month = Number(first[1] ?? 1);
-    const day = Number(first[2] ?? 1);
-    const mm = String(Math.min(12, Math.max(1, month))).padStart(2, "0");
-    const dd = String(Math.min(31, Math.max(1, day))).padStart(2, "0");
-    return `${year}-${mm}-${dd}`;
-  }
-
-  return null;
-}
-
 function crossrefDateToDateStringByPriority(message, priorityKeys) {
   const keys = Array.isArray(priorityKeys) ? priorityKeys : [];
   const candidates = [];

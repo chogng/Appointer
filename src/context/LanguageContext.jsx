@@ -282,6 +282,8 @@ const translations = {
     literature_settings_saving: 'Saving settings...',
     literature_settings_saved: 'Settings saved',
     literature_settings_save_failed: 'Failed to save settings',
+    literature_settings_save_failed_fetch_continues:
+      "Couldn't sync settings. Fetch will continue with local inputs.",
     literature_keyword_filter: 'Keyword filter',
     literature_keyword_filter_hint: 'Filter after fetching; use the Unmatched view to check for omissions.',
     literature_match_any: 'Match any',
@@ -843,6 +845,8 @@ const translations = {
     literature_settings_saving: '设置同步中...',
     literature_settings_saved: '设置已同步',
     literature_settings_save_failed: '设置同步失败',
+    literature_settings_save_failed_fetch_continues:
+      '设置同步失败，将使用当前输入继续抓取。',
     literature_keyword_filter: '关键词筛选',
     literature_keyword_filter_hint: '检索完成后在本地筛选，可切换查看“未匹配”以检查是否存在遗漏。',
     literature_match_any: '任意匹配',

@@ -1521,13 +1521,13 @@ const LiteratureResearch = () => {
     try {
       await syncAllDirtySettingsForFetch();
     } catch (error) {
-      setStatus({
-        state: "error",
+      setToast({
+        isVisible: true,
         message:
-          error?.message ||
-          t("literature_settings_save_failed"),
+          t("literature_settings_save_failed_fetch_continues") +
+          (error?.message ? ` (${error.message})` : ""),
+        type: "warning",
       });
-      return;
     }
 
     setStatus({ state: "loading", message: "" });
