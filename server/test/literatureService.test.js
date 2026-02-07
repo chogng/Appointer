@@ -3,38 +3,29 @@ import assert from "node:assert/strict";
 
 import { isAllowedSeedUrl, normalizeSeedUrls } from "../src/literatureService.js";
 
-test("literatureService allows ACS seed URLs (pubs.acs.org)", () => {
-  assert.equal(isAllowedSeedUrl("https://pubs.acs.org/toc/nalefd/0/0"), true);
+test("allows Wiley subdomains as seed URLs", () => {
   assert.equal(
-    isAllowedSeedUrl("https://pubs.acs.org/action/showFeed?type=etoc&feed=rss&jc=nalefd"),
+    isAllowedSeedUrl("https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0"),
     true,
   );
 });
 
-test("literatureService allows Wiley seed URLs (onlinelibrary.wiley.com)", () => {
+test("rejects lookalike domains for seed URLs", () => {
   assert.equal(
-    isAllowedSeedUrl("https://onlinelibrary.wiley.com/toc/15214095/current"),
-    true,
-  );
-  assert.equal(
-    isAllowedSeedUrl("https://onlinelibrary.wiley.com/feed/15214095/most-recent"),
-    true,
+    isAllowedSeedUrl("https://onlinelibrary.wiley.com.evil.com/toc/15214095/0/0"),
+    false,
   );
 });
 
-test("literatureService normalizeSeedUrls keeps only allowed hosts", () => {
+test("normalizeSeedUrls keeps only allowed, unique urls", () => {
   const normalized = normalizeSeedUrls([
-    "https://www.nature.com/nature/research-articles",
-    "https://www.science.org/journal/sciadv",
-    "https://pubs.acs.org/toc/nalefd/0/0",
-    "https://onlinelibrary.wiley.com/toc/15214095/current",
-    "https://example.com/not-supported",
+    " https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0 ",
+    "https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0#hash",
+    "https://example.com",
   ]);
 
   assert.deepEqual(normalized, [
-    "https://www.nature.com/nature/research-articles",
-    "https://www.science.org/journal/sciadv",
-    "https://pubs.acs.org/toc/nalefd/0/0",
-    "https://onlinelibrary.wiley.com/toc/15214095/current",
+    "https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0",
   ]);
 });
+

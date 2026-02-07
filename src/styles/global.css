@@ -136,6 +136,17 @@ body {
     @apply p-4 flex items-center justify-between gap-4;
   }
 
+  .activity_card_headleft {
+    @apply grid gap-2 lg:gap-4 min-w-0 items-center w-fit max-w-full;
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    justify-items: start;
+  }
+
+  .activity_card_headright {
+    @apply flex flex-col items-end gap-1;
+  }
+
   .message_card_head_warp {
     @apply h-[70px] pt-3 pr-4 pb-3 pl-4 flex items-center justify-between gap-4;
   }
@@ -264,10 +275,6 @@ body {
   .toolbar_group--scroll::-webkit-scrollbar {
     display: none;
     /* Chrome/Safari */
-  }
-
-  .ui-button_warp {
-    @apply flex flex-col items-end gap-1 ml-auto;
   }
 
   .ui-button_row {
@@ -413,10 +420,6 @@ body {
 
   .msg_list .msg_pill_qty {
     @apply text-xs px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium;
-  }
-
-  .ui-filter_warp {
-    @apply flex flex-wrap items-center gap-2 lg:gap-4 min-w-0 flex-1;
   }
 
   .date_btn_label {

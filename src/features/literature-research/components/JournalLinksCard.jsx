@@ -54,17 +54,24 @@ const JournalLinksCard = ({
     .join(" / ");
 
   return (
-    <section aria-label={t("journal_links")}>
-      <h2 className="section_title">{t("journal_links")}</h2>
+    <section
+      data-cta="Literature research"
+      data-cta-position="journal-links"
+      data-cta-copy="journal-links-section"
+      aria-labelledby="literature-journal-links-title"
+    >
+      <h2 id="literature-journal-links-title" className="section_title">
+        {t("journal_links")}
+      </h2>
       <Card
         as="section"
         cta="Literature research"
-        ctaPosition="journal-panel"
-        ctaCopy="card"
+        ctaPosition="journal-links"
+        ctaCopy="journal-links-card"
         aria-label={t("journal_links")}
       >
-        <div className="toolbar_group">
-          <div className="ui-filter_warp" aria-label="date filter warp">
+        <div className="activity_card_head_warp p-0 mb-4">
+          <div className="activity_card_headleft" aria-label="date filter wrap">
             <div className="date_btn_warp flex-none">
               <label className="date_btn_label">
                 {t("literature_start_date")}
@@ -108,7 +115,7 @@ const JournalLinksCard = ({
               onBlur={onSettingsInputBlur}
               inputClassName="w-24"
               cta="Literature research"
-              ctaPosition="date filter warp"
+              ctaPosition="date filter wrap"
               ctaCopy="max results"
               aria-label="max results input"
               inputMode="numeric"
@@ -122,7 +129,7 @@ const JournalLinksCard = ({
             />
           </div>
 
-          <div className="ui-button_warp">
+          <div className="activity_card_headright">
             <div className="ui-button_row">
               <button
                 type="button"

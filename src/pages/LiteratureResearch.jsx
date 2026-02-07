@@ -124,6 +124,12 @@ const areStringArraysEqual = (a, b) => {
   return a.every((item, idx) => item === b[idx]);
 };
 
+const areBooleanArraysEqual = (a, b) => {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  return a.every((item, idx) => Boolean(item) === Boolean(b[idx]));
+};
+
 const LiteratureResearch = () => {
   const containerRef = useRef(null);
   const { user } = useAuth();
@@ -151,6 +157,7 @@ const LiteratureResearch = () => {
 
   const seedUrlsRef = useRef(seedUrls);
   const seedUrlTitlesRef = useRef(seedUrlTitles);
+  const seedUrlSelectedRef = useRef(seedUrlSelected);
   const maxResultsRef = useRef(maxResults);
 
   useEffect(() => {
@@ -160,6 +167,10 @@ const LiteratureResearch = () => {
   useEffect(() => {
     seedUrlTitlesRef.current = seedUrlTitles;
   }, [seedUrlTitles]);
+
+  useEffect(() => {
+    seedUrlSelectedRef.current = seedUrlSelected;
+  }, [seedUrlSelected]);
 
   useEffect(() => {
     maxResultsRef.current = maxResults;
@@ -219,11 +230,13 @@ const LiteratureResearch = () => {
   const committedSettingsRef = useRef({
     seedUrlsUnified: [],
     seedUrlTitlesUnified: [],
+    seedUrlSelectedUnified: [],
     maxResults: null,
   });
 
   const seedUrlsDirtyRef = useRef(false);
   const seedUrlTitlesDirtyRef = useRef(false);
+  const seedUrlSelectedDirtyRef = useRef(false);
   const maxResultsDirtyRef = useRef(false);
   const settingsSyncQueueRef = useRef(Promise.resolve());
   const settingsAutosaveTimerRef = useRef(null);
@@ -262,6 +275,19 @@ const LiteratureResearch = () => {
     seedUrlTitlesDirtyRef.current = true;
     seedUrlTitlesRef.current = resolvedNextSeedUrlTitles;
     setSeedUrlTitles(resolvedNextSeedUrlTitles);
+
+    scheduleSettingsAutosave();
+  };
+
+  const setSeedUrlSelectedList = (nextSeedUrlSelected) => {
+    const resolvedNextSeedUrlSelected =
+      Array.isArray(nextSeedUrlSelected) && nextSeedUrlSelected.length
+        ? nextSeedUrlSelected
+        : [true];
+
+    seedUrlSelectedDirtyRef.current = true;
+    seedUrlSelectedRef.current = resolvedNextSeedUrlSelected;
+    setSeedUrlSelected(resolvedNextSeedUrlSelected);
 
     scheduleSettingsAutosave();
   };
@@ -509,7 +535,7 @@ const LiteratureResearch = () => {
       if (host.endsWith("nature.com")) return "nature";
       if (host.endsWith("science.org")) return "science";
       if (host === "pubs.acs.org") return "acs";
-      if (host === "onlinelibrary.wiley.com") return "wiley";
+      if (host.endsWith("onlinelibrary.wiley.com")) return "wiley";
       return "unsupported";
     } catch {
       return "unsupported";
@@ -628,6 +654,9 @@ const LiteratureResearch = () => {
         committedSettingsRef.current = {
           seedUrlsUnified: committedSeedUrlsUnified,
           seedUrlTitlesUnified: committedSeedUrlTitlesUnified,
+          seedUrlSelectedUnified: Array.isArray(data?.seedUrlSelectedUnified)
+            ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, committedSeedUrlsUnified.length)
+            : normalizeSeedUrlSelectedList(null, committedSeedUrlsUnified.length),
           maxResults: resolvedMaxResults,
         };
 
@@ -637,7 +666,11 @@ const LiteratureResearch = () => {
           setSeedUrlTitles(
             normalizeSeedUrlTitlesList(committedSeedUrlTitlesUnified, nextSeedUrls.length),
           );
-          setSeedUrlSelected(normalizeSeedUrlSelectedList(null, nextSeedUrls.length));
+          setSeedUrlSelected(
+            Array.isArray(data?.seedUrlSelectedUnified)
+              ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, nextSeedUrls.length)
+              : normalizeSeedUrlSelectedList(null, nextSeedUrls.length),
+          );
           startDateAutoRef.current =
             typeof resolvedStartDate === "string" &&
             resolvedStartDate &&
@@ -696,14 +729,16 @@ const LiteratureResearch = () => {
 
     const hasSeedDirty = Boolean(seedUrlsDirtyRef.current);
     const hasSeedTitleDirty = Boolean(seedUrlTitlesDirtyRef.current);
+    const hasSeedSelectedDirty = Boolean(seedUrlSelectedDirtyRef.current);
     const hasMaxDirty = Boolean(maxResultsDirtyRef.current);
-    if (!hasSeedDirty && !hasSeedTitleDirty && !hasMaxDirty) return;
+    if (!hasSeedDirty && !hasSeedTitleDirty && !hasSeedSelectedDirty && !hasMaxDirty) return;
 
     if (settingsFocusCountRef.current > 0) return;
     settingsAutosaveTimerRef.current = setTimeout(() => {
       syncSettingsForFetch({
         seedUrlsToPersist: seedUrlsRef.current || [],
         seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
+        seedUrlSelectedToPersist: seedUrlSelectedRef.current || [],
       }).catch(() => { });
     }, 1500);
   };
@@ -721,23 +756,38 @@ const LiteratureResearch = () => {
     scheduleSettingsAutosave();
   };
 
-  const syncSettingsForFetch = ({ seedUrlsToPersist, seedUrlTitlesToPersist }) => {
+  const syncSettingsForFetch = ({ seedUrlsToPersist, seedUrlTitlesToPersist, seedUrlSelectedToPersist }) => {
     return enqueueSettingsSync(async () => {
       const updates = {};
 
       const shouldSyncSeedUrls = Boolean(seedUrlsDirtyRef.current);
       const shouldSyncSeedUrlTitles = Boolean(seedUrlTitlesDirtyRef.current);
+      const shouldSyncSeedUrlSelected = Boolean(seedUrlSelectedDirtyRef.current);
 
-      if (shouldSyncSeedUrls || shouldSyncSeedUrlTitles) {
+      if (shouldSyncSeedUrls || shouldSyncSeedUrlTitles || shouldSyncSeedUrlSelected) {
         const committedSeedUrls = committedSettingsRef.current.seedUrlsUnified || [];
         const committedSeedUrlTitles = committedSettingsRef.current.seedUrlTitlesUnified || [];
+        const committedSeedUrlSelected =
+          committedSettingsRef.current.seedUrlSelectedUnified || [];
 
         const paired = pairSeedUrlsAndTitles(seedUrlsToPersist, seedUrlTitlesToPersist);
         const nextSeedUrls = paired.seedUrls;
         const nextSeedUrlTitles = paired.seedUrlTitles;
+        const nextSeedUrlSelected = (() => {
+          const srcUrls = Array.isArray(seedUrlsToPersist) ? seedUrlsToPersist : [];
+          const srcSelected = Array.isArray(seedUrlSelectedToPersist) ? seedUrlSelectedToPersist : [];
+          const out = [];
+          for (let i = 0; i < srcUrls.length; i += 1) {
+            const url = typeof srcUrls[i] === "string" ? srcUrls[i].trim() : "";
+            if (!url) continue;
+            out.push(typeof srcSelected[i] === "boolean" ? srcSelected[i] : true);
+          }
+          return normalizeSeedUrlSelectedList(out, nextSeedUrls.length);
+        })();
 
         const seedUrlsChanged = !areStringArraysEqual(nextSeedUrls, committedSeedUrls);
         const seedUrlTitlesChanged = !areStringArraysEqual(nextSeedUrlTitles, committedSeedUrlTitles);
+        const seedUrlSelectedChanged = !areBooleanArraysEqual(nextSeedUrlSelected, committedSeedUrlSelected);
 
         if (shouldSyncSeedUrls) {
           if (seedUrlsChanged) {
@@ -752,6 +802,14 @@ const LiteratureResearch = () => {
             updates.seedUrlTitlesUnified = nextSeedUrlTitles;
           } else if (shouldSyncSeedUrlTitles) {
             seedUrlTitlesDirtyRef.current = false;
+          }
+        }
+
+        if (shouldSyncSeedUrlSelected || seedUrlsChanged) {
+          if (seedUrlSelectedChanged) {
+            updates.seedUrlSelectedUnified = nextSeedUrlSelected;
+          } else if (shouldSyncSeedUrlSelected) {
+            seedUrlSelectedDirtyRef.current = false;
           }
         }
       }
@@ -803,10 +861,17 @@ const LiteratureResearch = () => {
             committedSettingsRef.current.seedUrlTitlesUnified,
             nextCommittedSeedUrlsUnified.length,
           );
+      const nextCommittedSeedUrlSelectedUnified = Array.isArray(data?.seedUrlSelectedUnified)
+        ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, nextCommittedSeedUrlsUnified.length)
+        : normalizeSeedUrlSelectedList(
+            committedSettingsRef.current.seedUrlSelectedUnified,
+            nextCommittedSeedUrlsUnified.length,
+          );
 
       committedSettingsRef.current = {
         seedUrlsUnified: nextCommittedSeedUrlsUnified,
         seedUrlTitlesUnified: nextCommittedSeedUrlTitlesUnified,
+        seedUrlSelectedUnified: nextCommittedSeedUrlSelectedUnified,
         maxResults:
           data?.maxResults == null
             ? null
@@ -820,6 +885,9 @@ const LiteratureResearch = () => {
       }
       if (Object.prototype.hasOwnProperty.call(updates, "seedUrlTitlesUnified")) {
         seedUrlTitlesDirtyRef.current = false;
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, "seedUrlSelectedUnified")) {
+        seedUrlSelectedDirtyRef.current = false;
       }
       if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
         maxResultsDirtyRef.current = false;
@@ -850,6 +918,7 @@ const LiteratureResearch = () => {
     await syncSettingsForFetch({
       seedUrlsToPersist: seedUrlsRef.current || [],
       seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
+      seedUrlSelectedToPersist: seedUrlSelectedRef.current || [],
     });
   };
 
@@ -884,6 +953,27 @@ const LiteratureResearch = () => {
           updates.seedUrlTitlesUnified = paired.seedUrlTitles;
         } else {
           seedUrlTitlesDirtyRef.current = false;
+        }
+      }
+
+      if (seedUrlSelectedDirtyRef.current || seedUrlsDirtyRef.current) {
+        const srcUrls = Array.isArray(seedUrlsRef.current) ? seedUrlsRef.current : [];
+        const srcSelected = Array.isArray(seedUrlSelectedRef.current) ? seedUrlSelectedRef.current : [];
+        const out = [];
+        for (let i = 0; i < srcUrls.length; i += 1) {
+          const url = typeof srcUrls[i] === "string" ? srcUrls[i].trim() : "";
+          if (!url) continue;
+          out.push(typeof srcSelected[i] === "boolean" ? srcSelected[i] : true);
+        }
+
+        const paired = pairSeedUrlsAndTitles(seedUrlsRef.current, seedUrlTitlesRef.current);
+        const nextSelected = normalizeSeedUrlSelectedList(out, paired.seedUrls.length);
+        const committedSelected = committedSettingsRef.current.seedUrlSelectedUnified || [];
+
+        if (!areBooleanArraysEqual(nextSelected, committedSelected)) {
+          updates.seedUrlSelectedUnified = nextSelected;
+        } else {
+          seedUrlSelectedDirtyRef.current = false;
         }
       }
 
@@ -930,10 +1020,17 @@ const LiteratureResearch = () => {
                 committedSettingsRef.current.seedUrlTitlesUnified,
                 nextCommittedSeedUrlsUnified.length,
               );
+          const nextCommittedSeedUrlSelectedUnified = Array.isArray(data?.seedUrlSelectedUnified)
+            ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, nextCommittedSeedUrlsUnified.length)
+            : normalizeSeedUrlSelectedList(
+                committedSettingsRef.current.seedUrlSelectedUnified,
+                nextCommittedSeedUrlsUnified.length,
+              );
 
           committedSettingsRef.current = {
             seedUrlsUnified: nextCommittedSeedUrlsUnified,
             seedUrlTitlesUnified: nextCommittedSeedUrlTitlesUnified,
+            seedUrlSelectedUnified: nextCommittedSeedUrlSelectedUnified,
             maxResults:
               data?.maxResults == null
                 ? null
@@ -947,6 +1044,9 @@ const LiteratureResearch = () => {
           }
           if (Object.prototype.hasOwnProperty.call(updates, "seedUrlTitlesUnified")) {
             seedUrlTitlesDirtyRef.current = false;
+          }
+          if (Object.prototype.hasOwnProperty.call(updates, "seedUrlSelectedUnified")) {
+            seedUrlSelectedDirtyRef.current = false;
           }
           if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
             maxResultsDirtyRef.current = false;
@@ -1380,14 +1480,12 @@ const LiteratureResearch = () => {
   };
 
   const setSeedUrlSelectedAt = (index, checked) => {
-    setSeedUrlSelected((prev) => {
-      const desiredLen = seedUrls.length;
-      const nextList = normalizeSeedUrlSelectedList(prev, desiredLen);
-      if (index >= 0 && index < nextList.length) {
-        nextList[index] = Boolean(checked);
-      }
-      return nextList.length ? nextList : [true];
-    });
+    const desiredLen = seedUrls.length;
+    const nextList = normalizeSeedUrlSelectedList(seedUrlSelectedRef.current, desiredLen);
+    if (index >= 0 && index < nextList.length) {
+      nextList[index] = Boolean(checked);
+    }
+    setSeedUrlSelectedList(nextList);
   };
 
   const setSeedUrlTitleAt = (index, value) => {
@@ -1400,10 +1498,10 @@ const LiteratureResearch = () => {
   };
 
   const removeSeedUrlAt = (index) => {
-    setSeedUrlSelected((prev) => {
-      const nextList = (Array.isArray(prev) ? prev : []).filter((_, i) => i !== index);
-      return nextList.length ? nextList : [true];
-    });
+    const nextSelected = (Array.isArray(seedUrlSelectedRef.current) ? seedUrlSelectedRef.current : []).filter(
+      (_, i) => i !== index,
+    );
+    setSeedUrlSelectedList(nextSelected.length ? nextSelected : [true]);
     const nextTitles = seedUrlTitles.filter((_, i) => i !== index);
     setSeedUrlTitlesList(nextTitles.length ? nextTitles : [""]);
     const next = seedUrls.filter((_, i) => i !== index);
@@ -1411,7 +1509,10 @@ const LiteratureResearch = () => {
   };
 
   const addSeedUrl = () => {
-    setSeedUrlSelected((prev) => [...normalizeSeedUrlSelectedList(prev, seedUrls.length), true]);
+    setSeedUrlSelectedList([
+      ...normalizeSeedUrlSelectedList(seedUrlSelectedRef.current, seedUrls.length),
+      true,
+    ]);
     setSeedUrlTitlesList([...normalizeSeedUrlTitlesList(seedUrlTitles, seedUrls.length), ""]);
     setSeedUrlsList([...seedUrls, ""]);
   };

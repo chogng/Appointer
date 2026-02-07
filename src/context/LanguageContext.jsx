@@ -277,7 +277,7 @@ const translations = {
     personal_api_key_clear_failed: 'Failed to clear API Key.',
     literature_use_examples: 'Use examples',
     literature_seed_urls_required:
-      'Please select at least one seed URL (only nature.com / science.org / pubs.acs.org / onlinelibrary.wiley.com are supported).',
+      'Please select at least one seed URL (only nature.com / science.org / pubs.acs.org / *.onlinelibrary.wiley.com are supported).',
     literature_settings_loading: 'Loading settings...',
     literature_settings_saving: 'Saving settings...',
     literature_settings_saved: 'Settings saved',
@@ -840,7 +840,7 @@ const translations = {
     personal_api_key_clear_failed: '清除 API Key 失败。',
     literature_use_examples: '填充示例链接',
     literature_seed_urls_required:
-      '请至少勾选一个入口链接（仅支持 nature.com / science.org / pubs.acs.org / onlinelibrary.wiley.com，可跨 Nature/Science/ACS/Wiley）。',
+      '请至少勾选一个入口链接（仅支持 nature.com / science.org / pubs.acs.org / *.onlinelibrary.wiley.com，可跨 Nature/Science/ACS/Wiley）。',
     literature_settings_loading: '设置读取中...',
     literature_settings_saving: '设置同步中...',
     literature_settings_saved: '设置已同步',

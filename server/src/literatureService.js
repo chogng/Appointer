@@ -1,16 +1,12 @@
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_LISTING_PAGES = 100;
 
-const ALLOWED_SEED_HOSTS = new Set([
+const ALLOWED_SEED_ROOT_DOMAINS = [
   "nature.com",
-  "www.nature.com",
   "science.org",
-  "www.science.org",
   "pubs.acs.org",
-  "www.pubs.acs.org",
   "onlinelibrary.wiley.com",
-  "www.onlinelibrary.wiley.com",
-]);
+];
 
 const MONTHS = {
   jan: "01",
@@ -82,7 +78,10 @@ export function isAllowedSeedUrl(raw) {
   if (!normalized) return false;
   try {
     const url = new URL(normalized);
-    return ALLOWED_SEED_HOSTS.has(url.hostname);
+    const host = String(url.hostname || "").toLowerCase();
+    return ALLOWED_SEED_ROOT_DOMAINS.some(
+      (root) => host === root || host.endsWith(`.${root}`),
+    );
   } catch {
     return false;
   }

@@ -24,12 +24,39 @@ export function sanitizeSeedUrlTitlesList(input) {
     });
 }
 
+export function sanitizeSeedUrlSelectedList(input) {
+  const values = Array.isArray(input) ? input : [];
+  return values
+    .slice(0, 50)
+    .map((value) => {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (typeof value === "string") {
+        const trimmed = value.trim().toLowerCase();
+        if (!trimmed) return true;
+        if (trimmed === "false" || trimmed === "0" || trimmed === "no") return false;
+        return true;
+      }
+      return true;
+    });
+}
+
 function normalizeSeedUrlTitlesList(input, desiredLen) {
   const list = Array.isArray(input) ? input : [];
   const n = Math.max(0, Math.floor(Number(desiredLen) || 0));
   const out = new Array(n);
   for (let i = 0; i < n; i += 1) {
     out[i] = typeof list[i] === "string" ? list[i] : "";
+  }
+  return out;
+}
+
+function normalizeSeedUrlSelectedList(input, desiredLen) {
+  const list = Array.isArray(input) ? input : [];
+  const n = Math.max(0, Math.floor(Number(desiredLen) || 0));
+  const out = new Array(n);
+  for (let i = 0; i < n; i += 1) {
+    out[i] = typeof list[i] === "boolean" ? list[i] : true;
   }
   return out;
 }
@@ -47,6 +74,32 @@ function pairSeedUrlsAndTitles(seedUrlsInput, seedUrlTitlesInput) {
     outSeedUrlTitles.push(title);
   }
   return { seedUrls: outSeedUrls, seedUrlTitles: outSeedUrlTitles };
+}
+
+function pairSeedUrlsTitlesAndSelected(seedUrlsInput, seedUrlTitlesInput, seedUrlSelectedInput) {
+  const seedUrls = sanitizeSeedUrlsList(seedUrlsInput);
+  const seedUrlTitles = sanitizeSeedUrlTitlesList(seedUrlTitlesInput);
+  const seedUrlSelected = sanitizeSeedUrlSelectedList(seedUrlSelectedInput);
+
+  const outSeedUrls = [];
+  const outSeedUrlTitles = [];
+  const outSeedUrlSelected = [];
+
+  for (let i = 0; i < seedUrls.length; i += 1) {
+    const url = typeof seedUrls[i] === "string" ? seedUrls[i].trim() : "";
+    if (!url) continue;
+    const title = typeof seedUrlTitles[i] === "string" ? seedUrlTitles[i].trim() : "";
+    const selected = typeof seedUrlSelected[i] === "boolean" ? seedUrlSelected[i] : true;
+    outSeedUrls.push(url);
+    outSeedUrlTitles.push(title);
+    outSeedUrlSelected.push(selected);
+  }
+
+  return {
+    seedUrls: outSeedUrls,
+    seedUrlTitles: outSeedUrlTitles,
+    seedUrlSelected: outSeedUrlSelected,
+  };
 }
 
 export function splitSeedUrlsBySourceType(input) {
@@ -97,6 +150,7 @@ function sanitizeLiteratureSettings(input) {
   const seedUrlTitles = sanitizeSeedUrlTitlesList(src.seedUrlTitles);
   const seedUrlsUnified = sanitizeSeedUrlsList(src.seedUrlsUnified);
   const seedUrlTitlesUnified = sanitizeSeedUrlTitlesList(src.seedUrlTitlesUnified);
+  const seedUrlSelectedUnified = sanitizeSeedUrlSelectedList(src.seedUrlSelectedUnified);
 
   const seedSourceRaw = src.seedSource;
   const seedSource = seedSourceRaw === "nature" || seedSourceRaw === "science" ? seedSourceRaw : null;
@@ -172,6 +226,7 @@ function sanitizeLiteratureSettings(input) {
     seedUrlTitlesBySourceType,
     seedUrlsUnified,
     seedUrlTitlesUnified,
+    seedUrlSelectedUnified,
     startDate,
     endDate,
     maxResults,
@@ -191,12 +246,17 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
 
   const existingSeedUrlsUnifiedRaw = next.seedUrlsUnified;
   const existingSeedUrlTitlesUnifiedRaw = next.seedUrlTitlesUnified;
-  const existingUnifiedPaired = pairSeedUrlsAndTitles(
+  const existingUnifiedPaired = pairSeedUrlsTitlesAndSelected(
     existingSeedUrlsUnifiedRaw,
     existingSeedUrlTitlesUnifiedRaw,
+    next.seedUrlSelectedUnified,
   );
   next.seedUrlsUnified = existingUnifiedPaired.seedUrls;
   next.seedUrlTitlesUnified = existingUnifiedPaired.seedUrlTitles;
+  next.seedUrlSelectedUnified = normalizeSeedUrlSelectedList(
+    existingUnifiedPaired.seedUrlSelected,
+    next.seedUrlsUnified.length,
+  );
 
   const existingSeedUrlsBySourceTypeRaw = next.seedUrlsBySourceType;
   if (isPlainObject(existingSeedUrlsBySourceTypeRaw)) {
@@ -245,6 +305,7 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     const paired = pairSeedUrlsAndTitles(next.seedUrlsUnified, next.seedUrlTitlesUnified);
     next.seedUrlsUnified = paired.seedUrls;
     next.seedUrlTitlesUnified = paired.seedUrlTitles;
+    next.seedUrlSelectedUnified = normalizeSeedUrlSelectedList(null, next.seedUrlsUnified.length);
   }
 
   if (next.sourceType !== "science" && next.sourceType !== "nature") {
@@ -296,7 +357,8 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
 
   const hasUnifiedSeedPatch =
     Object.prototype.hasOwnProperty.call(patch, "seedUrlsUnified") ||
-    Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesUnified");
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesUnified") ||
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlSelectedUnified");
 
   if (hasUnifiedSeedPatch) {
     const baseSeedUrlsUnified = Object.prototype.hasOwnProperty.call(patch, "seedUrlsUnified")
@@ -305,10 +367,18 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     const baseSeedUrlTitlesUnified = Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesUnified")
       ? sanitized.seedUrlTitlesUnified
       : next.seedUrlTitlesUnified;
+    const baseSeedUrlSelectedUnified = Object.prototype.hasOwnProperty.call(patch, "seedUrlSelectedUnified")
+      ? sanitized.seedUrlSelectedUnified
+      : next.seedUrlSelectedUnified;
 
-    const paired = pairSeedUrlsAndTitles(baseSeedUrlsUnified, baseSeedUrlTitlesUnified);
+    const paired = pairSeedUrlsTitlesAndSelected(
+      baseSeedUrlsUnified,
+      baseSeedUrlTitlesUnified,
+      baseSeedUrlSelectedUnified,
+    );
     next.seedUrlsUnified = paired.seedUrls;
     next.seedUrlTitlesUnified = paired.seedUrlTitles;
+    next.seedUrlSelectedUnified = normalizeSeedUrlSelectedList(paired.seedUrlSelected, next.seedUrlsUnified.length);
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, "seedUrls")) {
@@ -355,7 +425,27 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     );
   }
 
-  if (!hasUnifiedSeedPatch) {
+  const hasNonUnifiedSeedPatch =
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlsBySourceType") ||
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesBySourceType") ||
+    Object.prototype.hasOwnProperty.call(patch, "seedUrls") ||
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlTitles") ||
+    Object.prototype.hasOwnProperty.call(patch, "seedSource") ||
+    Object.prototype.hasOwnProperty.call(patch, "sourceType");
+
+  if (!hasUnifiedSeedPatch && hasNonUnifiedSeedPatch) {
+    const previousSelectionByUrl = (() => {
+      const map = new Map();
+      const urls = Array.isArray(next.seedUrlsUnified) ? next.seedUrlsUnified : [];
+      const selected = Array.isArray(next.seedUrlSelectedUnified) ? next.seedUrlSelectedUnified : [];
+      for (let i = 0; i < urls.length; i += 1) {
+        const url = typeof urls[i] === "string" ? urls[i].trim() : "";
+        if (!url) continue;
+        map.set(url, typeof selected[i] === "boolean" ? selected[i] : true);
+      }
+      return map;
+    })();
+
     next.seedUrlsUnified = [
       ...sanitizeSeedUrlsList(next.seedUrlsBySourceType.nature),
       ...sanitizeSeedUrlsList(next.seedUrlsBySourceType.science),
@@ -373,6 +463,9 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     const paired = pairSeedUrlsAndTitles(next.seedUrlsUnified, next.seedUrlTitlesUnified);
     next.seedUrlsUnified = paired.seedUrls;
     next.seedUrlTitlesUnified = paired.seedUrlTitles;
+    next.seedUrlSelectedUnified = next.seedUrlsUnified.map(
+      (url) => previousSelectionByUrl.get(url) ?? true,
+    );
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, "sourceType")) {
@@ -442,9 +535,17 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
   };
   if (typeof next.startDate !== "string") next.startDate = "";
   if (typeof next.endDate !== "string") next.endDate = "";
-  const finalUnifiedPaired = pairSeedUrlsAndTitles(next.seedUrlsUnified, next.seedUrlTitlesUnified);
+  const finalUnifiedPaired = pairSeedUrlsTitlesAndSelected(
+    next.seedUrlsUnified,
+    next.seedUrlTitlesUnified,
+    next.seedUrlSelectedUnified,
+  );
   next.seedUrlsUnified = finalUnifiedPaired.seedUrls;
   next.seedUrlTitlesUnified = finalUnifiedPaired.seedUrlTitles;
+  next.seedUrlSelectedUnified = normalizeSeedUrlSelectedList(
+    finalUnifiedPaired.seedUrlSelected,
+    next.seedUrlsUnified.length,
+  );
 
   next.seedUrlsBySourceType = splitSeedUrlsBySourceType(next.seedUrlsUnified);
   const titlesBySource = splitSeedUrlTitlesBySourceTypeFromUnified(

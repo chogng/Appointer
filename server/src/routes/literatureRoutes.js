@@ -30,6 +30,7 @@ import {
 import {
   mergeLiteratureSettings,
   sanitizeSeedUrlsList,
+  sanitizeSeedUrlSelectedList,
   sanitizeSeedUrlTitlesList,
   splitSeedUrlsBySourceType,
 } from "../literatureSettings.js";
@@ -139,6 +140,13 @@ export default function createLiteratureRoutes() {
         seedUrlTitlesUnified.push("");
       }
 
+      const seedUrlSelectedUnifiedRaw = Array.isArray(config?.seedUrlSelectedUnified)
+        ? sanitizeSeedUrlSelectedList(config.seedUrlSelectedUnified)
+        : [];
+      const seedUrlSelectedUnified = seedUrlsUnified.map(
+        (_, idx) => (typeof seedUrlSelectedUnifiedRaw[idx] === "boolean" ? seedUrlSelectedUnifiedRaw[idx] : true),
+      );
+
       const storedSourceType =
         config?.sourceType === "science" || config?.sourceType === "nature"
           ? config.sourceType
@@ -203,6 +211,7 @@ export default function createLiteratureRoutes() {
       res.json({
         seedUrlsUnified,
         seedUrlTitlesUnified,
+        seedUrlSelectedUnified,
         seedUrlsBySourceType,
         seedUrlTitlesBySourceType,
         sourceType,
@@ -320,6 +329,13 @@ export default function createLiteratureRoutes() {
         seedUrlTitlesUnified.push("");
       }
 
+      const seedUrlSelectedUnifiedRaw = Array.isArray(settings?.seedUrlSelectedUnified)
+        ? sanitizeSeedUrlSelectedList(settings.seedUrlSelectedUnified)
+        : [];
+      const seedUrlSelectedUnified = seedUrlsUnified.map(
+        (_, idx) => (typeof seedUrlSelectedUnifiedRaw[idx] === "boolean" ? seedUrlSelectedUnifiedRaw[idx] : true),
+      );
+
       const sourceType =
         settings?.sourceType === "science" || settings?.sourceType === "nature"
           ? settings.sourceType
@@ -328,6 +344,7 @@ export default function createLiteratureRoutes() {
       res.json({
         seedUrlsUnified,
         seedUrlTitlesUnified,
+        seedUrlSelectedUnified,
         seedUrlsBySourceType,
         seedUrlTitlesBySourceType,
         sourceType,

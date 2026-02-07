@@ -74,7 +74,7 @@ const DatePicker = ({
           ariaLabel === "start date" || ariaLabel === "end date"
             ? {
                 cta: "Literature research",
-                ctaPosition: "date filter warp",
+                ctaPosition: "date filter wrap",
                 ctaCopy: ariaLabel,
               }
             : null;
