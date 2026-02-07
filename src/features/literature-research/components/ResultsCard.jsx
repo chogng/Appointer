@@ -22,8 +22,6 @@ const ResultsCard = ({
   onExportJson,
   onClearPageSession,
   isAnyTranslationInFlight,
-  selectedIdSet,
-  getLiteratureItemId,
   renderResultCards,
 }) => {
   const { t } = useLanguage();
@@ -186,12 +184,6 @@ const ResultsCard = ({
         {groupedResults
           .filter((group) => Array.isArray(group?.visibleItems) && group.visibleItems.length > 0)
           .map((group) => {
-            let groupSelectedCount = 0;
-            for (const item of group.allItems || []) {
-              const id = getLiteratureItemId(item);
-              if (id && selectedIdSet.has(id)) groupSelectedCount += 1;
-            }
-
             return (
               <Card key={group.key} className="mt-4">
                 <div className="flex items-start justify-between gap-4">
@@ -203,19 +195,6 @@ const ResultsCard = ({
                       data-group-key={group.key}
                     >
                       {group.title}
-                    </div>
-                    <div
-                      className="mt-1 text-xs text-text-secondary truncate"
-                      title={group.seedUrl || ""}
-                      data-group-key={group.key}
-                    >
-                      {group.seedUrl || "-"}
-                    </div>
-                    <div
-                      className="mt-1 text-xs text-text-secondary"
-                      data-group-key={group.key}
-                    >
-                      {group.visibleItems.length}/{group.allItems.length} • {groupSelectedCount} selected
                     </div>
                   </div>
                 </div>
