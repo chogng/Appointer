@@ -50,7 +50,9 @@ async function fetchText(url, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   );
 
   if (!res.ok) {
-    const err = new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+    const err = new Error(
+      `Fetch failed: ${res.status} ${res.statusText} (${String(url)})`,
+    );
     err.status = res.status;
     throw err;
   }
@@ -506,6 +508,8 @@ function parseNatureNextPageUrl(html, currentUrl) {
     if (!href) continue;
     try {
       const nextUrl = new URL(href, currentUrl);
+      if (!nextUrl.hostname.endsWith("nature.com")) return null;
+      if (/^\/articles\/[^/]+$/i.test(nextUrl.pathname)) return null;
       nextUrl.hash = "";
       return nextUrl.toString();
     } catch {
@@ -551,18 +555,29 @@ async function _fetchNatureArticleDetails(articleUrl) {
   };
 }
 
-function scienceSeedToRssUrl(seedUrl) {
+function scienceSeedToRssConfig(seedUrl) {
   try {
     const url = new URL(seedUrl);
     if (
       url.hostname === "science.org" ||
       url.hostname === "www.science.org"
     ) {
-      if (url.pathname.startsWith("/action/showFeed")) return url.toString();
+      if (url.pathname.startsWith("/action/showFeed")) {
+        return { rssUrl: url.toString(), mode: "etoc" };
+      }
 
       const journalMatch = url.pathname.match(/^\/journal\/([a-z0-9-]+)\/?$/i);
       const jc = journalMatch ? journalMatch[1] : "science";
-      return `https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=${encodeURIComponent(jc)}`;
+      if (url.pathname.startsWith("/commentary/")) {
+        return {
+          rssUrl: `https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=${encodeURIComponent(jc)}`,
+          mode: "commentary",
+        };
+      }
+      return {
+        rssUrl: `https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=${encodeURIComponent(jc)}`,
+        mode: "etoc",
+      };
     }
   } catch {
     // ignore
@@ -641,6 +656,10 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
     const publishedDate = normalizeDateInput(dateMatch ? dateMatch[1] : "");
 
     let coverDate = null;
+    const prismCoverDateMatch = body.match(/<prism:coverDate>([\s\S]*?)<\/prism:coverDate>/i);
+    if (prismCoverDateMatch) {
+      coverDate = normalizeDateInput(prismCoverDateMatch[1]);
+    }
     if (deriveCoverDateFromDescription) {
       const descMatch = body.match(/<description>([\s\S]*?)<\/description>/i);
       const descText = descMatch ? normalizeText(descMatch[1]) : "";
@@ -667,6 +686,9 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
     const journalMatch = body.match(/<dc:source>([\s\S]*?)<\/dc:source>/i);
     const journalTitle = journalMatch ? normalizeText(journalMatch[1]) : "";
 
+    const typeMatch = body.match(/<dc:type>([\s\S]*?)<\/dc:type>/i);
+    const itemType = typeMatch ? normalizeText(typeMatch[1]) : "";
+
     if (!doi || !title) continue;
     const articleUrl = normalizeUrlString(link || about) || (link || about);
     items.push({
@@ -676,6 +698,7 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
       articleUrl,
       journalTitle: journalTitle || null,
       coverDate,
+      itemType: itemType || null,
     });
   }
 
@@ -1014,7 +1037,18 @@ export async function searchLiterature({
         visitedPages.add(pageUrl);
         pageCount += 1;
 
-        const html = await fetchText(pageUrl);
+        let html = "";
+        try {
+          html = await fetchText(pageUrl);
+        } catch (err) {
+          const status = Number(err?.status);
+          const canTreatAsEnd =
+            (status === 404 || status === 410) &&
+            pageCount > 1 &&
+            perSeedSeenArticles.size > 0;
+          if (canTreatAsEnd) break;
+          throw err;
+        }
         if (!journalTitle || !sectionTitle) {
           const ctx = parseNatureListingContextFromHtml(html);
           if (!sectionTitle && ctx.sectionTitle) sectionTitle = ctx.sectionTitle;
@@ -1110,17 +1144,33 @@ export async function searchLiterature({
     }
 
     if (url.hostname.endsWith("science.org")) {
-      const rssUrl = scienceSeedToRssUrl(seedUrl);
-      if (!rssUrl) continue;
+      const rssConfig = scienceSeedToRssConfig(seedUrl);
+      if (!rssConfig?.rssUrl) continue;
 
-      const xml = await fetchText(rssUrl);
+      const xml = await fetchText(rssConfig.rssUrl);
       const feedItems = parseScienceRssItems(xml)
-        .filter((i) => !i.publishedDate || isDateInRange(i.publishedDate, start, end))
+        .filter((i) => {
+          const date = i.coverDate || i.publishedDate || null;
+          return !date || isDateInRange(date, start, end);
+        })
+        .filter((i) => {
+          if (rssConfig.mode !== "commentary") return true;
+          const type = typeof i?.itemType === "string" ? i.itemType.trim() : "";
+          if (!type) return true;
+          if (type === "Research Article") return false;
+          if (type === "Retraction") return false;
+          return true;
+        })
         .slice(0, 300);
 
       const enriched = await mapWithConcurrency(feedItems, 4, async (i) => {
-        const meta = await fetchCrossrefWork(i.doi);
-        const publishedDate = meta.publishedDate || i.publishedDate || null;
+        let meta = null;
+        try {
+          meta = await fetchCrossrefWork(i.doi);
+        } catch {
+          meta = null;
+        }
+        const publishedDate = meta?.publishedDate || i.coverDate || i.publishedDate || null;
         if (publishedDate && !isDateInRange(publishedDate, start, end)) {
           return null;
         }
@@ -1132,12 +1182,13 @@ export async function searchLiterature({
           id,
           source: "science",
           seedUrl,
-          title: meta.title || i.title || id,
+          title: meta?.title || i.title || id,
           articleUrl,
           publishedDate,
-          abstract: meta.abstract,
-          pdfUrl: meta.pdfUrl,
+          abstract: meta?.abstract ?? null,
+          pdfUrl: meta?.pdfUrl ?? null,
           doi: i.doi,
+          itemType: i.itemType || null,
         };
       });
 
