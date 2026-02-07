@@ -19,7 +19,6 @@ const ResultsCard = ({
   visibleResultsLength,
   exportDocxLabel,
   onExportDocx,
-  onExportJson,
   onClearPageSession,
   isAnyTranslationInFlight,
   renderResultCards,
@@ -130,27 +129,6 @@ const ResultsCard = ({
                   <FileDown size={16} />
                 )}
                 {exportDocxLabel}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              id="literature-export-json"
-              data-icon="with"
-              data-cta="Literature research"
-              data-cta-position="result"
-              data-cta-copy="export json"
-              className={`action-btn action-btn--md ${
-                isExportingDocx || selectedCount === 0 ? "action-btn--disabled" : "action-btn--primary"
-              }`}
-              aria-label={t("literature_export_json")}
-              title={t("literature_export_json")}
-              onClick={onExportJson}
-              disabled={isExportingDocx || selectedCount === 0}
-            >
-              <span className="action-btn__content">
-                <FileDown size={16} />
-                {"JSON"}
               </span>
             </button>
 
