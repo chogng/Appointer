@@ -198,8 +198,8 @@ const Toast = ({
       className={`
                 transform -translate-x-1/2 z-[60]
                 flex items-center gap-3
-                bg-white/90 backdrop-blur-xl
-                border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.12)]
+                bg-bg-surface/90 backdrop-blur-xl
+                border border-border-subtle/60 shadow-[0_8px_30px_rgb(0,0,0,0.12)]
                 pl-4 pr-3 py-3 rounded-2xl min-w-[340px] max-w-[420px]
                 ${isClosing ? "animate-slide-down" : "animate-slide-up"}
                 ${Object.keys(positionStyle).length === 0 ? (position === "fixed" ? "fixed bottom-8 left-1/2" : "absolute bottom-0 left-1/2") : ""}
@@ -212,7 +212,7 @@ const Toast = ({
         {message}
       </span>
 
-      <div className="flex items-center gap-3 pl-3 border-l border-black/5">
+      <div className="flex items-center gap-3 pl-3 border-l border-border-subtle/60">
         {actionText && onAction && (
           <button
             type="button"
@@ -228,7 +228,7 @@ const Toast = ({
           onClick={onClose}
           aria-label="Close toast"
           data-ui={uiMarker ? `${uiMarker}-close` : undefined}
-          className="text-text-tertiary hover:text-text-primary hover:bg-black/5 rounded-full p-1 transition-all"
+          className="text-text-tertiary hover:text-text-primary hover:bg-bg-surface-hover/60 rounded-full p-1 transition-all"
         >
           <X size={16} aria-hidden="true" />
         </button>

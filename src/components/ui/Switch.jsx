@@ -47,7 +47,7 @@ const Switch = ({
       <span
         aria-hidden="true"
         className={`
-          pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 block h-5 w-5 transform rounded-full bg-white shadow ring-0 
+          pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 block h-5 w-5 transform rounded-full bg-bg-surface shadow ring-0 
           transition duration-200 ease-in-out
           ${checked ? "translate-x-5" : "translate-x-0.5"}
         `}

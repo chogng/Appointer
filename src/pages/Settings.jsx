@@ -23,7 +23,7 @@ import {
 function Section({ title, icon, children }) {
   const Icon = icon;
   return (
-    <Card className="mb-6 bg-white">
+    <Card className="mb-6 bg-bg-surface">
       <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border-subtle">
         <Icon size={20} className="text-accent" />
         <h2 className="text-lg font-medium text-text-primary">{title}</h2>

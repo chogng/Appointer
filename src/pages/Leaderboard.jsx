@@ -23,15 +23,15 @@ const PodiumCard = ({ user, rank }) => {
   const isThird = rank === 3;
 
   let containerClasses = "mt-4 h-[280px]";
-  let cardClasses = "bg-white/60 border-white/40";
-  let ringColor = "ring-gray-200";
+  let cardClasses = "bg-bg-surface/60 border-border-subtle/60";
+  let ringColor = "ring-border-subtle/80";
   let icon = null;
   let rankColor = "text-text-tertiary";
 
   if (isFirst) {
     containerClasses = "h-[320px] -mt-4 z-10"; // Elevated
     cardClasses =
-      "bg-gradient-to-b from-yellow-50/80 to-white/80 border-yellow-200/60 shadow-xl shadow-yellow-500/10";
+      "bg-gradient-to-b from-yellow-500/15 to-bg-surface/80 border-yellow-500/25 shadow-xl shadow-yellow-500/10";
     ringColor = "ring-yellow-300";
     icon = (
       <Crown className="w-8 h-8 text-yellow-500 fill-yellow-500 animate-bounce-slow" />
@@ -40,14 +40,14 @@ const PodiumCard = ({ user, rank }) => {
   } else if (isSecond) {
     containerClasses = "mt-4 h-[280px]";
     cardClasses =
-      "bg-gradient-to-b from-slate-50/80 to-white/80 border-slate-200/60 shadow-lg";
+      "bg-gradient-to-b from-slate-500/10 to-bg-surface/80 border-slate-500/20 shadow-lg";
     ringColor = "ring-slate-300";
     icon = <Medal className="w-6 h-6 text-slate-400" />;
     rankColor = "text-slate-400/20";
   } else if (isThird) {
     containerClasses = "mt-8 h-[260px]";
     cardClasses =
-      "bg-gradient-to-b from-orange-50/80 to-white/80 border-orange-200/60 shadow-lg";
+      "bg-gradient-to-b from-orange-500/12 to-bg-surface/80 border-orange-500/25 shadow-lg";
     ringColor = "ring-orange-300";
     icon = <Medal className="w-6 h-6 text-amber-600" />;
     rankColor = "text-amber-600/20";
@@ -75,7 +75,7 @@ const PodiumCard = ({ user, rank }) => {
 
         {/* Avatar */}
         <div
-          className={`p-1 rounded-full ring-4 ${ringColor} bg-white relative z-10 mb-4 shadow-sm`}
+          className={`p-1 rounded-full ring-4 ${ringColor} bg-bg-surface relative z-10 mb-4 shadow-sm`}
         >
           <Avatar name={user.name} className="w-20 h-20 text-2xl" />
         </div>
@@ -86,7 +86,7 @@ const PodiumCard = ({ user, rank }) => {
             {user.name}
           </h3>
 
-          <div className="mt-4 flex items-center justify-center gap-2 text-indigo-600 bg-indigo-50/50 py-1.5 px-4 rounded-xl">
+          <div className="mt-4 flex items-center justify-center gap-2 text-accent bg-accent/10 py-1.5 px-4 rounded-xl">
             <Timer className="w-4 h-4" />
             <span className="font-bold font-mono text-lg">
               {user.totalHours}
@@ -156,7 +156,7 @@ const Leaderboard = () => {
       </div>
 
       {/* List Section */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/60 shadow-sm overflow-hidden">
+      <div className="bg-bg-surface/60 backdrop-blur-xl rounded-[32px] border border-border-subtle/60 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -172,10 +172,10 @@ const Leaderboard = () => {
                 restUsers.map((user, index) => (
                   <tr
                     key={user.id}
-                    className="hover:bg-white/50 transition-colors duration-200 group"
+                    className="hover:bg-bg-surface-hover/60 transition-colors duration-200 group"
                   >
                     <td className="py-4 px-8">
-                      <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center font-mono font-bold text-text-secondary text-sm">
+                      <div className="w-8 h-8 rounded-full bg-bg-surface-hover/60 flex items-center justify-center font-mono font-bold text-text-secondary text-sm">
                         {index + 4}
                       </div>
                     </td>
@@ -183,7 +183,7 @@ const Leaderboard = () => {
                       <div className="flex items-center gap-4">
                         <Avatar
                           name={user.name}
-                          className="w-10 h-10 ring-2 ring-white shadow-sm group-hover:scale-110 transition-transform duration-300"
+                          className="w-10 h-10 ring-2 ring-border-subtle/60 shadow-sm group-hover:scale-110 transition-transform duration-300"
                         />
                         <div className="min-w-0">
                           <div className="font-semibold truncate text-base">
@@ -200,7 +200,7 @@ const Leaderboard = () => {
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                           user.role === "ADMIN" || user.role === "SUPER_ADMIN"
                             ? "bg-purple-100 text-purple-700 border-purple-200"
-                            : "bg-gray-100 text-gray-600 border-gray-200"
+                            : "bg-bg-100 text-text-secondary border-border-subtle"
                         }`}
                       >
                         {user.role || "USER"}
@@ -208,7 +208,7 @@ const Leaderboard = () => {
                     </td>
                     <td className="py-4 px-8 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <span className="font-mono font-bold text-lg text-indigo-900">
+                        <span className="font-mono font-bold text-lg text-text-primary">
                           {user.totalHours}
                         </span>
                         <span className="text-xs font-medium text-text-tertiary uppercase">

@@ -35,7 +35,7 @@ const BookingGranularity = ({ value, onChange, isAdmin }) => {
 
     return (
         <div className="flex items-center gap-1.5 min-w-0">
-            <GranularityIcon size={18} className="text-gray-400 shrink-0" />
+            <GranularityIcon size={18} className="text-text-tertiary shrink-0" />
             <Dropdown
                 options={GRANULARITY_OPTIONS}
                 value={currentValue}

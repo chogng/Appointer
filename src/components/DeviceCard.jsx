@@ -180,7 +180,7 @@ const DeviceCard = ({
                             backdrop-blur-md shadow-lg active:scale-90 hover:scale-105
                             ${device.isEnabled
                 ? "bg-gradient-to-br from-white/90 to-white/50 dark:from-green-500/20 dark:to-green-900/10"
-                : "bg-gray-100/80 dark:bg-gray-800/50"
+                : "bg-bg-100/80"
               }
                         `}
           >
@@ -189,7 +189,7 @@ const DeviceCard = ({
                             transition-colors duration-300
                             ${device.isEnabled
                   ? "text-[#7FB77E] dark:text-green-400"
-                  : "text-gray-400 dark:text-gray-500"
+                  : "text-text-tertiary"
                 }
                         `}
             >
@@ -197,9 +197,9 @@ const DeviceCard = ({
             </div>
           </div>
         ) : (
-          <div className="w-[2.5rem] h-[2.5rem] sm:w-[3rem] sm:h-[3rem] rounded-[0.5rem] bg-white/60 dark:bg-green-900/10 backdrop-blur-md flex items-center justify-center border border-green-100/50 dark:border-green-500/10 transition-transform duration-300">
+          <div className="w-[2.5rem] h-[2.5rem] sm:w-[3rem] sm:h-[3rem] rounded-[0.5rem] bg-bg-surface/60 dark:bg-green-900/10 backdrop-blur-md flex items-center justify-center border border-green-100/50 dark:border-green-500/10 transition-transform duration-300">
             <DeviceIcon
-              className={`w-[1.25rem] h-[1.25rem] sm:w-[1.5rem] sm:h-[1.5rem] ${device.isEnabled ? "text-[#7FB77E] dark:text-green-400" : "text-gray-400"}`}
+              className={`w-[1.25rem] h-[1.25rem] sm:w-[1.5rem] sm:h-[1.5rem] ${device.isEnabled ? "text-[#7FB77E] dark:text-green-400" : "text-text-tertiary"}`}
             />
           </div>
         )}
@@ -207,7 +207,7 @@ const DeviceCard = ({
           <div className="flex justify-between items-start gap-2">
             {isAdmin ? (
               <div className="relative flex-1 min-w-0 z-10">
-                <div className="flex items-center p-1 bg-transparent rounded-xl focus-within:ring-1 focus-within:ring-black transition-all">
+                <div className="flex items-center p-1 bg-transparent rounded-xl focus-within:ring-1 focus-within:ring-accent-focus/30 transition-all">
                   <input
                     id={`device-name-${device.id}`}
                     name="deviceName"
@@ -229,7 +229,7 @@ const DeviceCard = ({
                       e.preventDefault();
                       handleSaveAll();
                     }}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-black text-white text-xs sm:text-sm font-medium rounded-lg hover:scale-102 active:scale-95 transition-all whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-bg-primary hover:bg-accent-hover text-white text-xs sm:text-sm font-medium rounded-lg hover:scale-102 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <span>{t("save")}</span>
                     <ArrowUp size={14} />
@@ -272,7 +272,7 @@ const DeviceCard = ({
           {isAdmin ? (
             <div className="flex items-center gap-2 mt-[0.125rem] sm:mt-[0.25rem] z-10 w-full">
               <div className="relative flex-1 min-w-0">
-                <div className="flex items-center p-1 bg-transparent rounded-lg focus-within:ring-1 focus-within:ring-black transition-all">
+                <div className="flex items-center p-1 bg-transparent rounded-lg focus-within:ring-1 focus-within:ring-accent-focus/30 transition-all">
                   <input
                     id={`device-desc-${device.id}`}
                     name="deviceDescription"
@@ -327,9 +327,9 @@ const DeviceCard = ({
           <Button
             variant={deleteConfirmId === device.id ? "danger" : "secondary"}
             onClick={(e) => onDeleteClick(device.id, e)}
-            className={`flex-1 text-[0.875rem] sm:text-base transition-all duration-300 ${deleteConfirmId === device.id
+              className={`flex-1 text-[0.875rem] sm:text-base transition-all duration-300 ${deleteConfirmId === device.id
                 ? "bg-red-600 shadow-red-200 border-transparent shadow-lg text-white"
-                : "bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm"
+                : "bg-bg-surface/40 hover:bg-text-danger/10 hover:text-text-danger hover:border-text-danger/20 border-border-subtle backdrop-blur-sm"
               }`}
             title={
               deleteConfirmId === device.id ? t("confirm") : t("deleteDevice")

@@ -205,7 +205,7 @@ const DataPreviewTable = ({ processedData }) => {
             className={`
               px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
               ${effectiveActiveFileId === file.fileId
-                ? "bg-accent/10 text-accent ring-1 ring-black"
+                ? "bg-accent/10 text-accent ring-1 ring-accent/30"
                 : "text-text-secondary hover:text-text-primary hover:bg-bg-page"
               }
             `}
@@ -233,7 +233,7 @@ const DataPreviewTable = ({ processedData }) => {
           value={effectiveActiveSeriesId ?? ""}
           onChange={(e) => setActiveSeriesId(e.target.value)}
           disabled={!activeFile?.series?.length}
-          className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black max-w-[260px]"
+          className="bg-bg-page border border-border rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 max-w-[260px]"
           title={t("da_select_series")}
         >
           {activeFile?.series?.map((s) => (

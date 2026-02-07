@@ -129,8 +129,8 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
 
   if (!isAdmin) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-        <TimeIcon size={18} className="text-gray-400" />
+      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+        <TimeIcon size={18} className="text-text-tertiary" />
         <span>
           {startTime} - {endTime}
         </span>
@@ -142,7 +142,7 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
 
   return (
     <div className="flex items-center gap-2 flex-1 min-w-0">
-      <TimeIcon size={18} className="text-gray-400 shrink-0" />
+      <TimeIcon size={18} className="text-text-tertiary shrink-0" />
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Dropdown
           options={timeOptions}
@@ -154,7 +154,7 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
           align="center"
           popupClassName="min-w-[8.75rem]"
         />
-        <span className="text-gray-400">-</span>
+        <span className="text-text-tertiary">-</span>
         <Dropdown
           options={timeOptions}
           value={endTime}

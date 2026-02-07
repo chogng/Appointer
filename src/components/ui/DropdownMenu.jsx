@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 const DEFAULT_MENU_CLASSNAME =
-  "absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto p-1.5";
+  "absolute top-full left-0 right-0 mt-2 bg-bg-surface text-text-primary border border-border-subtle rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto p-1.5";
 
 const DropdownMenu = ({
   isOpen,
@@ -59,4 +59,3 @@ const DropdownMenu = ({
 };
 
 export default DropdownMenu;
-

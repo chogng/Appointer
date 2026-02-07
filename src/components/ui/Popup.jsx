@@ -69,7 +69,7 @@ const Popup = ({
                 tabIndex={-1}
                 className={`
                     rounded-[1rem] shadow-premium py-[0.5rem] pl-[0.5rem] pr-[0.125rem]
-                    bg-white/70 backdrop-blur-md
+                    bg-bg-surface/70 backdrop-blur-md
                     transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]
                     ${align === 'right' ? 'origin-top-right' : align === 'center' ? 'origin-top' : 'origin-top-left'}
                     ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-[10px] scale-95'}

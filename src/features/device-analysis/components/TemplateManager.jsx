@@ -2124,7 +2124,7 @@ const TemplateManager = ({
                           className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-0.5 last:mb-0"
                           onClick={() => loadTemplate(t)}
                         >
-                          <span className="flex-1 text-sm text-gray-700 font-medium truncate">
+                          <span className="flex-1 text-sm text-text-primary font-medium truncate">
                             {t.name}
                           </span>
                           <button
@@ -2143,7 +2143,7 @@ const TemplateManager = ({
                         </div>
                       ))
                     ) : (
-                      <div className="px-3 py-2 text-sm text-gray-500 italic text-center">
+                      <div className="px-3 py-2 text-sm text-text-secondary italic text-center">
                         No saved templates
                       </div>
                     )}
@@ -2246,7 +2246,7 @@ const TemplateManager = ({
                   type="button"
                   onClick={copySelection}
                   disabled={selections.length === 0}
-                  className="p-1.5 rounded-md border border-border bg-bg-surface hover:bg-bg-page text-text-secondary hover:text-black disabled:opacity-50 transition-colors"
+                  className="p-1.5 rounded-md border border-border bg-bg-surface hover:bg-bg-page text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
                   title="Copy selection as TSV"
                 >
                   <Copy size={14} />
@@ -2257,7 +2257,7 @@ const TemplateManager = ({
             {previewStatus?.state === "loading" ? (
               <div
                 id="device-analysis-preview-placeholder"
-                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50"
+                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50"
               >
                 <Avatar
                   icon={FileSpreadsheet}
@@ -2275,7 +2275,7 @@ const TemplateManager = ({
             ) : previewStatus?.state === "error" ? (
               <div
                 id="device-analysis-preview-placeholder"
-                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50"
+                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50"
               >
                 <Avatar
                   icon={FileSpreadsheet}
@@ -2388,7 +2388,7 @@ const TemplateManager = ({
                                       />
                                     </div>
                                   ) : (
-                                    <div className="w-3.5 h-3.5 rounded border border-gray-300 group-hover:border-accent-terracotta/50 transition-colors bg-white" />
+                                    <div className="w-3.5 h-3.5 rounded border border-border-200 group-hover:border-accent-terracotta/50 transition-colors bg-bg-surface" />
                                   )}
                                 </div>
                                 <span>{getExcelColumnLabel(idx)}</span>
@@ -2438,7 +2438,7 @@ const TemplateManager = ({
             ) : (
               <div
                 id="device-analysis-preview-placeholder"
-                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-xl bg-gray-50/50"
+                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50"
               >
                 <Avatar
                   icon={FileSpreadsheet}

@@ -256,8 +256,8 @@ const MyReservations = () => {
           variant="glass"
           className="flex flex-col items-center justify-center py-16"
         >
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
-            <Calendar size={32} className="text-indigo-400 opacity-50" />
+          <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+            <Calendar size={32} className="text-accent opacity-60" />
           </div>
           <p className="text-text-secondary">
             {filterDeviceId === "all"
@@ -292,7 +292,7 @@ const MyReservations = () => {
                   className={`w-5 h-5 rounded border flex items-center justify-center transition-all duration-200 cursor-pointer ${
                     selectedIds.has(res.id)
                       ? "bg-accent border-accent text-white shadow-sm"
-                      : "bg-white border-gray-300 text-transparent hover:border-accent/60"
+                      : "bg-bg-surface border-border-200 text-transparent hover:border-accent/60"
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -371,7 +371,7 @@ const MyReservations = () => {
                       },
                     })
                   }
-                  className={`transition-all duration-300 ${viewMode === "list" ? "" : "flex-1"} bg-white/40 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 border-border-subtle backdrop-blur-sm`}
+                  className={`transition-all duration-300 ${viewMode === "list" ? "" : "flex-1"} bg-bg-surface/40 hover:bg-accent/10 hover:text-accent hover:border-accent/20 border-border-subtle backdrop-blur-sm`}
                 >
                   {t("view")}
                 </Button>
@@ -379,7 +379,7 @@ const MyReservations = () => {
                   variant="secondary"
                   size="sm"
                   onClick={() => handleCancel(res.id)}
-                  className={`transition-all duration-300 ${viewMode === "list" ? "" : "flex-1"} bg-white/40 hover:bg-red-50 hover:text-red-600 hover:border-red-100 border-border-subtle backdrop-blur-sm`}
+                  className={`transition-all duration-300 ${viewMode === "list" ? "" : "flex-1"} bg-bg-surface/40 hover:bg-text-danger/10 hover:text-text-danger hover:border-text-danger/20 border-border-subtle backdrop-blur-sm`}
                 >
                   {t("cancel")}
                 </Button>

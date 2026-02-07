@@ -131,8 +131,8 @@ const DatePicker = ({
                         absolute top-full ${
                           align === "right" ? "right-0" : "left-0"
                         } mt-2 z-50 
-                        bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl overflow-hidden 
-                        min-w-[320px] animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5
+                        bg-bg-surface/90 backdrop-blur-xl border border-border-subtle/60 shadow-2xl rounded-2xl overflow-hidden 
+                        min-w-[320px] animate-in fade-in zoom-in-95 duration-200 ring-1 ring-border-subtle/60
                     `}
         >
           <div className="relative z-10">
@@ -144,7 +144,7 @@ const DatePicker = ({
             <div className="flex items-center justify-between px-6 pb-4 pt-2">
               <button
                 onClick={handleClear}
-                className="text-xs text-text-tertiary hover:text-red-500 transition-colors px-2 py-1 rounded-md hover:bg-red-50"
+                className="text-xs text-text-tertiary hover:text-text-danger transition-colors px-2 py-1 rounded-md hover:bg-text-danger/10"
               >
                 {t?.("literature_clear") || "Clear"}
               </button>

@@ -276,7 +276,7 @@ const Users = () => {
                         ? "bg-purple-500/10 text-purple-500"
                         : u.role === "ADMIN"
                           ? "bg-blue-500/10 text-blue-500"
-                          : "bg-gray-500/10 text-gray-400"
+                          : "bg-bg-subtle/70 text-text-secondary"
                       }`}
                   >
                     <Shield size={12} />

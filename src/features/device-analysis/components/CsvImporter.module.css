@@ -36,7 +36,7 @@
 }
 
 .fileItemSelected {
-  @apply border-black;
+  @apply border-accent;
 }
 
 .fileContent {

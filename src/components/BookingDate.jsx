@@ -122,7 +122,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
   if (!isAdmin) {
     return (
       <div className="flex items-center gap-1.5">
-        <Calendar size={18} className="text-gray-400" />
+        <Calendar size={18} className="text-text-tertiary" />
         <div className="flex flex-wrap gap-1">
           {sortedDisplayDays.map((day) => (
             <span
@@ -140,7 +140,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
 
   return (
     <div className="flex items-center gap-3">
-      <Calendar size={18} className="text-gray-400" />
+      <Calendar size={18} className="text-text-tertiary" />
       <div className="flex flex-wrap gap-2">
         {getDays().map((day) => {
           const isSelected = selectedDays.includes(day.value);
@@ -153,7 +153,7 @@ const BookingDate = ({ device, onUpdate, isAdmin }) => {
                                 ${
                                   isSelected
                                     ? "bg-accent text-white shadow-lg shadow-black/5 scale-105"
-                                    : "bg-bg-100 text-gray-500 hover:bg-white hover:text-accent hover:shadow-sm"
+                                    : "bg-bg-100 text-text-secondary hover:bg-bg-surface hover:text-accent hover:shadow-sm"
                                 }
                             `}
             >

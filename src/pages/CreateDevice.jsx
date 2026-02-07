@@ -121,7 +121,7 @@ const CreateDevice = () => {
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder={t("deviceNamePlaceholder")}
               required
-              className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors placeholder:text-text-tertiary h-11 px-3 rounded-lg w-full outline-none"
+              className="bg-bg-subtle border border-border-subtle hover:border-border-200 focus:border-accent transition-colors placeholder:text-text-tertiary h-11 px-3 rounded-lg w-full outline-none"
             />
           </div>
 
@@ -135,7 +135,7 @@ const CreateDevice = () => {
               onChange={(e) => handleChange("description", e.target.value)}
               placeholder={t("deviceDescriptionPlaceholder")}
               rows={3}
-              className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors placeholder:text-text-tertiary px-3 py-2 rounded-lg w-full outline-none resize-none"
+              className="bg-bg-subtle border border-border-subtle hover:border-border-200 focus:border-accent transition-colors placeholder:text-text-tertiary px-3 py-2 rounded-lg w-full outline-none resize-none"
             />
           </div>
 
@@ -264,7 +264,7 @@ const CreateDevice = () => {
                     onChange={(e) =>
                       handleChange("specificTimeStart", e.target.value)
                     }
-                    className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors h-11 px-3 rounded-lg w-full outline-none"
+                    className="bg-bg-subtle border border-border-subtle hover:border-border-200 focus:border-accent transition-colors h-11 px-3 rounded-lg w-full outline-none"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -277,7 +277,7 @@ const CreateDevice = () => {
                     onChange={(e) =>
                       handleChange("specificTimeEnd", e.target.value)
                     }
-                    className="bg-bg-subtle border border-border-subtle hover:border-border-default focus:border-accent transition-colors h-11 px-3 rounded-lg w-full outline-none"
+                    className="bg-bg-subtle border border-border-subtle hover:border-border-200 focus:border-accent transition-colors h-11 px-3 rounded-lg w-full outline-none"
                   />
                 </div>
               </div>

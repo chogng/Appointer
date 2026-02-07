@@ -361,20 +361,20 @@ const WeeklyCalendar = ({
 
   return (
     <div
-      className={`flex flex-col bg-white h-full rounded-xl shadow-sm overflow-hidden border border-border-100 ${className}`}
+      className={`flex flex-col bg-bg-surface h-full rounded-xl shadow-sm overflow-hidden border border-border-100 ${className}`}
     >
       {/* ... (header) */}
       <div className="flex-1 relative flex flex-col min-h-0">
-        <div className="z-30 bg-white pr-[14px]">
+        <div className="z-30 bg-bg-surface pr-[14px]">
           <div className="grid grid-cols-[60px_8px_1fr] min-h-[24px]">
             {/* Top-left corner (Timezone) */}
-            <div className="border-border flex flex-col justify-end pb-1 px-1 bg-white">
+            <div className="border-border flex flex-col justify-end pb-1 px-1 bg-bg-surface">
               <span className="text-xs text-text-secondary">GMT+8</span>
             </div>
             {/* Spacer */}
             <div></div>
             {/* Days Header */}
-            <div className="grid grid-cols-7 bg-white">
+            <div className="grid grid-cols-7 bg-bg-surface">
               {weekDays.map((day, i) => {
                 const isToday = isSameDay(day, new Date());
                 return (
@@ -390,7 +390,7 @@ const WeeklyCalendar = ({
                     <div
                       className={`
                                             w-[46px] h-[46px] flex items-center justify-center rounded-full text-2xl
-                                            ${isToday ? "bg-accent text-white hover:bg-accent-600" : "text-text-primary hover:bg-bg-100"}
+                                            ${isToday ? "bg-accent text-white hover:bg-accent-hover" : "text-text-primary hover:bg-bg-100"}
                                             cursor-pointer transition-colors
                                         `}
                     >
@@ -402,7 +402,7 @@ const WeeklyCalendar = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-[60px_8px_1fr] border-border min-h-[20px] bg-white">
+          <div className="grid grid-cols-[60px_8px_1fr] border-border min-h-[20px] bg-bg-surface">
             <div className="p-1">{/* All Day Label */}</div>
             <div className="border-b border-border"></div>
             <div className="grid grid-cols-7 divide-x divide-border relative border-b border-border">
@@ -423,7 +423,7 @@ const WeeklyCalendar = ({
         <div className="flex-1 relative flex flex-col min-h-0 overflow-y-auto">
           <div className="grid grid-cols-[60px_8px_1fr] min-h-full">
             {/* Timeline Area */}
-            <div className="border-border bg-white select-none relative">
+            <div className="border-border bg-bg-surface select-none relative">
               {hours.map((hour) => (
                 <div key={hour} className="h-[50px] relative">
                   {hour !== 0 && (
@@ -436,7 +436,7 @@ const WeeklyCalendar = ({
             </div>
 
             {/* Gap Column */}
-            <div className="bg-white select-none" aria-hidden="true">
+            <div className="bg-bg-surface select-none" aria-hidden="true">
               {hours.map((hour) => (
                 <div
                   key={hour}

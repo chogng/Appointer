@@ -1313,7 +1313,7 @@ const LiteratureResearch = () => {
               toggleSelectedId(id);
             }}
             className={`border rounded-2xl p-5 shadow-sm cursor-pointer transition-all duration-200 ${isSelected
-              ? "border-black bg-black/5"
+              ? "border-accent bg-accent/5"
               : "border-border bg-bg-surface hover:shadow-md"
               }`}
           >

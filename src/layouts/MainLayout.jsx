@@ -349,7 +349,7 @@ const MainLayout = () => {
             type="button"
             className={`
               relative group w-8 h-8 -ml-1 flex items-center justify-center shrink-0 cursor-pointer rounded-md transition-colors 
-              ${isCollapsed ? "hover:bg-black/5" : ""}
+              ${isCollapsed ? "hover:bg-bg-surface-hover/60" : ""}
             `}
             onClick={() => isCollapsed && toggleSidebar()}
             aria-label={t("expandMenu")}
@@ -389,7 +389,7 @@ const MainLayout = () => {
             type="button"
             onClick={toggleSidebar}
             className={`
-                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-black/5 transition-opacity duration-100 ease-out motion-reduce:transition-none
+                             absolute right-4 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface-hover/60 transition-opacity duration-100 ease-out motion-reduce:transition-none
                              ${(isCollapsed || isSidebarAnimating)
                 ? "opacity-0 pointer-events-none"
                 : "opacity-100"
@@ -500,7 +500,7 @@ const MainLayout = () => {
           <button
             type="button"
             onClick={logout}
-            className="absolute p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-[top,left] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none -translate-y-1/2"
+            className="absolute p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface-hover/60 transition-[top,left] duration-250 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none -translate-y-1/2"
             style={{
               left: isCollapsed ? "23px" : "234px",
               top: isCollapsed ? "108px" : "48px",

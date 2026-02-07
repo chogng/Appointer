@@ -277,7 +277,7 @@ const JournalLinksCard = ({
 
         <div className="mt-3" id="literature-fetch-progress">
           <div>
-            <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-bg-surface-hover/60 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-accent-terracotta to-orange-400 transition-[width] duration-500 ease-out shadow-[0_0_8px_rgba(217,119,87,0.4)]"
                 style={{

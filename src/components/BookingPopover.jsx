@@ -157,24 +157,24 @@ const BookingPopoverInner = ({
   return (
     <div
       ref={popoverRef}
-      className={`fixed z-50 w-[400px] bg-white rounded-[1.5rem] shadow-xl border border-border overflow-hidden ${animationClass}`}
+      className={`fixed z-50 w-[400px] bg-bg-surface rounded-[1.5rem] shadow-xl border border-border-subtle overflow-hidden ${animationClass}`}
       style={style}
     >
       {/* Header */}
-      <div className="bg-bg-50 px-4 py-2 flex items-center justify-between border-b border-border/50 handle cursor-move">
+      <div className="bg-bg-100 px-4 py-2 flex items-center justify-between border-b border-border-subtle handle cursor-move">
         <div className="flex items-center gap-2 relative">
           {/* Color Selector */}
           <div className="relative" ref={colorPickerRef}>
             <button
               onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
-              className="flex items-center gap-1 p-1 rounded hover:bg-gray-100 transition-colors"
-              title="Color Selector"
+              className="flex items-center gap-1 p-1 rounded hover:bg-bg-surface-hover transition-colors"
+              title={t("colorSelector")}
             >
               <div className={`w-5 h-5 rounded-full ${currentColorObj.bg}`} />
-              <ChevronDown size={14} className="text-gray-500" />
+              <ChevronDown size={14} className="text-text-tertiary" />
             </button>
             {isColorPickerOpen && (
-              <div className="absolute top-full left-0 mt-2 p-2 bg-white rounded-lg shadow-lg border border-border grid grid-cols-4 gap-2 z-50 w-[140px] animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute top-full left-0 mt-2 p-2 bg-bg-surface rounded-lg shadow-lg border border-border-subtle grid grid-cols-4 gap-2 z-50 w-[140px] animate-in fade-in zoom-in-95 duration-150">
                 {COLORS.map((color) => (
                   <button
                     key={color.name}

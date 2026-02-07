@@ -73,14 +73,14 @@ const SegmentedControl = ({
       data-ui={uiMarker}
       data-testid={devTestId}
       className={`
-                relative flex p-1 bg-gray-100/50 hover:bg-gray-100 dark:bg-gray-800/50
+                relative flex p-1 bg-bg-100/60 hover:bg-bg-100
                 rounded-lg border border-transparent hover:border-border-subtle
                 transition-all duration-200 ${className}
             `}
       {...props}
     >
       <div
-        className="absolute top-1 bottom-1 bg-white dark:bg-gray-700 shadow-sm rounded-md border border-border-subtle transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)]"
+        className="absolute top-1 bottom-1 bg-bg-surface shadow-sm rounded-md border border-border-subtle transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)]"
         style={{
           left: indicatorStyle.left,
           width: indicatorStyle.width,

@@ -466,11 +466,11 @@ const Inventory = () => {
       </div>
 
       {/* Inventory Table */}
-      <div className="bg-bg-surface/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-xl overflow-hidden">
+      <div className="bg-bg-surface/50 backdrop-blur-xl rounded-2xl border border-border-subtle/40 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-black/5 text-left">
+              <tr className="bg-bg-100/60 text-left">
                 <th className="py-4 px-6 text-text-secondary font-medium text-sm text-left">
                   {t("itemName")}
                 </th>
@@ -499,7 +499,7 @@ const Inventory = () => {
                 items.map((item) => (
                   <tr
                     key={item.id}
-                    className="hover:bg-white/5 transition-colors group"
+                    className="hover:bg-bg-surface-hover/60 transition-colors group"
                   >
                     <td className="py-4 px-6 font-medium">{item.name}</td>
                     <td className="py-4 px-6">

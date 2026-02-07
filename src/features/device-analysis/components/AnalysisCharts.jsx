@@ -629,7 +629,7 @@ const OverviewGrid = React.memo(function OverviewGrid({
             }}
             className={`h-[48px] w-[48px] flex items-center justify-center rounded-md border text-text-secondary transition-colors ${sortOrder !== "none"
               ? "bg-accent/10 border-accent/20 text-accent"
-              : "border-border bg-bg-surface hover:bg-bg-page hover:text-black"
+              : "border-border bg-bg-surface hover:bg-bg-page hover:text-text-primary"
               }`}
             title={`Sort by yMax: ${sortOrder === "none" ? "None" : sortOrder === "desc" ? "Descending" : "Ascending"}`}
           >
@@ -3244,7 +3244,7 @@ How to use (manual fallback):
                             }
                           }}
                           placeholder="low (A)"
-                          className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
+                          className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 w-[90px]"
                         />
                         <span>~</span>
                         <input
@@ -3274,7 +3274,7 @@ How to use (manual fallback):
                             }
                           }}
                           placeholder="high (A)"
-                          className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[90px]"
+                          className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 w-[90px]"
                         />
                       </div>
                     ) : null}
@@ -3316,7 +3316,7 @@ How to use (manual fallback):
                 value={areaInput}
                 onChange={(e) => setAreaInput(e.target.value)}
                 placeholder="e.g. 1e-4"
-                className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black w-[100px]"
+                className="bg-bg-page border border-border rounded-lg h-[38px] px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 w-[100px]"
               />
               <Button
                 id="device-analysis-area-clear-btn"
@@ -3452,7 +3452,7 @@ How to use (manual fallback):
                         setAxis((prev) => ({ ...prev, xMin: e.target.value }))
                       }
                       placeholder="min (auto)"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                     />
                     <input
                       id="device-analysis-axis-x-max"
@@ -3461,7 +3461,7 @@ How to use (manual fallback):
                         setAxis((prev) => ({ ...prev, xMax: e.target.value }))
                       }
                       placeholder="max (auto)"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                     />
                   </div>
 
@@ -3471,7 +3471,7 @@ How to use (manual fallback):
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, xTicks: e.target.value }))
                       }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                       title="Tick mode"
                     >
                       <option value="auto">ticks: auto</option>
@@ -3489,7 +3489,7 @@ How to use (manual fallback):
                       }
                       disabled={axis.xTicks !== "nice"}
                       placeholder="count"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 disabled:opacity-50"
                       title="Nice tick count"
                     />
                     <input
@@ -3500,7 +3500,7 @@ How to use (manual fallback):
                       }
                       disabled={axis.xTicks !== "step"}
                       placeholder="step"
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 disabled:opacity-50"
                       title="Step tick increment"
                     />
                   </div>
@@ -3518,7 +3518,7 @@ How to use (manual fallback):
                         setAxis((prev) => ({ ...prev, yMin: e.target.value }))
                       }
                       placeholder={`min (auto) (${plotYUnitLabel})`}
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                     />
                     <input
                       id="device-analysis-axis-y-max"
@@ -3527,7 +3527,7 @@ How to use (manual fallback):
                         setAxis((prev) => ({ ...prev, yMax: e.target.value }))
                       }
                       placeholder={`max (auto) (${plotYUnitLabel})`}
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                     />
                   </div>
 
@@ -3546,7 +3546,7 @@ How to use (manual fallback):
                           };
                         })
                       }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                       title="Scale"
                     >
                       <option value="linear">scale: linear</option>
@@ -3558,7 +3558,7 @@ How to use (manual fallback):
                       onChange={(e) =>
                         setAxis((prev) => ({ ...prev, yTicks: e.target.value }))
                       }
-                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                      className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                       title="Tick mode"
                     >
                       <option value="auto">ticks: auto</option>
@@ -3593,7 +3593,7 @@ How to use (manual fallback):
                             }))
                           }
                           placeholder={`step (${plotYUnitLabel})`}
-                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black"
+                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40"
                           title="Major tick increment"
                         />
                       ) : (
@@ -3608,7 +3608,7 @@ How to use (manual fallback):
                           }
                           disabled={axis.yTicks !== "nice"}
                           placeholder="count"
-                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                          className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 disabled:opacity-50"
                           title="Nice tick count"
                         />
                       )
@@ -3624,7 +3624,7 @@ How to use (manual fallback):
                         }
                         disabled={axis.yTicks !== "decades"}
                         placeholder="decade step"
-                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50"
+                        className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-focus/40 disabled:opacity-50"
                         title="Major tick increment (decades)"
                       />
                     )}
