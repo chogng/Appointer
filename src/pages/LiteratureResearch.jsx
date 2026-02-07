@@ -507,6 +507,8 @@ const LiteratureResearch = () => {
       const host = String(url.hostname || "").replace(/^www\./i, "").toLowerCase();
       if (host.endsWith("nature.com")) return "nature";
       if (host.endsWith("science.org")) return "science";
+      if (host === "pubs.acs.org") return "acs";
+      if (host === "onlinelibrary.wiley.com") return "wiley";
       return "unsupported";
     } catch {
       return "unsupported";
@@ -516,6 +518,8 @@ const LiteratureResearch = () => {
   const seedUrlStats = useMemo(() => {
     let nature = 0;
     let science = 0;
+    let acs = 0;
+    let wiley = 0;
     const unsupportedLabels = [];
 
     for (let i = 0; i < seedUrls.length; i += 1) {
@@ -526,6 +530,8 @@ const LiteratureResearch = () => {
       const kind = classifySeedUrl(url);
       if (kind === "nature") nature += 1;
       else if (kind === "science") science += 1;
+      else if (kind === "acs") acs += 1;
+      else if (kind === "wiley") wiley += 1;
       else if (kind === "unsupported") {
         const title = typeof seedUrlTitles[i] === "string" ? seedUrlTitles[i].trim() : "";
         unsupportedLabels.push(title || resolveSeedUrlLabel(url) || url);
@@ -535,6 +541,8 @@ const LiteratureResearch = () => {
     return {
       nature,
       science,
+      acs,
+      wiley,
       unsupported: unsupportedLabels.length,
       unsupportedLabels,
     };
@@ -548,7 +556,8 @@ const LiteratureResearch = () => {
       if (!url) continue;
       if (seedUrlSelected[i] === false) continue;
       const kind = classifySeedUrl(url);
-      if (kind !== "nature" && kind !== "science") continue;
+      if (kind !== "nature" && kind !== "science" && kind !== "acs" && kind !== "wiley")
+        continue;
       if (seen.has(url)) continue;
       seen.add(url);
       out.push(url);

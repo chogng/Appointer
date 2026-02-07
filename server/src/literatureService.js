@@ -6,6 +6,10 @@ const ALLOWED_SEED_HOSTS = new Set([
   "www.nature.com",
   "science.org",
   "www.science.org",
+  "pubs.acs.org",
+  "www.pubs.acs.org",
+  "onlinelibrary.wiley.com",
+  "www.onlinelibrary.wiley.com",
 ]);
 
 const MONTHS = {
@@ -566,15 +570,63 @@ function scienceSeedToRssUrl(seedUrl) {
   return null;
 }
 
-function parseScienceRssItems(xml) {
+function acsSeedToRssUrl(seedUrl) {
+  try {
+    const url = new URL(seedUrl);
+    if (url.hostname !== "pubs.acs.org" && url.hostname !== "www.pubs.acs.org") {
+      return null;
+    }
+
+    if (url.pathname.startsWith("/action/showFeed")) return url.toString();
+
+    const tocMatch = url.pathname.match(/^\/toc\/([^/]+)(?:\/|$)/i);
+    const journalMatch = url.pathname.match(/^\/journal\/([^/]+)(?:\/|$)/i);
+    const jc = (tocMatch ? tocMatch[1] : null) || (journalMatch ? journalMatch[1] : null);
+    if (!jc) return null;
+
+    return `https://pubs.acs.org/action/showFeed?type=etoc&feed=rss&jc=${encodeURIComponent(jc)}`;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function wileySeedToRssUrl(seedUrl) {
+  try {
+    const url = new URL(seedUrl);
+    if (
+      url.hostname !== "onlinelibrary.wiley.com" &&
+      url.hostname !== "www.onlinelibrary.wiley.com"
+    ) {
+      return null;
+    }
+
+    if (url.pathname.startsWith("/action/showFeed")) return url.toString();
+
+    const tocMatch = url.pathname.match(/^\/toc\/([^/]+)(?:\/|$)/i);
+    if (!tocMatch) return null;
+    const jc = String(tocMatch[1] || "").trim();
+    if (!jc) return null;
+
+    return `https://onlinelibrary.wiley.com/action/showFeed?type=etoc&feed=rss&jc=${encodeURIComponent(jc)}`;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = {}) {
   const items = [];
   const itemRe =
-    /<item\b[^>]*rdf:about="([^"]+)"[^>]*>([\s\S]*?)<\/item>/gi;
+    /<item\b([^>]*)>([\s\S]*?)<\/item>/gi;
 
   let match;
   while ((match = itemRe.exec(xml))) {
-    const about = match[1] || "";
+    const attr = match[1] || "";
     const body = match[2] || "";
+
+    const aboutMatch = attr.match(/\brdf:about="([^"]+)"/i);
+    const about = aboutMatch ? aboutMatch[1] : "";
 
     const titleMatch = body.match(/<title>([\s\S]*?)<\/title>/i);
     const title = titleMatch ? normalizeText(titleMatch[1]) : "";
@@ -582,17 +634,73 @@ function parseScienceRssItems(xml) {
     const linkMatch = body.match(/<link>([\s\S]*?)<\/link>/i);
     const link = linkMatch ? decodeHtmlEntities(linkMatch[1]).trim() : about;
 
-    const dateMatch = body.match(/<dc:date>([\s\S]*?)<\/dc:date>/i);
+    const dateMatch =
+      body.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) ||
+      body.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) ||
+      body.match(/<prism:publicationDate>([\s\S]*?)<\/prism:publicationDate>/i);
     const publishedDate = normalizeDateInput(dateMatch ? dateMatch[1] : "");
 
-    const doiMatch = body.match(/<dc:identifier>\s*doi:([^<\s]+)\s*<\/dc:identifier>/i);
-    const doi = doiMatch ? doiMatch[1].trim() : null;
+    let coverDate = null;
+    if (deriveCoverDateFromDescription) {
+      const descMatch = body.match(/<description>([\s\S]*?)<\/description>/i);
+      const descText = descMatch ? normalizeText(descMatch[1]) : "";
+      const dateTextMatch = descText.match(/([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})/);
+      if (dateTextMatch) {
+        coverDate = normalizeDateInput(
+          `${dateTextMatch[1]} ${dateTextMatch[2]}, ${dateTextMatch[3]}`,
+        );
+      }
+    }
+
+    const identifierMatch = body.match(/<dc:identifier>([\s\S]*?)<\/dc:identifier>/i);
+    const prismDoiMatch = body.match(/<prism:doi>([\s\S]*?)<\/prism:doi>/i);
+    const rawIdentifier = identifierMatch ? normalizeText(identifierMatch[1]) : "";
+    const rawPrismDoi = prismDoiMatch ? normalizeText(prismDoiMatch[1]) : "";
+    const doiCandidate = (rawIdentifier || rawPrismDoi || "")
+      .replace(/^doi:\s*/i, "")
+      .trim();
+    const doi =
+      doiCandidate && /^10\.\d{4,9}\/\S+$/i.test(doiCandidate)
+        ? doiCandidate
+        : null;
+
+    const journalMatch = body.match(/<dc:source>([\s\S]*?)<\/dc:source>/i);
+    const journalTitle = journalMatch ? normalizeText(journalMatch[1]) : "";
 
     if (!doi || !title) continue;
-    items.push({ doi, title, publishedDate, articleUrl: link || about });
+    const articleUrl = normalizeUrlString(link || about) || (link || about);
+    items.push({
+      doi,
+      title,
+      publishedDate,
+      articleUrl,
+      journalTitle: journalTitle || null,
+      coverDate,
+    });
   }
 
   return items;
+}
+
+function parseScienceRssItems(xml) {
+  return parseRssItemsWithDoi(xml);
+}
+
+function stripAcsTrackingParams(articleUrl) {
+  if (typeof articleUrl !== "string" || !articleUrl.trim()) return articleUrl;
+  try {
+    const url = new URL(articleUrl);
+    if (!url.hostname.endsWith("pubs.acs.org")) return articleUrl;
+    url.searchParams.delete("af");
+    url.searchParams.delete("ref");
+    url.searchParams.delete("utm_source");
+    url.searchParams.delete("utm_medium");
+    url.searchParams.delete("utm_campaign");
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return articleUrl;
+  }
 }
 
 function crossrefDateToDateString(message) {
@@ -602,6 +710,32 @@ function crossrefDateToDateString(message) {
     message?.issued,
     message?.created,
   ];
+
+  for (const candidate of candidates) {
+    const parts = candidate?.["date-parts"];
+    const first = Array.isArray(parts) ? parts[0] : null;
+    if (!Array.isArray(first) || first.length === 0) continue;
+
+    const year = Number(first[0]);
+    if (!Number.isInteger(year) || year < 1000) continue;
+    const month = Number(first[1] ?? 1);
+    const day = Number(first[2] ?? 1);
+    const mm = String(Math.min(12, Math.max(1, month))).padStart(2, "0");
+    const dd = String(Math.min(31, Math.max(1, day))).padStart(2, "0");
+    return `${year}-${mm}-${dd}`;
+  }
+
+  return null;
+}
+
+function crossrefDateToDateStringByPriority(message, priorityKeys) {
+  const keys = Array.isArray(priorityKeys) ? priorityKeys : [];
+  const candidates = [];
+  for (const key of keys) {
+    if (!key) continue;
+    candidates.push(message?.[key]);
+  }
+  candidates.push(message?.issued, message?.created);
 
   for (const candidate of candidates) {
     const parts = candidate?.["date-parts"];
@@ -645,7 +779,15 @@ async function fetchCrossrefWork(doi) {
   const message = data?.message || {};
   const title = Array.isArray(message.title) ? message.title[0] : message.title;
   const abstract = message.abstract || null;
-  const publishedDate = crossrefDateToDateString(message);
+  const publishedOnlineDate = crossrefDateToDateStringByPriority(message, [
+    "published-online",
+    "published-print",
+  ]);
+  const publishedPrintDate = crossrefDateToDateStringByPriority(message, [
+    "published-print",
+    "published-online",
+  ]);
+  const publishedDate = publishedOnlineDate;
 
   const links = Array.isArray(message.link) ? message.link : [];
   const pdfLink = links.find((l) => typeof l?.URL === "string" && l.URL);
@@ -655,8 +797,98 @@ async function fetchCrossrefWork(doi) {
     title: normalizeText(title || ""),
     abstract: abstract ? normalizeText(abstract) : null,
     publishedDate: normalizeDateInput(publishedDate),
+    publishedOnlineDate: normalizeDateInput(publishedOnlineDate),
+    publishedPrintDate: normalizeDateInput(publishedPrintDate),
     pdfUrl,
   };
+}
+
+async function fetchCrossrefWorksByContainerTitle({
+  containerTitle,
+  startDate,
+  endDate,
+  prefix,
+  rows = 200,
+} = {}) {
+  const title = typeof containerTitle === "string" ? containerTitle.trim() : "";
+  if (!title) return [];
+  if (!startDate || !endDate) return [];
+  const safeRows = Math.max(1, Math.min(500, Math.trunc(Number(rows) || 200)));
+  const doiPrefix = typeof prefix === "string" && prefix.trim() ? prefix.trim() : null;
+
+  const filterParts = [
+    `from-pub-date:${startDate}`,
+    `until-pub-date:${endDate}`,
+  ];
+  if (doiPrefix) filterParts.push(`prefix:${doiPrefix}`);
+  filterParts.push("type:journal-article");
+
+  const url =
+    `https://api.crossref.org/works?rows=${encodeURIComponent(String(safeRows))}` +
+    `&filter=${encodeURIComponent(filterParts.join(","))}` +
+    `&query.container-title=${encodeURIComponent(title)}` +
+    `&select=${encodeURIComponent("DOI,title,URL,link,abstract,issued,created,published-online,published-print")}`;
+
+  const res = await withTimeout(DEFAULT_TIMEOUT_MS, (signal) =>
+    fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal,
+      headers: {
+        "User-Agent":
+          "AppointerLiterature/0.1 (+https://localhost; contact=unknown)",
+        Accept: "application/json",
+      },
+    }),
+  );
+
+  if (!res.ok) {
+    const err = new Error(`Crossref failed: ${res.status} ${res.statusText}`);
+    err.status = res.status;
+    throw err;
+  }
+
+  const data = await res.json();
+  const message = data?.message || {};
+  const list = Array.isArray(message.items) ? message.items : [];
+
+  return list
+    .map((item) => {
+      const doi = typeof item?.DOI === "string" ? item.DOI.trim() : "";
+      if (!doi) return null;
+      const rawTitle = Array.isArray(item?.title) ? item.title[0] : item?.title;
+      const metaTitle = normalizeText(rawTitle || "");
+      const abstract = item?.abstract ? normalizeText(item.abstract) : null;
+
+      const publishedOnlineDate = normalizeDateInput(
+        crossrefDateToDateStringByPriority(item, ["published-online", "published-print"]),
+      );
+      const publishedPrintDate = normalizeDateInput(
+        crossrefDateToDateStringByPriority(item, ["published-print", "published-online"]),
+      );
+      const issuedDate = normalizeDateInput(crossrefDateToDateStringByPriority(item, ["issued"]));
+      const createdDate = normalizeDateInput(crossrefDateToDateStringByPriority(item, ["created"]));
+
+      const links = Array.isArray(item?.link) ? item.link : [];
+      const pdfLink = links.find((l) => typeof l?.URL === "string" && l.URL);
+      const pdfUrl = pdfLink?.URL ? String(pdfLink.URL) : null;
+
+      const articleUrl =
+        (typeof item?.URL === "string" && item.URL.trim()) ? item.URL.trim() : `https://doi.org/${doi}`;
+
+      return {
+        doi,
+        title: metaTitle || doi,
+        abstract,
+        publishedOnlineDate,
+        publishedPrintDate,
+        issuedDate,
+        createdDate,
+        pdfUrl,
+        articleUrl,
+      };
+    })
+    .filter(Boolean);
 }
 
 async function mapWithConcurrency(items, concurrency, mapper) {
@@ -925,6 +1157,176 @@ export async function searchLiterature({
           id,
           source: "science",
           seedUrl,
+          title: meta.title || i.title || id,
+          articleUrl,
+          publishedDate,
+          abstract: meta.abstract,
+          pdfUrl: meta.pdfUrl,
+          doi: i.doi,
+        };
+      });
+
+      for (const item of enriched) {
+        if (!item || typeof item !== "object") continue;
+        if (!item.id || seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        results.push(item);
+        if (results.length >= cap) break;
+      }
+      continue;
+    }
+
+    if (url.hostname === "pubs.acs.org" || url.hostname === "www.pubs.acs.org") {
+      const rssUrl = acsSeedToRssUrl(seedUrl);
+      if (!rssUrl) continue;
+
+      const xml = await fetchText(rssUrl);
+      const allFeedItems = parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription: true });
+      const seedJournalTitle =
+        (Array.isArray(allFeedItems) && allFeedItems.length && allFeedItems[0]?.journalTitle) ||
+        null;
+
+      const feedItems = allFeedItems
+        .filter((i) => {
+          const date = i.coverDate || i.publishedDate || null;
+          return !date || isDateInRange(date, start, end);
+        })
+        .slice(0, 300);
+
+      const enriched = await mapWithConcurrency(feedItems, 4, async (i) => {
+        const meta = await fetchCrossrefWork(i.doi);
+        const publishedDate =
+          meta.publishedPrintDate ||
+          i.coverDate ||
+          meta.publishedDate ||
+          i.publishedDate ||
+          null;
+        if (publishedDate && !isDateInRange(publishedDate, start, end)) {
+          return null;
+        }
+
+        const rawArticleUrl = i.articleUrl || `https://doi.org/${i.doi}`;
+        const articleUrl = stripAcsTrackingParams(rawArticleUrl);
+        const id = `doi:${i.doi}`;
+
+        return {
+          id,
+          source: "acs",
+          seedUrl,
+          journalTitle: i.journalTitle || null,
+          title: meta.title || i.title || id,
+          articleUrl,
+          publishedDate,
+          abstract: meta.abstract,
+          pdfUrl: meta.pdfUrl,
+          doi: i.doi,
+        };
+      });
+
+      for (const item of enriched) {
+        if (!item || typeof item !== "object") continue;
+        if (!item.id || seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        results.push(item);
+        if (results.length >= cap) break;
+      }
+
+      // Supplement ACS "ASAP/online" items via Crossref when date range has newer
+      // content than the accessible eTOC RSS provides (TOC HTML is Cloudflare-protected).
+      if (results.length < cap && seedJournalTitle) {
+        const remaining = cap - results.length;
+        const queryRows = Math.min(300, Math.max(50, remaining * 4));
+        const crossrefItems = await fetchCrossrefWorksByContainerTitle({
+          containerTitle: seedJournalTitle,
+          startDate: start,
+          endDate: end,
+          prefix: "10.1021",
+          rows: queryRows,
+        });
+
+        for (const cr of crossrefItems) {
+          if (!cr?.doi) continue;
+          const id = `doi:${cr.doi}`;
+          if (seenIds.has(id)) continue;
+
+          const candidateDates = [
+            cr.publishedOnlineDate,
+            cr.issuedDate,
+            cr.createdDate,
+            cr.publishedPrintDate,
+          ].filter(Boolean);
+          const inRange = candidateDates.some((d) => isDateInRange(d, start, end));
+          if (!inRange) continue;
+
+          const publishedDate =
+            cr.publishedOnlineDate ||
+            cr.issuedDate ||
+            cr.createdDate ||
+            cr.publishedPrintDate ||
+            null;
+
+          seenIds.add(id);
+          results.push({
+            id,
+            source: "acs",
+            seedUrl,
+            journalTitle: seedJournalTitle,
+            title: cr.title || id,
+            articleUrl: stripAcsTrackingParams(cr.articleUrl || `https://doi.org/${cr.doi}`),
+            publishedDate,
+            abstract: cr.abstract,
+            pdfUrl: cr.pdfUrl,
+            doi: cr.doi,
+          });
+
+          if (results.length >= cap) break;
+        }
+      }
+
+      continue;
+    }
+
+    if (
+      url.hostname === "onlinelibrary.wiley.com" ||
+      url.hostname === "www.onlinelibrary.wiley.com"
+    ) {
+      const rssUrl =
+        wileySeedToRssUrl(seedUrl) ||
+        (url.pathname.startsWith("/feed/") || url.pathname.endsWith(".rss") || url.searchParams.get("rss") === "1"
+          ? url.toString()
+          : null);
+
+      if (!rssUrl) {
+        const err = new Error("Wiley feed not found for seed URL.");
+        err.status = 400;
+        throw err;
+      }
+
+      const xml = await fetchText(rssUrl);
+
+      const feedItems = parseScienceRssItems(xml)
+        .filter((i) => !i.publishedDate || isDateInRange(i.publishedDate, start, end))
+        .slice(0, 300);
+
+      const enriched = await mapWithConcurrency(feedItems, 4, async (i) => {
+        const meta = await fetchCrossrefWork(i.doi);
+        const publishedDate =
+          meta.publishedPrintDate ||
+          meta.publishedDate ||
+          i.publishedDate ||
+          null;
+        if (publishedDate && !isDateInRange(publishedDate, start, end)) {
+          return null;
+        }
+
+        const articleUrl = i.articleUrl || `https://doi.org/${i.doi}`;
+        const id = `doi:${i.doi}`;
+
+        return {
+          id,
+          source: "wiley",
+          seedUrl,
+          journalTitle: i.journalTitle || null,
           title: meta.title || i.title || id,
           articleUrl,
           publishedDate,

@@ -44,6 +44,8 @@ const JournalLinksCard = ({
   const seedCountsText = [
     `${t("literature_source_nature")} ${seedUrlStats?.nature ?? 0}`,
     `${t("literature_source_science")} ${seedUrlStats?.science ?? 0}`,
+    `${t("literature_source_acs")} ${seedUrlStats?.acs ?? 0}`,
+    `${t("literature_source_wiley")} ${seedUrlStats?.wiley ?? 0}`,
     seedUrlStats?.unsupported
       ? `${t("literature_source_unsupported")} ${seedUrlStats.unsupported}`
       : null,
