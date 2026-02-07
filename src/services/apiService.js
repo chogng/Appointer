@@ -651,6 +651,8 @@ class ApiService {
     if (endpoint === "/literature/settings" && method === "GET") {
       return {
         seedUrls: [],
+        seedUrlsUnified: [],
+        seedUrlTitlesUnified: [],
         seedUrlsBySourceType: { nature: [], science: [] },
         seedUrlTitlesBySourceType: { nature: [], science: [] },
         sourceType: "nature",
@@ -698,6 +700,9 @@ class ApiService {
           : null;
 
       const seedUrls = Array.isArray(parsed?.seedUrls) ? parsed.seedUrls : [];
+      const seedUrlsUnified = Array.isArray(parsed?.seedUrlsUnified)
+        ? parsed.seedUrlsUnified
+        : seedUrls;
       const seedUrlsBySourceTypeRaw = parsed?.seedUrlsBySourceType;
       const seedUrlsBySourceType =
         seedUrlsBySourceTypeRaw && typeof seedUrlsBySourceTypeRaw === "object"
@@ -715,6 +720,9 @@ class ApiService {
             };
 
       const seedUrlTitles = Array.isArray(parsed?.seedUrlTitles) ? parsed.seedUrlTitles : [];
+      const seedUrlTitlesUnified = Array.isArray(parsed?.seedUrlTitlesUnified)
+        ? parsed.seedUrlTitlesUnified
+        : seedUrlTitles;
       const seedUrlTitlesBySourceTypeRaw = parsed?.seedUrlTitlesBySourceType;
       const seedUrlTitlesBySourceType =
         seedUrlTitlesBySourceTypeRaw && typeof seedUrlTitlesBySourceTypeRaw === "object"
@@ -738,6 +746,8 @@ class ApiService {
 
       return {
         seedUrls,
+        seedUrlsUnified,
+        seedUrlTitlesUnified,
         seedUrlsBySourceType,
         seedUrlTitlesBySourceType,
         sourceType,

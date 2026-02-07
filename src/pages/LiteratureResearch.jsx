@@ -11,17 +11,7 @@ import JournalLinksCard from "../features/literature-research/components/Journal
 import KeywordMatchCard from "../features/literature-research/components/KeywordMatchCard";
 import ResultsCard from "../features/literature-research/components/ResultsCard";
 
-const NATURE_EXAMPLES = [
-  "https://www.nature.com/nature/research-articles",
-  "https://www.nature.com/news",
-];
-
-const SCIENCE_EXAMPLES = [
-  "https://www.science.org/journal/sciadv",
-  "https://www.science.org/",
-];
-
-const LITERATURE_SESSION_STATE_VERSION = 3;
+const LITERATURE_SESSION_STATE_VERSION = 4;
 
 const pruneTranslationsForSession = (value) => {
   if (!value || typeof value !== "object") return {};
@@ -150,115 +140,53 @@ const LiteratureResearch = () => {
   const startDateAutoRef = useRef(true);
   const endDateAutoRef = useRef(true);
 
-  const [seedUrlsBySourceType, setSeedUrlsBySourceType] = useState({
-    nature: [""],
-    science: [""],
-  });
-
-  const [seedUrlSelectedBySourceType, setSeedUrlSelectedBySourceType] = useState({
-    nature: [true],
-    science: [true],
-  });
-
-  const [seedUrlTitlesBySourceType, setSeedUrlTitlesBySourceType] = useState({
-    nature: [""],
-    science: [""],
-  });
+  const [seedUrls, setSeedUrls] = useState([""]);
+  const [seedUrlSelected, setSeedUrlSelected] = useState([true]);
+  const [seedUrlTitles, setSeedUrlTitles] = useState([""]);
 
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(today);
   const [maxResults, setMaxResults] = useState("");
 
-  const [sourceType, setSourceType] = useState("nature"); // "nature" | "science"
-
-  const seedUrls = seedUrlsBySourceType[sourceType] || [""];
-  const seedUrlSelected = seedUrlSelectedBySourceType[sourceType] || [];
-  const seedUrlTitles = seedUrlTitlesBySourceType[sourceType] || [];
-
-  const seedUrlsBySourceTypeRef = useRef(seedUrlsBySourceType);
-  const seedUrlTitlesBySourceTypeRef = useRef(seedUrlTitlesBySourceType);
-  const sourceTypeRef = useRef(sourceType);
+  const seedUrlsRef = useRef(seedUrls);
+  const seedUrlTitlesRef = useRef(seedUrlTitles);
   const maxResultsRef = useRef(maxResults);
 
   useEffect(() => {
-    seedUrlsBySourceTypeRef.current = seedUrlsBySourceType;
-  }, [seedUrlsBySourceType]);
+    seedUrlsRef.current = seedUrls;
+  }, [seedUrls]);
 
   useEffect(() => {
-    seedUrlTitlesBySourceTypeRef.current = seedUrlTitlesBySourceType;
-  }, [seedUrlTitlesBySourceType]);
-
-  useEffect(() => {
-    setSeedUrlSelectedBySourceType((prev) => {
-      const prevNature = prev?.nature;
-      const prevScience = prev?.science;
-      const nextNature = normalizeSeedUrlSelectedList(
-        prevNature,
-        seedUrlsBySourceType?.nature?.length ?? 0,
-      );
-      const nextScience = normalizeSeedUrlSelectedList(
-        prevScience,
-        seedUrlsBySourceType?.science?.length ?? 0,
-      );
-
-      const natureSame =
-        Array.isArray(prevNature) &&
-        prevNature.length === nextNature.length &&
-        prevNature.every((v, i) => v === nextNature[i]);
-      const scienceSame =
-        Array.isArray(prevScience) &&
-        prevScience.length === nextScience.length &&
-        prevScience.every((v, i) => v === nextScience[i]);
-
-      if (natureSame && scienceSame) return prev;
-
-      return {
-        ...prev,
-        nature: nextNature.length ? nextNature : [true],
-        science: nextScience.length ? nextScience : [true],
-      };
-    });
-  }, [seedUrlsBySourceType]);
-
-  useEffect(() => {
-    setSeedUrlTitlesBySourceType((prev) => {
-      const prevNature = prev?.nature;
-      const prevScience = prev?.science;
-      const nextNature = normalizeSeedUrlTitlesList(
-        prevNature,
-        seedUrlsBySourceType?.nature?.length ?? 0,
-      );
-      const nextScience = normalizeSeedUrlTitlesList(
-        prevScience,
-        seedUrlsBySourceType?.science?.length ?? 0,
-      );
-
-      const natureSame =
-        Array.isArray(prevNature) &&
-        prevNature.length === nextNature.length &&
-        prevNature.every((v, i) => v === nextNature[i]);
-      const scienceSame =
-        Array.isArray(prevScience) &&
-        prevScience.length === nextScience.length &&
-        prevScience.every((v, i) => v === nextScience[i]);
-
-      if (natureSame && scienceSame) return prev;
-
-      return {
-        ...prev,
-        nature: nextNature.length ? nextNature : [""],
-        science: nextScience.length ? nextScience : [""],
-      };
-    });
-  }, [seedUrlsBySourceType]);
-
-  useEffect(() => {
-    sourceTypeRef.current = sourceType;
-  }, [sourceType]);
+    seedUrlTitlesRef.current = seedUrlTitles;
+  }, [seedUrlTitles]);
 
   useEffect(() => {
     maxResultsRef.current = maxResults;
   }, [maxResults]);
+
+  useEffect(() => {
+    setSeedUrlSelected((prev) => {
+      const next = normalizeSeedUrlSelectedList(prev, seedUrls.length);
+      const same =
+        Array.isArray(prev) &&
+        prev.length === next.length &&
+        prev.every((v, i) => v === next[i]);
+      if (same) return prev;
+      return next.length ? next : [true];
+    });
+  }, [seedUrls.length]);
+
+  useEffect(() => {
+    setSeedUrlTitles((prev) => {
+      const next = normalizeSeedUrlTitlesList(prev, seedUrls.length);
+      const same =
+        Array.isArray(prev) &&
+        prev.length === next.length &&
+        prev.every((v, i) => v === next[i]);
+      if (same) return prev;
+      return next.length ? next : [""];
+    });
+  }, [seedUrls.length]);
 
   useEffect(() => {
     let timeoutId = null;
@@ -288,20 +216,13 @@ const LiteratureResearch = () => {
   }, [defaultStart, today]);
 
   const committedSettingsRef = useRef({
-    seedUrlsBySourceType: { nature: [], science: [] },
-    seedUrlTitlesBySourceType: { nature: [], science: [] },
+    seedUrlsUnified: [],
+    seedUrlTitlesUnified: [],
     maxResults: null,
   });
 
-  const seedUrlsDirtyBySourceRef = useRef({
-    nature: false,
-    science: false,
-  });
-  const seedUrlTitlesDirtyBySourceRef = useRef({
-    nature: false,
-    science: false,
-  });
-  const lastEditedSeedSourceRef = useRef(null);
+  const seedUrlsDirtyRef = useRef(false);
+  const seedUrlTitlesDirtyRef = useRef(false);
   const maxResultsDirtyRef = useRef(false);
   const settingsSyncQueueRef = useRef(Promise.resolve());
   const settingsAutosaveTimerRef = useRef(null);
@@ -320,42 +241,26 @@ const LiteratureResearch = () => {
     userIdRef.current = user?.id ?? null;
   }, [user?.id]);
 
-  const setSeedUrlsForSourceType = (nextSeedUrls) => {
+  const setSeedUrlsList = (nextSeedUrls) => {
     const resolvedNextSeedUrls =
       Array.isArray(nextSeedUrls) && nextSeedUrls.length ? nextSeedUrls : [""];
 
-    seedUrlsDirtyBySourceRef.current[sourceType] = true;
-    lastEditedSeedSourceRef.current = sourceType;
-
-    seedUrlsBySourceTypeRef.current = {
-      ...seedUrlsBySourceTypeRef.current,
-      [sourceType]: resolvedNextSeedUrls,
-    };
-    setSeedUrlsBySourceType((prev) => ({
-      ...prev,
-      [sourceType]: resolvedNextSeedUrls,
-    }));
+    seedUrlsDirtyRef.current = true;
+    seedUrlsRef.current = resolvedNextSeedUrls;
+    setSeedUrls(resolvedNextSeedUrls);
 
     scheduleSettingsAutosave();
   };
 
-  const setSeedUrlTitlesForSourceType = (nextSeedUrlTitles) => {
+  const setSeedUrlTitlesList = (nextSeedUrlTitles) => {
     const resolvedNextSeedUrlTitles =
       Array.isArray(nextSeedUrlTitles) && nextSeedUrlTitles.length
         ? nextSeedUrlTitles
         : [""];
 
-    seedUrlTitlesDirtyBySourceRef.current[sourceType] = true;
-    lastEditedSeedSourceRef.current = sourceType;
-
-    seedUrlTitlesBySourceTypeRef.current = {
-      ...seedUrlTitlesBySourceTypeRef.current,
-      [sourceType]: resolvedNextSeedUrlTitles,
-    };
-    setSeedUrlTitlesBySourceType((prev) => ({
-      ...prev,
-      [sourceType]: resolvedNextSeedUrlTitles,
-    }));
+    seedUrlTitlesDirtyRef.current = true;
+    seedUrlTitlesRef.current = resolvedNextSeedUrlTitles;
+    setSeedUrlTitles(resolvedNextSeedUrlTitles);
 
     scheduleSettingsAutosave();
   };
@@ -460,53 +365,40 @@ const LiteratureResearch = () => {
     const currentDefaultStart = format(subDays(currentNow, 7), "yyyy-MM-dd");
 
     const parsed = literatureSession.getSession(userId);
-    if (!parsed || parsed?.v !== LITERATURE_SESSION_STATE_VERSION) return;
+    if (!parsed || (parsed?.v !== 3 && parsed?.v !== LITERATURE_SESSION_STATE_VERSION)) return;
 
     hasRestoredSessionRef.current = true;
     isRestoringSessionRef.current = true;
 
-    const restoredSeedUrlsBySourceType =
-      parsed?.seedUrlsBySourceType &&
-        typeof parsed.seedUrlsBySourceType === "object"
-        ? {
-          nature: Array.isArray(parsed.seedUrlsBySourceType.nature)
-            ? parsed.seedUrlsBySourceType.nature
-            : [],
-          science: Array.isArray(parsed.seedUrlsBySourceType.science)
-            ? parsed.seedUrlsBySourceType.science
-            : [],
-        }
-        : null;
+    const restoredSeedUrls =
+      parsed?.v === LITERATURE_SESSION_STATE_VERSION && Array.isArray(parsed?.seedUrls)
+        ? parsed.seedUrls
+        : parsed?.v === 3 && parsed?.seedUrlsBySourceType && typeof parsed.seedUrlsBySourceType === "object"
+          ? [
+              ...(Array.isArray(parsed.seedUrlsBySourceType.nature) ? parsed.seedUrlsBySourceType.nature : []),
+              ...(Array.isArray(parsed.seedUrlsBySourceType.science) ? parsed.seedUrlsBySourceType.science : []),
+            ]
+          : null;
 
-    const restoredSeedUrlSelectedBySourceType =
-      parsed?.seedUrlSelectedBySourceType &&
-        typeof parsed.seedUrlSelectedBySourceType === "object"
-        ? {
-          nature: Array.isArray(parsed.seedUrlSelectedBySourceType.nature)
-            ? parsed.seedUrlSelectedBySourceType.nature
-            : [],
-          science: Array.isArray(parsed.seedUrlSelectedBySourceType.science)
-            ? parsed.seedUrlSelectedBySourceType.science
-            : [],
-        }
-        : null;
+    const restoredSeedUrlTitles =
+      parsed?.v === LITERATURE_SESSION_STATE_VERSION && Array.isArray(parsed?.seedUrlTitles)
+        ? parsed.seedUrlTitles
+        : parsed?.v === 3 && parsed?.seedUrlTitlesBySourceType && typeof parsed.seedUrlTitlesBySourceType === "object"
+          ? [
+              ...(Array.isArray(parsed.seedUrlTitlesBySourceType.nature) ? parsed.seedUrlTitlesBySourceType.nature : []),
+              ...(Array.isArray(parsed.seedUrlTitlesBySourceType.science) ? parsed.seedUrlTitlesBySourceType.science : []),
+            ]
+          : null;
 
-    const restoredSeedUrlTitlesBySourceType =
-      parsed?.seedUrlTitlesBySourceType &&
-        typeof parsed.seedUrlTitlesBySourceType === "object"
-        ? {
-          nature: Array.isArray(parsed.seedUrlTitlesBySourceType.nature)
-            ? parsed.seedUrlTitlesBySourceType.nature
-            : [],
-          science: Array.isArray(parsed.seedUrlTitlesBySourceType.science)
-            ? parsed.seedUrlTitlesBySourceType.science
-            : [],
-        }
-        : null;
-
-    const restoredSeedUrls = Array.isArray(parsed?.seedUrls)
-      ? parsed.seedUrls
-      : null;
+    const restoredSeedUrlSelected =
+      parsed?.v === LITERATURE_SESSION_STATE_VERSION && Array.isArray(parsed?.seedUrlSelected)
+        ? parsed.seedUrlSelected
+        : parsed?.v === 3 && parsed?.seedUrlSelectedBySourceType && typeof parsed.seedUrlSelectedBySourceType === "object"
+          ? [
+              ...(Array.isArray(parsed.seedUrlSelectedBySourceType.nature) ? parsed.seedUrlSelectedBySourceType.nature : []),
+              ...(Array.isArray(parsed.seedUrlSelectedBySourceType.science) ? parsed.seedUrlSelectedBySourceType.science : []),
+            ]
+          : null;
 
     const restoredStartDate =
       typeof parsed?.startDate === "string" ? parsed.startDate : null;
@@ -516,65 +408,17 @@ const LiteratureResearch = () => {
     const restoredMaxResults =
       typeof parsed?.maxResults === "string" ? parsed.maxResults : null;
 
-    if (restoredSeedUrlsBySourceType) {
-      const nextSeedUrlsBySourceType = {
-        nature: restoredSeedUrlsBySourceType.nature.length
-          ? restoredSeedUrlsBySourceType.nature
-          : [""],
-        science: restoredSeedUrlsBySourceType.science.length
-          ? restoredSeedUrlsBySourceType.science
-          : [""],
-      };
-
-      setSeedUrlsBySourceType((prev) => ({
-        ...prev,
-        ...nextSeedUrlsBySourceType,
-      }));
-
-      setSeedUrlTitlesBySourceType((prev) => ({
-        ...prev,
-        nature: normalizeSeedUrlTitlesList(
-          restoredSeedUrlTitlesBySourceType?.nature,
-          nextSeedUrlsBySourceType.nature.length,
-        ),
-        science: normalizeSeedUrlTitlesList(
-          restoredSeedUrlTitlesBySourceType?.science,
-          nextSeedUrlsBySourceType.science.length,
-        ),
-      }));
-
-      if (restoredSeedUrlSelectedBySourceType) {
-        setSeedUrlSelectedBySourceType((prev) => ({
-          ...prev,
-          nature: normalizeSeedUrlSelectedList(
-            restoredSeedUrlSelectedBySourceType.nature,
-            nextSeedUrlsBySourceType.nature.length,
-          ),
-          science: normalizeSeedUrlSelectedList(
-            restoredSeedUrlSelectedBySourceType.science,
-            nextSeedUrlsBySourceType.science.length,
-          ),
-        }));
-      }
-    } else if (restoredSeedUrls && restoredSeedUrls.length > 0) {
-      const restoredSource =
-        parsed?.sourceType === "science" ? "science" : "nature";
-      const nextSeedUrls = restoredSeedUrls.length ? restoredSeedUrls : [""];
-
-      setSeedUrlsBySourceType((prev) => ({
-        ...prev,
-        [restoredSource]: nextSeedUrls,
-      }));
-
-      setSeedUrlTitlesBySourceType((prev) => ({
-        ...prev,
-        [restoredSource]: normalizeSeedUrlTitlesList(null, nextSeedUrls.length),
-      }));
-
-      setSeedUrlSelectedBySourceType((prev) => ({
-        ...prev,
-        [restoredSource]: normalizeSeedUrlSelectedList(null, nextSeedUrls.length),
-      }));
+    if (restoredSeedUrls) {
+      const nextSeedUrls = Array.isArray(restoredSeedUrls) && restoredSeedUrls.length
+        ? restoredSeedUrls
+        : [""];
+      setSeedUrls(nextSeedUrls);
+      setSeedUrlTitles(
+        normalizeSeedUrlTitlesList(restoredSeedUrlTitles, nextSeedUrls.length),
+      );
+      setSeedUrlSelected(
+        normalizeSeedUrlSelectedList(restoredSeedUrlSelected, nextSeedUrls.length),
+      );
     }
     const savedAtRaw = Number(parsed?.savedAt);
     const savedAt = Number.isFinite(savedAtRaw) ? savedAtRaw : null;
@@ -614,9 +458,6 @@ const LiteratureResearch = () => {
     }
     if (typeof restoredMaxResults === "string")
       setMaxResults(restoredMaxResults);
-
-    if (parsed?.sourceType === "science") setSourceType("science");
-    else if (parsed?.sourceType === "nature") setSourceType("nature");
 
     if (typeof parsed?.keywordInput === "string")
       setKeywordInput(parsed.keywordInput);
@@ -658,45 +499,62 @@ const LiteratureResearch = () => {
     });
   }, [literatureSession, user?.id]);
 
-  const fetchSeedUrlsBySourceType = useMemo(() => {
-    const out = { nature: [], science: [] };
-    for (const source of ["nature", "science"]) {
-      const urls = seedUrlsBySourceType?.[source] || [];
-      const selected = seedUrlSelectedBySourceType?.[source] || [];
-      for (let i = 0; i < urls.length; i++) {
-        const url = typeof urls[i] === "string" ? urls[i].trim() : "";
-        if (!url) continue;
-        if (selected[i] === false) continue;
-        out[source].push(url);
+  const classifySeedUrl = (value) => {
+    const raw = typeof value === "string" ? value.trim() : "";
+    if (!raw) return "empty";
+    try {
+      const url = new URL(raw);
+      const host = String(url.hostname || "").replace(/^www\./i, "").toLowerCase();
+      if (host.endsWith("nature.com")) return "nature";
+      if (host.endsWith("science.org")) return "science";
+      return "unsupported";
+    } catch {
+      return "unsupported";
+    }
+  };
+
+  const seedUrlStats = useMemo(() => {
+    let nature = 0;
+    let science = 0;
+    const unsupportedLabels = [];
+
+    for (let i = 0; i < seedUrls.length; i += 1) {
+      const url = typeof seedUrls[i] === "string" ? seedUrls[i].trim() : "";
+      if (!url) continue;
+      if (seedUrlSelected[i] === false) continue;
+
+      const kind = classifySeedUrl(url);
+      if (kind === "nature") nature += 1;
+      else if (kind === "science") science += 1;
+      else if (kind === "unsupported") {
+        const title = typeof seedUrlTitles[i] === "string" ? seedUrlTitles[i].trim() : "";
+        unsupportedLabels.push(title || resolveSeedUrlLabel(url) || url);
       }
     }
-    return out;
-  }, [seedUrlSelectedBySourceType, seedUrlsBySourceType]);
+
+    return {
+      nature,
+      science,
+      unsupported: unsupportedLabels.length,
+      unsupportedLabels,
+    };
+  }, [seedUrlSelected, seedUrlTitles, seedUrls]);
 
   const fetchSeedUrls = useMemo(() => {
-    const list = [
-      ...(fetchSeedUrlsBySourceType.nature || []),
-      ...(fetchSeedUrlsBySourceType.science || []),
-    ];
     const seen = new Set();
     const out = [];
-    for (const url of list) {
-      const key = String(url || "").trim();
-      if (!key) continue;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(key);
+    for (let i = 0; i < seedUrls.length; i += 1) {
+      const url = typeof seedUrls[i] === "string" ? seedUrls[i].trim() : "";
+      if (!url) continue;
+      if (seedUrlSelected[i] === false) continue;
+      const kind = classifySeedUrl(url);
+      if (kind !== "nature" && kind !== "science") continue;
+      if (seen.has(url)) continue;
+      seen.add(url);
+      out.push(url);
     }
     return out;
-  }, [fetchSeedUrlsBySourceType]);
-
-  const fetchSeedUrlCounts = useMemo(
-    () => ({
-      nature: fetchSeedUrlsBySourceType.nature.length,
-      science: fetchSeedUrlsBySourceType.science.length,
-    }),
-    [fetchSeedUrlsBySourceType]
-  );
+  }, [seedUrlSelected, seedUrls]);
 
   useEffect(() => {
     let cancelled = false;
@@ -714,78 +572,33 @@ const LiteratureResearch = () => {
         const data = await apiService.getLiteratureSettings();
         if (cancelled) return;
 
-        const hasSeedUrlsBySourceType =
-          data?.seedUrlsBySourceType &&
-          typeof data.seedUrlsBySourceType === "object";
-
-        const savedNatureSeedUrls = normalizeSeedUrlsList(
-          data?.seedUrlsBySourceType?.nature
-        );
-        const savedScienceSeedUrls = normalizeSeedUrlsList(
-          data?.seedUrlsBySourceType?.science
-        );
-
-        const legacySeedUrls = Array.isArray(data?.seedUrls)
-          ? data.seedUrls
-            .map((value) => (typeof value === "string" ? value.trim() : ""))
-            .filter(Boolean)
-          : [];
-
-        const committedSeedUrlsBySourceType = hasSeedUrlsBySourceType
-          ? { nature: savedNatureSeedUrls, science: savedScienceSeedUrls }
+        const committedSeedUrlsUnified = Array.isArray(data?.seedUrlsUnified)
+          ? normalizeSeedUrlsList(data.seedUrlsUnified)
           : (() => {
-            const split = { nature: [], science: [] };
-            for (const url of legacySeedUrls) {
-              if (String(url || "").includes("science.org"))
-                split.science.push(url);
-              else split.nature.push(url);
-            }
-            return split;
-          })();
+              const bySource = data?.seedUrlsBySourceType;
+              if (bySource && typeof bySource === "object") {
+                return [
+                  ...normalizeSeedUrlsList(bySource.nature),
+                  ...normalizeSeedUrlsList(bySource.science),
+                ];
+              }
+              const legacy = Array.isArray(data?.seedUrls) ? data.seedUrls : [];
+              return normalizeSeedUrlsList(legacy);
+            })();
 
-        const committedSeedUrlTitlesBySourceType =
-          data?.seedUrlTitlesBySourceType &&
-            typeof data.seedUrlTitlesBySourceType === "object"
-            ? {
-              nature: normalizeSeedUrlTitlesList(
-                data.seedUrlTitlesBySourceType.nature,
-                committedSeedUrlsBySourceType.nature.length,
-              ),
-              science: normalizeSeedUrlTitlesList(
-                data.seedUrlTitlesBySourceType.science,
-                committedSeedUrlsBySourceType.science.length,
-              ),
-            }
-            : {
-              nature: normalizeSeedUrlTitlesList(
-                null,
-                committedSeedUrlsBySourceType.nature.length,
-              ),
-              science: normalizeSeedUrlTitlesList(
-                null,
-                committedSeedUrlsBySourceType.science.length,
-              ),
-            };
-
-        const resolvedSeedUrlsBySourceType = {
-          nature: committedSeedUrlsBySourceType.nature.length
-            ? committedSeedUrlsBySourceType.nature
-            : [""],
-          science: committedSeedUrlsBySourceType.science.length
-            ? committedSeedUrlsBySourceType.science
-            : [""],
-        };
-
-        const resolvedSeedUrlTitlesBySourceType = {
-          nature: normalizeSeedUrlTitlesList(
-            committedSeedUrlTitlesBySourceType.nature,
-            resolvedSeedUrlsBySourceType.nature.length,
-          ),
-          science: normalizeSeedUrlTitlesList(
-            committedSeedUrlTitlesBySourceType.science,
-            resolvedSeedUrlsBySourceType.science.length,
-          ),
-        };
+        const committedSeedUrlTitlesUnified = Array.isArray(data?.seedUrlTitlesUnified)
+          ? normalizeSeedUrlTitlesList(data.seedUrlTitlesUnified, committedSeedUrlsUnified.length)
+          : (() => {
+              const bySource = data?.seedUrlTitlesBySourceType;
+              if (bySource && typeof bySource === "object") {
+                const titles = [
+                  ...(Array.isArray(bySource.nature) ? bySource.nature : []),
+                  ...(Array.isArray(bySource.science) ? bySource.science : []),
+                ];
+                return normalizeSeedUrlTitlesList(titles, committedSeedUrlsUnified.length);
+              }
+              return normalizeSeedUrlTitlesList(null, committedSeedUrlsUnified.length);
+            })();
 
         const resolvedStartDate =
           typeof data?.startDate === "string" && data.startDate
@@ -802,35 +615,19 @@ const LiteratureResearch = () => {
             ? data.maxResults
             : null;
 
-        const resolvedSourceType =
-          data?.sourceType === "science" || data?.sourceType === "nature"
-            ? data.sourceType
-            : (() => {
-              const hasScience =
-                committedSeedUrlsBySourceType.science.length > 0;
-              const hasNature =
-                committedSeedUrlsBySourceType.nature.length > 0;
-              if (hasScience && !hasNature) return "science";
-              return "nature";
-            })();
-
         committedSettingsRef.current = {
-          seedUrlsBySourceType: committedSeedUrlsBySourceType,
-          seedUrlTitlesBySourceType: committedSeedUrlTitlesBySourceType,
+          seedUrlsUnified: committedSeedUrlsUnified,
+          seedUrlTitlesUnified: committedSeedUrlTitlesUnified,
           maxResults: resolvedMaxResults,
         };
 
         if (!hasRestoredSessionRef.current) {
-          setSeedUrlsBySourceType((prev) => ({
-            ...prev,
-            nature: resolvedSeedUrlsBySourceType.nature,
-            science: resolvedSeedUrlsBySourceType.science,
-          }));
-          setSeedUrlTitlesBySourceType((prev) => ({
-            ...prev,
-            nature: resolvedSeedUrlTitlesBySourceType.nature,
-            science: resolvedSeedUrlTitlesBySourceType.science,
-          }));
+          const nextSeedUrls = committedSeedUrlsUnified.length ? committedSeedUrlsUnified : [""];
+          setSeedUrls(nextSeedUrls);
+          setSeedUrlTitles(
+            normalizeSeedUrlTitlesList(committedSeedUrlTitlesUnified, nextSeedUrls.length),
+          );
+          setSeedUrlSelected(normalizeSeedUrlSelectedList(null, nextSeedUrls.length));
           startDateAutoRef.current =
             typeof resolvedStartDate === "string" &&
             resolvedStartDate &&
@@ -844,7 +641,6 @@ const LiteratureResearch = () => {
           setMaxResults(
             resolvedMaxResults == null ? "" : String(resolvedMaxResults)
           );
-          setSourceType(resolvedSourceType);
         }
 
         setHasTranslationApiKey(Boolean(data?.hasTranslationApiKey));
@@ -888,32 +684,16 @@ const LiteratureResearch = () => {
   const scheduleSettingsAutosave = () => {
     cancelSettingsAutosave();
 
-    const seedSource = lastEditedSeedSourceRef.current;
-    const hasSeedDirty =
-      seedSource && Boolean(seedUrlsDirtyBySourceRef.current?.[seedSource]);
-    const hasSeedTitleDirty =
-      seedSource && Boolean(seedUrlTitlesDirtyBySourceRef.current?.[seedSource]);
+    const hasSeedDirty = Boolean(seedUrlsDirtyRef.current);
+    const hasSeedTitleDirty = Boolean(seedUrlTitlesDirtyRef.current);
     const hasMaxDirty = Boolean(maxResultsDirtyRef.current);
     if (!hasSeedDirty && !hasSeedTitleDirty && !hasMaxDirty) return;
 
     if (settingsFocusCountRef.current > 0) return;
     settingsAutosaveTimerRef.current = setTimeout(() => {
-      const latestSeedSource = lastEditedSeedSourceRef.current;
-      const shouldSyncSeedData =
-        latestSeedSource &&
-        (seedUrlsDirtyBySourceRef.current?.[latestSeedSource] ||
-          seedUrlTitlesDirtyBySourceRef.current?.[latestSeedSource]);
-      const seedUrlsToPersist = shouldSyncSeedData
-        ? seedUrlsBySourceTypeRef.current?.[latestSeedSource] || []
-        : [];
-      const seedUrlTitlesToPersist = shouldSyncSeedData
-        ? seedUrlTitlesBySourceTypeRef.current?.[latestSeedSource] || []
-        : [];
-
       syncSettingsForFetch({
-        seedSource: latestSeedSource,
-        seedUrlsToPersist,
-        seedUrlTitlesToPersist,
+        seedUrlsToPersist: seedUrlsRef.current || [],
+        seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
       }).catch(() => { });
     }, 1500);
   };
@@ -931,48 +711,37 @@ const LiteratureResearch = () => {
     scheduleSettingsAutosave();
   };
 
-  const syncSettingsForFetch = ({ seedSource, seedUrlsToPersist, seedUrlTitlesToPersist }) => {
+  const syncSettingsForFetch = ({ seedUrlsToPersist, seedUrlTitlesToPersist }) => {
     return enqueueSettingsSync(async () => {
       const updates = {};
 
-      const shouldSyncSeedUrls =
-        seedSource && Boolean(seedUrlsDirtyBySourceRef.current?.[seedSource]);
-      const shouldSyncSeedUrlTitles =
-        seedSource &&
-        Boolean(seedUrlTitlesDirtyBySourceRef.current?.[seedSource]);
+      const shouldSyncSeedUrls = Boolean(seedUrlsDirtyRef.current);
+      const shouldSyncSeedUrlTitles = Boolean(seedUrlTitlesDirtyRef.current);
 
-      if (seedSource && (shouldSyncSeedUrls || shouldSyncSeedUrlTitles)) {
-        const committedSeedUrls =
-          committedSettingsRef.current.seedUrlsBySourceType?.[seedSource] || [];
-        const committedSeedUrlTitles =
-          committedSettingsRef.current.seedUrlTitlesBySourceType?.[seedSource] || [];
+      if (shouldSyncSeedUrls || shouldSyncSeedUrlTitles) {
+        const committedSeedUrls = committedSettingsRef.current.seedUrlsUnified || [];
+        const committedSeedUrlTitles = committedSettingsRef.current.seedUrlTitlesUnified || [];
 
         const paired = pairSeedUrlsAndTitles(seedUrlsToPersist, seedUrlTitlesToPersist);
         const nextSeedUrls = paired.seedUrls;
         const nextSeedUrlTitles = paired.seedUrlTitles;
 
         const seedUrlsChanged = !areStringArraysEqual(nextSeedUrls, committedSeedUrls);
-        const seedUrlTitlesChanged = !areStringArraysEqual(
-          nextSeedUrlTitles,
-          committedSeedUrlTitles,
-        );
+        const seedUrlTitlesChanged = !areStringArraysEqual(nextSeedUrlTitles, committedSeedUrlTitles);
 
         if (shouldSyncSeedUrls) {
           if (seedUrlsChanged) {
-            updates.seedUrls = nextSeedUrls;
-            updates.seedSource = seedSource;
+            updates.seedUrlsUnified = nextSeedUrls;
           } else {
-            seedUrlsDirtyBySourceRef.current[seedSource] = false;
+            seedUrlsDirtyRef.current = false;
           }
         }
 
-        // Keep titles aligned with persisted seedUrls; also allow title-only updates.
         if (shouldSyncSeedUrlTitles || seedUrlsChanged) {
           if (seedUrlTitlesChanged) {
-            updates.seedUrlTitles = nextSeedUrlTitles;
-            updates.seedSource = seedSource;
+            updates.seedUrlTitlesUnified = nextSeedUrlTitles;
           } else if (shouldSyncSeedUrlTitles) {
-            seedUrlTitlesDirtyBySourceRef.current[seedSource] = false;
+            seedUrlTitlesDirtyRef.current = false;
           }
         }
       }
@@ -1015,38 +784,19 @@ const LiteratureResearch = () => {
       }
 
       const data = await apiService.updateLiteratureSettings(updates);
-      const nextCommittedSeedUrlsBySourceType =
-        data?.seedUrlsBySourceType &&
-          typeof data.seedUrlsBySourceType === "object"
-          ? {
-            nature: normalizeSeedUrlsList(data.seedUrlsBySourceType.nature),
-            science: normalizeSeedUrlsList(data.seedUrlsBySourceType.science),
-          }
-          : committedSettingsRef.current.seedUrlsBySourceType || {
-            nature: [],
-            science: [],
-          };
+      const nextCommittedSeedUrlsUnified = Array.isArray(data?.seedUrlsUnified)
+        ? normalizeSeedUrlsList(data.seedUrlsUnified)
+        : committedSettingsRef.current.seedUrlsUnified || [];
+      const nextCommittedSeedUrlTitlesUnified = Array.isArray(data?.seedUrlTitlesUnified)
+        ? normalizeSeedUrlTitlesList(data.seedUrlTitlesUnified, nextCommittedSeedUrlsUnified.length)
+        : normalizeSeedUrlTitlesList(
+            committedSettingsRef.current.seedUrlTitlesUnified,
+            nextCommittedSeedUrlsUnified.length,
+          );
 
-      const nextCommittedSeedUrlTitlesBySourceType =
-        data?.seedUrlTitlesBySourceType &&
-          typeof data.seedUrlTitlesBySourceType === "object"
-          ? {
-            nature: normalizeSeedUrlTitlesList(
-              data.seedUrlTitlesBySourceType.nature,
-              nextCommittedSeedUrlsBySourceType.nature.length,
-            ),
-            science: normalizeSeedUrlTitlesList(
-              data.seedUrlTitlesBySourceType.science,
-              nextCommittedSeedUrlsBySourceType.science.length,
-            ),
-          }
-          : committedSettingsRef.current.seedUrlTitlesBySourceType || {
-            nature: [],
-            science: [],
-          };
       committedSettingsRef.current = {
-        seedUrlsBySourceType: nextCommittedSeedUrlsBySourceType,
-        seedUrlTitlesBySourceType: nextCommittedSeedUrlTitlesBySourceType,
+        seedUrlsUnified: nextCommittedSeedUrlsUnified,
+        seedUrlTitlesUnified: nextCommittedSeedUrlTitlesUnified,
         maxResults:
           data?.maxResults == null
             ? null
@@ -1055,17 +805,11 @@ const LiteratureResearch = () => {
               : null,
       };
 
-      if (
-        seedSource &&
-        Object.prototype.hasOwnProperty.call(updates, "seedUrls")
-      ) {
-        seedUrlsDirtyBySourceRef.current[seedSource] = false;
+      if (Object.prototype.hasOwnProperty.call(updates, "seedUrlsUnified")) {
+        seedUrlsDirtyRef.current = false;
       }
-      if (
-        seedSource &&
-        Object.prototype.hasOwnProperty.call(updates, "seedUrlTitles")
-      ) {
-        seedUrlTitlesDirtyBySourceRef.current[seedSource] = false;
+      if (Object.prototype.hasOwnProperty.call(updates, "seedUrlTitlesUnified")) {
+        seedUrlTitlesDirtyRef.current = false;
       }
       if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
         maxResultsDirtyRef.current = false;
@@ -1093,30 +837,10 @@ const LiteratureResearch = () => {
   };
 
   const syncAllDirtySettingsForFetch = async () => {
-    const dirtySources = ["nature", "science"].filter(
-      (source) =>
-        seedUrlsDirtyBySourceRef.current?.[source] ||
-        seedUrlTitlesDirtyBySourceRef.current?.[source]
-    );
-
-    // Even if no seed-url changes, still sync maxResults if needed.
-    if (dirtySources.length === 0) {
-      await syncSettingsForFetch({
-        seedSource: null,
-        seedUrlsToPersist: [],
-        seedUrlTitlesToPersist: [],
-      });
-      return;
-    }
-
-    for (const source of dirtySources) {
-      await syncSettingsForFetch({
-        seedSource: source,
-        seedUrlsToPersist: seedUrlsBySourceTypeRef.current?.[source] || [],
-        seedUrlTitlesToPersist:
-          seedUrlTitlesBySourceTypeRef.current?.[source] || [],
-      });
-    }
+    await syncSettingsForFetch({
+      seedUrlsToPersist: seedUrlsRef.current || [],
+      seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
+    });
   };
 
   useEffect(() => {
@@ -1125,70 +849,32 @@ const LiteratureResearch = () => {
 
       const updates = {};
 
-      const committedSeedUrlsBySourceType = committedSettingsRef.current
-        .seedUrlsBySourceType || {
-        nature: [],
-        science: [],
-      };
-      const committedSeedUrlTitlesBySourceType = committedSettingsRef.current
-        .seedUrlTitlesBySourceType || {
-        nature: [],
-        science: [],
-      };
-
-      const pairedNature = pairSeedUrlsAndTitles(
-        seedUrlsBySourceTypeRef.current?.nature,
-        seedUrlTitlesBySourceTypeRef.current?.nature,
-      );
-      const pairedScience = pairSeedUrlsAndTitles(
-        seedUrlsBySourceTypeRef.current?.science,
-        seedUrlTitlesBySourceTypeRef.current?.science,
-      );
-
-      const nextSeedUrlsBySourceType = {
-        nature: pairedNature.seedUrls,
-        science: pairedScience.seedUrls,
-      };
-      const nextSeedUrlTitlesBySourceType = {
-        nature: pairedNature.seedUrlTitles,
-        science: pairedScience.seedUrlTitles,
-      };
-
-      const dirtySources = ["nature", "science"].filter(
-        (source) =>
-          seedUrlsDirtyBySourceRef.current?.[source] ||
-          seedUrlTitlesDirtyBySourceRef.current?.[source]
-      );
-
-      const seedUrlsShouldUpdate = dirtySources.some((source) => {
-        const committedList = committedSeedUrlsBySourceType[source] || [];
-        const nextList = nextSeedUrlsBySourceType[source] || [];
-        if (areStringArraysEqual(nextList, committedList)) {
-          seedUrlsDirtyBySourceRef.current[source] = false;
-          return false;
-        }
-        return Boolean(seedUrlsDirtyBySourceRef.current?.[source]);
-      });
-
-      if (seedUrlsShouldUpdate) {
-        updates.seedUrlsBySourceType = nextSeedUrlsBySourceType;
-      }
-
-      const seedUrlTitlesShouldUpdate = dirtySources.some((source) => {
-        const committedList = committedSeedUrlTitlesBySourceType[source] || [];
-        const nextList = nextSeedUrlTitlesBySourceType[source] || [];
-        if (areStringArraysEqual(nextList, committedList)) {
-          seedUrlTitlesDirtyBySourceRef.current[source] = false;
-          return false;
-        }
-        return Boolean(
-          seedUrlTitlesDirtyBySourceRef.current?.[source] ||
-          seedUrlsDirtyBySourceRef.current?.[source],
+      if (seedUrlsDirtyRef.current || seedUrlTitlesDirtyRef.current) {
+        const paired = pairSeedUrlsAndTitles(
+          seedUrlsRef.current,
+          seedUrlTitlesRef.current,
         );
-      });
 
-      if (seedUrlTitlesShouldUpdate || seedUrlsShouldUpdate) {
-        updates.seedUrlTitlesBySourceType = nextSeedUrlTitlesBySourceType;
+        const committedSeedUrlsUnified = committedSettingsRef.current.seedUrlsUnified || [];
+        const committedSeedUrlTitlesUnified = committedSettingsRef.current.seedUrlTitlesUnified || [];
+
+        if (
+          seedUrlsDirtyRef.current &&
+          !areStringArraysEqual(paired.seedUrls, committedSeedUrlsUnified)
+        ) {
+          updates.seedUrlsUnified = paired.seedUrls;
+        } else {
+          seedUrlsDirtyRef.current = false;
+        }
+
+        if (
+          (seedUrlTitlesDirtyRef.current || seedUrlsDirtyRef.current) &&
+          !areStringArraysEqual(paired.seedUrlTitles, committedSeedUrlTitlesUnified)
+        ) {
+          updates.seedUrlTitlesUnified = paired.seedUrlTitles;
+        } else {
+          seedUrlTitlesDirtyRef.current = false;
+        }
       }
 
       if (maxResultsDirtyRef.current) {
@@ -1225,42 +911,19 @@ const LiteratureResearch = () => {
       apiService
         .updateLiteratureSettings(updates)
         .then((data) => {
-          const nextCommittedSeedUrlsBySourceType =
-            data?.seedUrlsBySourceType &&
-              typeof data.seedUrlsBySourceType === "object"
-              ? {
-                nature: normalizeSeedUrlsList(
-                  data.seedUrlsBySourceType.nature
-                ),
-                science: normalizeSeedUrlsList(
-                  data.seedUrlsBySourceType.science
-                ),
-              }
-              : committedSettingsRef.current.seedUrlsBySourceType || {
-                nature: [],
-                science: [],
-              };
+          const nextCommittedSeedUrlsUnified = Array.isArray(data?.seedUrlsUnified)
+            ? normalizeSeedUrlsList(data.seedUrlsUnified)
+            : committedSettingsRef.current.seedUrlsUnified || [];
+          const nextCommittedSeedUrlTitlesUnified = Array.isArray(data?.seedUrlTitlesUnified)
+            ? normalizeSeedUrlTitlesList(data.seedUrlTitlesUnified, nextCommittedSeedUrlsUnified.length)
+            : normalizeSeedUrlTitlesList(
+                committedSettingsRef.current.seedUrlTitlesUnified,
+                nextCommittedSeedUrlsUnified.length,
+              );
 
-          const nextCommittedSeedUrlTitlesBySourceType =
-            data?.seedUrlTitlesBySourceType &&
-              typeof data.seedUrlTitlesBySourceType === "object"
-              ? {
-                nature: normalizeSeedUrlTitlesList(
-                  data.seedUrlTitlesBySourceType.nature,
-                  nextCommittedSeedUrlsBySourceType.nature.length,
-                ),
-                science: normalizeSeedUrlTitlesList(
-                  data.seedUrlTitlesBySourceType.science,
-                  nextCommittedSeedUrlsBySourceType.science.length,
-                ),
-              }
-              : committedSettingsRef.current.seedUrlTitlesBySourceType || {
-                nature: [],
-                science: [],
-              };
           committedSettingsRef.current = {
-            seedUrlsBySourceType: nextCommittedSeedUrlsBySourceType,
-            seedUrlTitlesBySourceType: nextCommittedSeedUrlTitlesBySourceType,
+            seedUrlsUnified: nextCommittedSeedUrlsUnified,
+            seedUrlTitlesUnified: nextCommittedSeedUrlTitlesUnified,
             maxResults:
               data?.maxResults == null
                 ? null
@@ -1268,29 +931,12 @@ const LiteratureResearch = () => {
                   ? Number(data.maxResults)
                   : null,
           };
-          if (
-            Object.prototype.hasOwnProperty.call(
-              updates,
-              "seedUrlsBySourceType"
-            )
-          ) {
-            for (const source of ["nature", "science"]) {
-              seedUrlsDirtyBySourceRef.current[source] = false;
-            }
+
+          if (Object.prototype.hasOwnProperty.call(updates, "seedUrlsUnified")) {
+            seedUrlsDirtyRef.current = false;
           }
-          if (
-            Object.prototype.hasOwnProperty.call(
-              updates,
-              "seedUrlTitlesBySourceType"
-            ) ||
-            Object.prototype.hasOwnProperty.call(
-              updates,
-              "seedUrlsBySourceType"
-            )
-          ) {
-            for (const source of ["nature", "science"]) {
-              seedUrlTitlesDirtyBySourceRef.current[source] = false;
-            }
+          if (Object.prototype.hasOwnProperty.call(updates, "seedUrlTitlesUnified")) {
+            seedUrlTitlesDirtyRef.current = false;
           }
           if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
             maxResultsDirtyRef.current = false;
@@ -1311,13 +957,12 @@ const LiteratureResearch = () => {
     const snapshot = {
       v: LITERATURE_SESSION_STATE_VERSION,
       savedAt: Date.now(),
-      seedUrlsBySourceType,
-      seedUrlSelectedBySourceType,
-      seedUrlTitlesBySourceType,
+      seedUrls,
+      seedUrlSelected,
+      seedUrlTitles,
       startDate,
       endDate,
       maxResults,
-      sourceType,
       keywordInput,
       keywordMode,
       resultView,
@@ -1334,18 +979,17 @@ const LiteratureResearch = () => {
     keywordInput,
     keywordMode,
     resultView,
-    results,
-    selectedIds,
-    seedUrlsBySourceType,
-    seedUrlTitlesBySourceType,
-    sourceType,
-    startDate,
-    status,
-    translations,
-    literatureSession,
-    seedUrlSelectedBySourceType,
-    user?.id,
-  ]);
+      results,
+      selectedIds,
+      seedUrls,
+      seedUrlSelected,
+      seedUrlTitles,
+      startDate,
+      status,
+      translations,
+      literatureSession,
+      user?.id,
+    ]);
 
   const sortedResults = useMemo(() => {
     const list = Array.isArray(results) ? results : [];
@@ -1422,19 +1066,15 @@ const LiteratureResearch = () => {
 
   const seedUrlTitleBySeedUrl = useMemo(() => {
     const out = new Map();
-    for (const source of ["nature", "science"]) {
-      const urls = seedUrlsBySourceType?.[source] || [];
-      const titles = seedUrlTitlesBySourceType?.[source] || [];
-      for (let i = 0; i < urls.length; i += 1) {
-        const url = typeof urls[i] === "string" ? urls[i].trim() : "";
-        if (!url) continue;
-        const title = typeof titles[i] === "string" ? titles[i].trim() : "";
-        if (!title) continue;
-        out.set(url, title);
-      }
+    for (let i = 0; i < seedUrls.length; i += 1) {
+      const url = typeof seedUrls[i] === "string" ? seedUrls[i].trim() : "";
+      if (!url) continue;
+      const title = typeof seedUrlTitles[i] === "string" ? seedUrlTitles[i].trim() : "";
+      if (!title) continue;
+      out.set(url, title);
     }
     return out;
-  }, [seedUrlsBySourceType, seedUrlTitlesBySourceType]);
+  }, [seedUrlTitles, seedUrls]);
 
   const groupedResults = useMemo(() => {
     const list = Array.isArray(sortedResults) ? sortedResults : [];
@@ -1724,20 +1364,19 @@ const LiteratureResearch = () => {
   };
 
   const setSeedUrlAt = (index, value) => {
-    setSeedUrlsForSourceType(
+    setSeedUrlsList(
       seedUrls.map((prevValue, i) => (i === index ? value : prevValue))
     );
   };
 
   const setSeedUrlSelectedAt = (index, checked) => {
-    setSeedUrlSelectedBySourceType((prev) => {
-      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
+    setSeedUrlSelected((prev) => {
       const desiredLen = seedUrls.length;
-      const nextList = normalizeSeedUrlSelectedList(prevList, desiredLen);
+      const nextList = normalizeSeedUrlSelectedList(prev, desiredLen);
       if (index >= 0 && index < nextList.length) {
         nextList[index] = Boolean(checked);
       }
-      return { ...prev, [sourceType]: nextList.length ? nextList : [true] };
+      return nextList.length ? nextList : [true];
     });
   };
 
@@ -1747,34 +1386,24 @@ const LiteratureResearch = () => {
     if (index >= 0 && index < nextList.length) {
       nextList[index] = typeof value === "string" ? value : String(value ?? "");
     }
-    setSeedUrlTitlesForSourceType(nextList.length ? nextList : [""]);
+    setSeedUrlTitlesList(nextList.length ? nextList : [""]);
   };
 
   const removeSeedUrlAt = (index) => {
-    setSeedUrlSelectedBySourceType((prev) => {
-      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
-      const nextList = prevList.filter((_, i) => i !== index);
-      return { ...prev, [sourceType]: nextList.length ? nextList : [true] };
+    setSeedUrlSelected((prev) => {
+      const nextList = (Array.isArray(prev) ? prev : []).filter((_, i) => i !== index);
+      return nextList.length ? nextList : [true];
     });
-    setSeedUrlTitlesBySourceType((prev) => {
-      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
-      const nextList = prevList.filter((_, i) => i !== index);
-      return { ...prev, [sourceType]: nextList.length ? nextList : [""] };
-    });
+    const nextTitles = seedUrlTitles.filter((_, i) => i !== index);
+    setSeedUrlTitlesList(nextTitles.length ? nextTitles : [""]);
     const next = seedUrls.filter((_, i) => i !== index);
-    setSeedUrlsForSourceType(next.length ? next : [""]);
+    setSeedUrlsList(next.length ? next : [""]);
   };
 
   const addSeedUrl = () => {
-    setSeedUrlSelectedBySourceType((prev) => {
-      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
-      return { ...prev, [sourceType]: [...prevList, true] };
-    });
-    setSeedUrlTitlesBySourceType((prev) => {
-      const prevList = Array.isArray(prev?.[sourceType]) ? prev[sourceType] : [];
-      return { ...prev, [sourceType]: [...prevList, ""] };
-    });
-    setSeedUrlsForSourceType([...seedUrls, ""]);
+    setSeedUrlSelected((prev) => [...normalizeSeedUrlSelectedList(prev, seedUrls.length), true]);
+    setSeedUrlTitlesList([...normalizeSeedUrlTitlesList(seedUrlTitles, seedUrls.length), ""]);
+    setSeedUrlsList([...seedUrls, ""]);
   };
 
   const handleTranslate = async (item) => {
@@ -1859,13 +1488,6 @@ const LiteratureResearch = () => {
     } finally {
       translateInFlightRef.current = false;
     }
-  };
-
-  const handleSourceChange = (newSource) => {
-    sourceTypeRef.current = newSource;
-    setSourceType(newSource);
-    // Preserve user input when switching. Source-specific placeholders/examples are
-    // already shown elsewhere; forcing defaults here wipes state unexpectedly.
   };
 
   const handleSearch = async () => {
@@ -2435,8 +2057,6 @@ const LiteratureResearch = () => {
 
       <div className="page_content">
         <JournalLinksCard
-          sourceType={sourceType}
-          onSourceChange={handleSourceChange}
           startDate={startDate}
           onStartDateChange={handleStartDateChange}
           endDate={endDate}
@@ -2449,7 +2069,7 @@ const LiteratureResearch = () => {
           onSearch={handleSearch}
           status={status}
           fetchProgress={fetchProgress}
-          fetchSeedUrlCounts={fetchSeedUrlCounts}
+          seedUrlStats={seedUrlStats}
           seedUrls={seedUrls}
           seedUrlTitles={seedUrlTitles}
           seedUrlSelected={seedUrlSelected}

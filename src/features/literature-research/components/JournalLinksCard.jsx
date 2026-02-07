@@ -1,23 +1,18 @@
 import React from "react";
 import {
   Check,
-  FlaskConical,
-  Leaf,
   Link as LinkIcon,
   Plus,
   Search,
   Trash2,
 } from "lucide-react";
 import { useLanguage } from "../../../hooks/useLanguage";
-import Tabs from "../../../components/ui/Tabs";
 import DatePicker from "../../../components/ui/DatePicker";
 import Input from "../../../components/ui/Input";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 
 const JournalLinksCard = ({
-  sourceType,
-  onSourceChange,
   startDate,
   onStartDateChange,
   endDate,
@@ -30,7 +25,7 @@ const JournalLinksCard = ({
   onSearch,
   status,
   fetchProgress,
-  fetchSeedUrlCounts,
+  seedUrlStats,
   seedUrls,
   seedUrlTitles,
   seedUrlSelected,
@@ -42,6 +37,19 @@ const JournalLinksCard = ({
   resolveSeedUrlLabel,
 }) => {
   const { t } = useLanguage();
+  const unsupportedLabels = Array.isArray(seedUrlStats?.unsupportedLabels)
+    ? seedUrlStats.unsupportedLabels
+    : [];
+  const unsupportedText = unsupportedLabels.join(" / ");
+  const seedCountsText = [
+    `${t("literature_source_nature")} ${seedUrlStats?.nature ?? 0}`,
+    `${t("literature_source_science")} ${seedUrlStats?.science ?? 0}`,
+    seedUrlStats?.unsupported
+      ? `${t("literature_source_unsupported")} ${seedUrlStats.unsupported}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" / ");
 
   return (
     <section aria-label={t("journal_links")}>
@@ -54,31 +62,6 @@ const JournalLinksCard = ({
         aria-label={t("journal_links")}
       >
         <div className="toolbar_group">
-          <Tabs
-            value={sourceType}
-            onChange={onSourceChange}
-            idBase="literature-source"
-            groupLabel="Journal view"
-            options={[
-              {
-                value: "nature",
-                label: "Nature",
-                icon: Leaf,
-                cta: "Literature research",
-                ctaPosition: "journal",
-                ctaCopy: "nature",
-              },
-              {
-                value: "science",
-                label: "Science",
-                icon: FlaskConical,
-                cta: "Literature research",
-                ctaPosition: "journal",
-                ctaCopy: "science",
-              },
-            ]}
-          />
-
           <div className="ui-filter_warp" aria-label="date filter warp">
             <div className="date_btn_warp flex-none">
               <label className="date_btn_label">
@@ -186,9 +169,14 @@ const JournalLinksCard = ({
                 {t("literature_seed_urls")}
               </label>
               <span className="text-xs text-text-secondary whitespace-nowrap">
-                (Nature {fetchSeedUrlCounts.nature} / Science {fetchSeedUrlCounts.science})
+                ({seedCountsText})
               </span>
             </div>
+            {seedUrlStats?.unsupported ? (
+              <div className="mt-1 text-xs text-text-secondary truncate" title={unsupportedText}>
+                {t("literature_source_unsupported")}: {unsupportedText || "-"}
+              </div>
+            ) : null}
 
             <div className="mt-3 space-y-2" id="literature-seed-url-list">
               {seedUrls.map((value, index) => (
@@ -227,9 +215,7 @@ const JournalLinksCard = ({
                     spellCheck={false}
                     autoCorrect="off"
                     autoCapitalize="off"
-                    placeholder={
-                      sourceType === "science" ? "https://www.science.org" : "https://www.nature.com"
-                    }
+                    placeholder={t("literature_seed_url_placeholder")}
                     leftIcon={LinkIcon}
                     className="flex-1"
                     aria-label={`Seed url ${index + 1}`}

@@ -721,6 +721,8 @@ test("routes: exercise all API route groups", async (t) => {
     {
       const data = await settingsGet.json();
       assert.ok(data);
+      assert.ok(Array.isArray(data.seedUrlsUnified));
+      assert.ok(Array.isArray(data.seedUrlTitlesUnified));
       assert.ok(data.seedUrlsBySourceType);
       assert.ok(data.seedUrlTitlesBySourceType);
       assert.ok(Array.isArray(data.seedUrlTitlesBySourceType.nature));
@@ -736,17 +738,27 @@ test("routes: exercise all API route groups", async (t) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           maxResults: 5,
-          sourceType: "nature",
-          seedSource: "nature",
-          seedUrls: ["https://www.nature.com/nature/research-articles"],
-          seedUrlTitles: ["My Literature DOCX Title"],
+          seedUrlsUnified: [
+            "https://www.nature.com/nature/research-articles",
+            "https://www.science.org/journal/sciadv",
+            "https://example.com/not-supported",
+          ],
+          seedUrlTitlesUnified: [
+            "My Nature DOCX Title",
+            "My Science DOCX Title",
+            "My Unsupported Title",
+          ],
         }),
       },
     );
     assert.equal(settingsPatch.status, 200);
     {
       const data = await settingsPatch.json();
-      assert.equal(data?.seedUrlTitlesBySourceType?.nature?.[0], "My Literature DOCX Title");
+      assert.equal(data?.seedUrlTitlesUnified?.[0], "My Nature DOCX Title");
+      assert.equal(data?.seedUrlTitlesUnified?.[1], "My Science DOCX Title");
+      assert.equal(data?.seedUrlTitlesUnified?.[2], "My Unsupported Title");
+      assert.equal(data?.seedUrlTitlesBySourceType?.nature?.[0], "My Nature DOCX Title");
+      assert.equal(data?.seedUrlTitlesBySourceType?.science?.[0], "My Science DOCX Title");
     }
 
     const settingsGetAfter = await authedFetch(
@@ -757,7 +769,7 @@ test("routes: exercise all API route groups", async (t) => {
     assert.equal(settingsGetAfter.status, 200);
     {
       const data = await settingsGetAfter.json();
-      assert.equal(data?.seedUrlTitlesBySourceType?.nature?.[0], "My Literature DOCX Title");
+      assert.equal(data?.seedUrlTitlesUnified?.[2], "My Unsupported Title");
     }
 
     // Avoid external fetch: invalid dates throw in literatureService before any network.

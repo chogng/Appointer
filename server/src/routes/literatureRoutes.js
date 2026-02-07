@@ -90,7 +90,18 @@ export default function createLiteratureRoutes() {
             nature: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.nature),
             science: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.science),
           }
-        : splitSeedUrlsBySourceType(config?.seedUrls);
+        : splitSeedUrlsBySourceType(
+            Array.isArray(config?.seedUrlsUnified) && config.seedUrlsUnified.length > 0
+              ? config.seedUrlsUnified
+              : config?.seedUrls,
+          );
+
+      const seedUrlsUnified = Array.isArray(config?.seedUrlsUnified)
+        ? sanitizeSeedUrlsList(config.seedUrlsUnified)
+        : [
+            ...seedUrlsBySourceType.nature,
+            ...seedUrlsBySourceType.science,
+          ];
 
       const seedUrlTitlesBySourceTypeRaw = isPlainObject(config?.seedUrlTitlesBySourceType)
         ? config.seedUrlTitlesBySourceType
@@ -116,6 +127,16 @@ export default function createLiteratureRoutes() {
       }
       while (seedUrlTitlesBySourceType.science.length < seedUrlsBySourceType.science.length) {
         seedUrlTitlesBySourceType.science.push("");
+      }
+
+      const seedUrlTitlesUnified = Array.isArray(config?.seedUrlTitlesUnified)
+        ? sanitizeSeedUrlTitlesList(config.seedUrlTitlesUnified).slice(0, seedUrlsUnified.length)
+        : [
+            ...seedUrlTitlesBySourceType.nature,
+            ...seedUrlTitlesBySourceType.science,
+          ].slice(0, seedUrlsUnified.length);
+      while (seedUrlTitlesUnified.length < seedUrlsUnified.length) {
+        seedUrlTitlesUnified.push("");
       }
 
       const storedSourceType =
@@ -180,6 +201,8 @@ export default function createLiteratureRoutes() {
       const provider = await getTranslationProvider(db);
 
       res.json({
+        seedUrlsUnified,
+        seedUrlTitlesUnified,
         seedUrlsBySourceType,
         seedUrlTitlesBySourceType,
         sourceType,
@@ -261,6 +284,13 @@ export default function createLiteratureRoutes() {
           }
         : { nature: [], science: [] };
 
+      const seedUrlsUnified = Array.isArray(settings?.seedUrlsUnified)
+        ? sanitizeSeedUrlsList(settings.seedUrlsUnified)
+        : [
+            ...seedUrlsBySourceType.nature,
+            ...seedUrlsBySourceType.science,
+          ];
+
       const seedUrlTitlesBySourceType = isPlainObject(settings?.seedUrlTitlesBySourceType)
         ? {
             nature: sanitizeSeedUrlTitlesList(settings.seedUrlTitlesBySourceType.nature).slice(
@@ -280,12 +310,24 @@ export default function createLiteratureRoutes() {
         seedUrlTitlesBySourceType.science.push("");
       }
 
+      const seedUrlTitlesUnified = Array.isArray(settings?.seedUrlTitlesUnified)
+        ? sanitizeSeedUrlTitlesList(settings.seedUrlTitlesUnified).slice(0, seedUrlsUnified.length)
+        : [
+            ...seedUrlTitlesBySourceType.nature,
+            ...seedUrlTitlesBySourceType.science,
+          ].slice(0, seedUrlsUnified.length);
+      while (seedUrlTitlesUnified.length < seedUrlsUnified.length) {
+        seedUrlTitlesUnified.push("");
+      }
+
       const sourceType =
         settings?.sourceType === "science" || settings?.sourceType === "nature"
           ? settings.sourceType
           : null;
 
       res.json({
+        seedUrlsUnified,
+        seedUrlTitlesUnified,
         seedUrlsBySourceType,
         seedUrlTitlesBySourceType,
         sourceType,
@@ -334,7 +376,10 @@ export default function createLiteratureRoutes() {
         const config = safeJsonParse(row?.configJson, {});
 
         if (!Array.isArray(seedUrls) || seedUrls.length === 0) {
-          seedUrls = config?.seedUrls;
+          seedUrls =
+            Array.isArray(config?.seedUrlsUnified) && config.seedUrlsUnified.length > 0
+              ? config.seedUrlsUnified
+              : config?.seedUrls;
         }
         if (!isValidDateString(startDate)) startDate = config?.startDate;
         if (!isValidDateString(endDate)) endDate = config?.endDate;

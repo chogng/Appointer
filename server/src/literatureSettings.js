@@ -34,6 +34,21 @@ function normalizeSeedUrlTitlesList(input, desiredLen) {
   return out;
 }
 
+function pairSeedUrlsAndTitles(seedUrlsInput, seedUrlTitlesInput) {
+  const seedUrls = sanitizeSeedUrlsList(seedUrlsInput);
+  const seedUrlTitles = sanitizeSeedUrlTitlesList(seedUrlTitlesInput);
+  const outSeedUrls = [];
+  const outSeedUrlTitles = [];
+  for (let i = 0; i < seedUrls.length; i += 1) {
+    const url = typeof seedUrls[i] === "string" ? seedUrls[i].trim() : "";
+    if (!url) continue;
+    const title = typeof seedUrlTitles[i] === "string" ? seedUrlTitles[i].trim() : "";
+    outSeedUrls.push(url);
+    outSeedUrlTitles.push(title);
+  }
+  return { seedUrls: outSeedUrls, seedUrlTitles: outSeedUrlTitles };
+}
+
 export function splitSeedUrlsBySourceType(input) {
   const nature = [];
   const science = [];
@@ -51,11 +66,37 @@ export function splitSeedUrlsBySourceType(input) {
   };
 }
 
+function splitSeedUrlTitlesBySourceTypeFromUnified(seedUrlsUnified, seedUrlTitlesUnified) {
+  const seedUrls = Array.isArray(seedUrlsUnified) ? seedUrlsUnified : [];
+  const seedUrlTitles = Array.isArray(seedUrlTitlesUnified) ? seedUrlTitlesUnified : [];
+
+  const nature = [];
+  const science = [];
+
+  for (let i = 0; i < seedUrls.length; i += 1) {
+    const url = typeof seedUrls[i] === "string" ? seedUrls[i].trim() : "";
+    if (!url) continue;
+    const title = typeof seedUrlTitles[i] === "string" ? seedUrlTitles[i].trim() : "";
+    if (url.includes("science.org")) {
+      science.push(title);
+    } else if (url.includes("nature.com")) {
+      nature.push(title);
+    }
+  }
+
+  return {
+    nature: sanitizeSeedUrlTitlesList(nature),
+    science: sanitizeSeedUrlTitlesList(science),
+  };
+}
+
 function sanitizeLiteratureSettings(input) {
   const src = isPlainObject(input) ? input : {};
 
   const seedUrls = sanitizeSeedUrlsList(src.seedUrls);
   const seedUrlTitles = sanitizeSeedUrlTitlesList(src.seedUrlTitles);
+  const seedUrlsUnified = sanitizeSeedUrlsList(src.seedUrlsUnified);
+  const seedUrlTitlesUnified = sanitizeSeedUrlTitlesList(src.seedUrlTitlesUnified);
 
   const seedSourceRaw = src.seedSource;
   const seedSource = seedSourceRaw === "nature" || seedSourceRaw === "science" ? seedSourceRaw : null;
@@ -129,6 +170,8 @@ function sanitizeLiteratureSettings(input) {
     sourceType,
     seedUrlTitles,
     seedUrlTitlesBySourceType,
+    seedUrlsUnified,
+    seedUrlTitlesUnified,
     startDate,
     endDate,
     maxResults,
@@ -145,6 +188,15 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
   const sanitized = sanitizeLiteratureSettings(patch);
 
   const next = { ...existing };
+
+  const existingSeedUrlsUnifiedRaw = next.seedUrlsUnified;
+  const existingSeedUrlTitlesUnifiedRaw = next.seedUrlTitlesUnified;
+  const existingUnifiedPaired = pairSeedUrlsAndTitles(
+    existingSeedUrlsUnifiedRaw,
+    existingSeedUrlTitlesUnifiedRaw,
+  );
+  next.seedUrlsUnified = existingUnifiedPaired.seedUrls;
+  next.seedUrlTitlesUnified = existingUnifiedPaired.seedUrlTitles;
 
   const existingSeedUrlsBySourceTypeRaw = next.seedUrlsBySourceType;
   if (isPlainObject(existingSeedUrlsBySourceTypeRaw)) {
@@ -173,6 +225,26 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
       nature: normalizeSeedUrlTitlesList(null, next.seedUrlsBySourceType.nature.length),
       science: normalizeSeedUrlTitlesList(null, next.seedUrlsBySourceType.science.length),
     };
+  }
+
+  if (!next.seedUrlsUnified.length) {
+    next.seedUrlsUnified = [
+      ...next.seedUrlsBySourceType.nature,
+      ...next.seedUrlsBySourceType.science,
+    ];
+    next.seedUrlTitlesUnified = [
+      ...normalizeSeedUrlTitlesList(
+        next.seedUrlTitlesBySourceType.nature,
+        next.seedUrlsBySourceType.nature.length,
+      ),
+      ...normalizeSeedUrlTitlesList(
+        next.seedUrlTitlesBySourceType.science,
+        next.seedUrlsBySourceType.science.length,
+      ),
+    ];
+    const paired = pairSeedUrlsAndTitles(next.seedUrlsUnified, next.seedUrlTitlesUnified);
+    next.seedUrlsUnified = paired.seedUrls;
+    next.seedUrlTitlesUnified = paired.seedUrlTitles;
   }
 
   if (next.sourceType !== "science" && next.sourceType !== "nature") {
@@ -222,6 +294,23 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     };
   }
 
+  const hasUnifiedSeedPatch =
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlsUnified") ||
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesUnified");
+
+  if (hasUnifiedSeedPatch) {
+    const baseSeedUrlsUnified = Object.prototype.hasOwnProperty.call(patch, "seedUrlsUnified")
+      ? sanitized.seedUrlsUnified
+      : next.seedUrlsUnified;
+    const baseSeedUrlTitlesUnified = Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesUnified")
+      ? sanitized.seedUrlTitlesUnified
+      : next.seedUrlTitlesUnified;
+
+    const paired = pairSeedUrlsAndTitles(baseSeedUrlsUnified, baseSeedUrlTitlesUnified);
+    next.seedUrlsUnified = paired.seedUrls;
+    next.seedUrlTitlesUnified = paired.seedUrlTitles;
+  }
+
   if (Object.prototype.hasOwnProperty.call(patch, "seedUrls")) {
     const targetSourceType =
       sanitized.seedSource ||
@@ -264,6 +353,26 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
       sanitized.seedUrlTitles,
       seedUrlsForSource.length,
     );
+  }
+
+  if (!hasUnifiedSeedPatch) {
+    next.seedUrlsUnified = [
+      ...sanitizeSeedUrlsList(next.seedUrlsBySourceType.nature),
+      ...sanitizeSeedUrlsList(next.seedUrlsBySourceType.science),
+    ];
+    next.seedUrlTitlesUnified = [
+      ...normalizeSeedUrlTitlesList(
+        next.seedUrlTitlesBySourceType.nature,
+        next.seedUrlsBySourceType.nature.length,
+      ),
+      ...normalizeSeedUrlTitlesList(
+        next.seedUrlTitlesBySourceType.science,
+        next.seedUrlsBySourceType.science.length,
+      ),
+    ];
+    const paired = pairSeedUrlsAndTitles(next.seedUrlsUnified, next.seedUrlTitlesUnified);
+    next.seedUrlsUnified = paired.seedUrls;
+    next.seedUrlTitlesUnified = paired.seedUrlTitles;
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, "sourceType")) {
@@ -333,6 +442,36 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
   };
   if (typeof next.startDate !== "string") next.startDate = "";
   if (typeof next.endDate !== "string") next.endDate = "";
+  const finalUnifiedPaired = pairSeedUrlsAndTitles(next.seedUrlsUnified, next.seedUrlTitlesUnified);
+  next.seedUrlsUnified = finalUnifiedPaired.seedUrls;
+  next.seedUrlTitlesUnified = finalUnifiedPaired.seedUrlTitles;
+
+  next.seedUrlsBySourceType = splitSeedUrlsBySourceType(next.seedUrlsUnified);
+  const titlesBySource = splitSeedUrlTitlesBySourceTypeFromUnified(
+    next.seedUrlsUnified,
+    next.seedUrlTitlesUnified,
+  );
+  next.seedUrlTitlesBySourceType = {
+    nature: normalizeSeedUrlTitlesList(
+      titlesBySource.nature,
+      next.seedUrlsBySourceType.nature.length,
+    ),
+    science: normalizeSeedUrlTitlesList(
+      titlesBySource.science,
+      next.seedUrlsBySourceType.science.length,
+    ),
+  };
+
+  if (next.sourceType !== "science" && next.sourceType !== "nature") {
+    next.sourceType =
+      next.seedUrlsBySourceType.science.length > 0 && next.seedUrlsBySourceType.nature.length === 0
+        ? "science"
+        : "nature";
+  }
+
+  next.seedUrls =
+    next.seedUrlsBySourceType[next.sourceType] || next.seedUrlsBySourceType.nature || [];
+
   if (next.maxResults == null) {
     next.maxResults = null;
   } else {
