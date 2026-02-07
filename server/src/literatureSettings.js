@@ -10,6 +10,30 @@ export function sanitizeSeedUrlsList(input) {
     .slice(0, 50);
 }
 
+export function sanitizeSeedUrlTitlesList(input) {
+  const values = Array.isArray(input) ? input : [];
+  return values
+    .slice(0, 50)
+    .map((value) => (value == null ? "" : String(value)))
+    .map((value) => value.trim())
+    .map((value) => {
+      if (!value) return "";
+      if (/[\r\n]/.test(value)) throw new Error("seedUrlTitle must be single-line");
+      if (value.length > 200) throw new Error("seedUrlTitle is too long");
+      return value;
+    });
+}
+
+function normalizeSeedUrlTitlesList(input, desiredLen) {
+  const list = Array.isArray(input) ? input : [];
+  const n = Math.max(0, Math.floor(Number(desiredLen) || 0));
+  const out = new Array(n);
+  for (let i = 0; i < n; i += 1) {
+    out[i] = typeof list[i] === "string" ? list[i] : "";
+  }
+  return out;
+}
+
 export function splitSeedUrlsBySourceType(input) {
   const nature = [];
   const science = [];
@@ -31,6 +55,7 @@ function sanitizeLiteratureSettings(input) {
   const src = isPlainObject(input) ? input : {};
 
   const seedUrls = sanitizeSeedUrlsList(src.seedUrls);
+  const seedUrlTitles = sanitizeSeedUrlTitlesList(src.seedUrlTitles);
 
   const seedSourceRaw = src.seedSource;
   const seedSource = seedSourceRaw === "nature" || seedSourceRaw === "science" ? seedSourceRaw : null;
@@ -43,6 +68,14 @@ function sanitizeLiteratureSettings(input) {
     ? {
         nature: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.nature),
         science: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.science),
+      }
+    : null;
+
+  const seedUrlTitlesBySourceTypeRaw = src.seedUrlTitlesBySourceType;
+  const seedUrlTitlesBySourceType = isPlainObject(seedUrlTitlesBySourceTypeRaw)
+    ? {
+        nature: sanitizeSeedUrlTitlesList(seedUrlTitlesBySourceTypeRaw.nature),
+        science: sanitizeSeedUrlTitlesList(seedUrlTitlesBySourceTypeRaw.science),
       }
     : null;
 
@@ -94,6 +127,8 @@ function sanitizeLiteratureSettings(input) {
     seedUrlsBySourceType,
     seedSource,
     sourceType,
+    seedUrlTitles,
+    seedUrlTitlesBySourceType,
     startDate,
     endDate,
     maxResults,
@@ -119,6 +154,25 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     };
   } else {
     next.seedUrlsBySourceType = splitSeedUrlsBySourceType(next.seedUrls);
+  }
+
+  const existingSeedUrlTitlesBySourceTypeRaw = next.seedUrlTitlesBySourceType;
+  if (isPlainObject(existingSeedUrlTitlesBySourceTypeRaw)) {
+    next.seedUrlTitlesBySourceType = {
+      nature: normalizeSeedUrlTitlesList(
+        sanitizeSeedUrlTitlesList(existingSeedUrlTitlesBySourceTypeRaw.nature),
+        next.seedUrlsBySourceType.nature.length,
+      ),
+      science: normalizeSeedUrlTitlesList(
+        sanitizeSeedUrlTitlesList(existingSeedUrlTitlesBySourceTypeRaw.science),
+        next.seedUrlsBySourceType.science.length,
+      ),
+    };
+  } else {
+    next.seedUrlTitlesBySourceType = {
+      nature: normalizeSeedUrlTitlesList(null, next.seedUrlsBySourceType.nature.length),
+      science: normalizeSeedUrlTitlesList(null, next.seedUrlsBySourceType.science.length),
+    };
   }
 
   if (next.sourceType !== "science" && next.sourceType !== "nature") {
@@ -152,6 +206,22 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     next.seedUrls = next.seedUrlsBySourceType[resolvedSourceType] || [];
   }
 
+  if (
+    Object.prototype.hasOwnProperty.call(patch, "seedUrlTitlesBySourceType") &&
+    sanitized.seedUrlTitlesBySourceType
+  ) {
+    next.seedUrlTitlesBySourceType = {
+      nature: normalizeSeedUrlTitlesList(
+        sanitized.seedUrlTitlesBySourceType.nature,
+        next.seedUrlsBySourceType.nature.length,
+      ),
+      science: normalizeSeedUrlTitlesList(
+        sanitized.seedUrlTitlesBySourceType.science,
+        next.seedUrlsBySourceType.science.length,
+      ),
+    };
+  }
+
   if (Object.prototype.hasOwnProperty.call(patch, "seedUrls")) {
     const targetSourceType =
       sanitized.seedSource ||
@@ -165,6 +235,35 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
     next.seedUrlsBySourceType[targetSourceType] = sanitized.seedUrls;
     next.sourceType = targetSourceType;
     next.seedUrls = sanitized.seedUrls;
+
+    next.seedUrlTitlesBySourceType = isPlainObject(next.seedUrlTitlesBySourceType)
+      ? next.seedUrlTitlesBySourceType
+      : { nature: [], science: [] };
+    next.seedUrlTitlesBySourceType[targetSourceType] = normalizeSeedUrlTitlesList(
+      next.seedUrlTitlesBySourceType[targetSourceType],
+      sanitized.seedUrls.length,
+    );
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, "seedUrlTitles")) {
+    const targetSourceType =
+      sanitized.seedSource ||
+      sanitized.sourceType ||
+      (next.sourceType === "science" || next.sourceType === "nature" ? next.sourceType : null) ||
+      (next.seedUrlsBySourceType.science.length > 0 &&
+      next.seedUrlsBySourceType.nature.length === 0
+        ? "science"
+        : "nature");
+
+    next.seedUrlTitlesBySourceType = isPlainObject(next.seedUrlTitlesBySourceType)
+      ? next.seedUrlTitlesBySourceType
+      : { nature: [], science: [] };
+
+    const seedUrlsForSource = next.seedUrlsBySourceType[targetSourceType] || [];
+    next.seedUrlTitlesBySourceType[targetSourceType] = normalizeSeedUrlTitlesList(
+      sanitized.seedUrlTitles,
+      seedUrlsForSource.length,
+    );
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, "sourceType")) {
@@ -207,6 +306,12 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
   if (!Array.isArray(next.seedUrlsBySourceType.nature)) next.seedUrlsBySourceType.nature = [];
   if (!Array.isArray(next.seedUrlsBySourceType.science)) next.seedUrlsBySourceType.science = [];
 
+  if (!isPlainObject(next.seedUrlTitlesBySourceType)) {
+    next.seedUrlTitlesBySourceType = { nature: [], science: [] };
+  }
+  if (!Array.isArray(next.seedUrlTitlesBySourceType.nature)) next.seedUrlTitlesBySourceType.nature = [];
+  if (!Array.isArray(next.seedUrlTitlesBySourceType.science)) next.seedUrlTitlesBySourceType.science = [];
+
   if (next.sourceType !== "science" && next.sourceType !== "nature") {
     next.sourceType =
       next.seedUrlsBySourceType.science.length > 0 && next.seedUrlsBySourceType.nature.length === 0
@@ -216,6 +321,16 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
 
   next.seedUrls =
     next.seedUrlsBySourceType[next.sourceType] || next.seedUrlsBySourceType.nature || [];
+  next.seedUrlTitlesBySourceType = {
+    nature: normalizeSeedUrlTitlesList(
+      next.seedUrlTitlesBySourceType.nature,
+      next.seedUrlsBySourceType.nature.length,
+    ),
+    science: normalizeSeedUrlTitlesList(
+      next.seedUrlTitlesBySourceType.science,
+      next.seedUrlsBySourceType.science.length,
+    ),
+  };
   if (typeof next.startDate !== "string") next.startDate = "";
   if (typeof next.endDate !== "string") next.endDate = "";
   if (next.maxResults == null) {
@@ -265,4 +380,3 @@ export function mergeLiteratureSettings(existingSettings, patchInput) {
 
   return next;
 }
-

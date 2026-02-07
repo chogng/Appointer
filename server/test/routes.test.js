@@ -718,6 +718,14 @@ test("routes: exercise all API route groups", async (t) => {
       "/api/literature/settings",
     );
     assert.equal(settingsGet.status, 200);
+    {
+      const data = await settingsGet.json();
+      assert.ok(data);
+      assert.ok(data.seedUrlsBySourceType);
+      assert.ok(data.seedUrlTitlesBySourceType);
+      assert.ok(Array.isArray(data.seedUrlTitlesBySourceType.nature));
+      assert.ok(Array.isArray(data.seedUrlTitlesBySourceType.science));
+    }
 
     const settingsPatch = await authedFetch(
       baseUrl,
@@ -729,11 +737,28 @@ test("routes: exercise all API route groups", async (t) => {
         body: JSON.stringify({
           maxResults: 5,
           sourceType: "nature",
-          seedUrls: [],
+          seedSource: "nature",
+          seedUrls: ["https://www.nature.com/nature/research-articles"],
+          seedUrlTitles: ["My Literature DOCX Title"],
         }),
       },
     );
     assert.equal(settingsPatch.status, 200);
+    {
+      const data = await settingsPatch.json();
+      assert.equal(data?.seedUrlTitlesBySourceType?.nature?.[0], "My Literature DOCX Title");
+    }
+
+    const settingsGetAfter = await authedFetch(
+      baseUrl,
+      userLogin.cookie,
+      "/api/literature/settings",
+    );
+    assert.equal(settingsGetAfter.status, 200);
+    {
+      const data = await settingsGetAfter.json();
+      assert.equal(data?.seedUrlTitlesBySourceType?.nature?.[0], "My Literature DOCX Title");
+    }
 
     // Avoid external fetch: invalid dates throw in literatureService before any network.
     const searchRes = await authedFetch(

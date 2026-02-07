@@ -241,6 +241,7 @@ const JournalLinksCard = ({
 
                   <Input
                     id={`literature-seed-url-title-${index}`}
+                    name={`literature-seed-url-title-${index}`}
                     size="md"
                     value={seedUrlTitles[index] ?? ""}
                     onChange={(nextValue) => onSeedUrlTitleChangeAt(index, nextValue)}
@@ -252,6 +253,8 @@ const JournalLinksCard = ({
                     cta="Literature research"
                     ctaPosition="seed-urls"
                     ctaCopy={`seed-title-${index}`}
+                    data-ui="literature-seed-url-title-input"
+                    data-seed-url={value}
                     data-seed-index={index}
                   />
 

@@ -30,6 +30,7 @@ import {
 import {
   mergeLiteratureSettings,
   sanitizeSeedUrlsList,
+  sanitizeSeedUrlTitlesList,
   splitSeedUrlsBySourceType,
 } from "../literatureSettings.js";
 
@@ -90,6 +91,32 @@ export default function createLiteratureRoutes() {
             science: sanitizeSeedUrlsList(seedUrlsBySourceTypeRaw.science),
           }
         : splitSeedUrlsBySourceType(config?.seedUrls);
+
+      const seedUrlTitlesBySourceTypeRaw = isPlainObject(config?.seedUrlTitlesBySourceType)
+        ? config.seedUrlTitlesBySourceType
+        : null;
+
+      const seedUrlTitlesBySourceType = {
+        nature: seedUrlTitlesBySourceTypeRaw
+          ? sanitizeSeedUrlTitlesList(seedUrlTitlesBySourceTypeRaw.nature).slice(
+              0,
+              seedUrlsBySourceType.nature.length,
+            )
+          : [],
+        science: seedUrlTitlesBySourceTypeRaw
+          ? sanitizeSeedUrlTitlesList(seedUrlTitlesBySourceTypeRaw.science).slice(
+              0,
+              seedUrlsBySourceType.science.length,
+            )
+          : [],
+      };
+
+      while (seedUrlTitlesBySourceType.nature.length < seedUrlsBySourceType.nature.length) {
+        seedUrlTitlesBySourceType.nature.push("");
+      }
+      while (seedUrlTitlesBySourceType.science.length < seedUrlsBySourceType.science.length) {
+        seedUrlTitlesBySourceType.science.push("");
+      }
 
       const storedSourceType =
         config?.sourceType === "science" || config?.sourceType === "nature"
@@ -154,6 +181,7 @@ export default function createLiteratureRoutes() {
 
       res.json({
         seedUrlsBySourceType,
+        seedUrlTitlesBySourceType,
         sourceType,
         seedUrls,
         startDate,
@@ -233,6 +261,25 @@ export default function createLiteratureRoutes() {
           }
         : { nature: [], science: [] };
 
+      const seedUrlTitlesBySourceType = isPlainObject(settings?.seedUrlTitlesBySourceType)
+        ? {
+            nature: sanitizeSeedUrlTitlesList(settings.seedUrlTitlesBySourceType.nature).slice(
+              0,
+              seedUrlsBySourceType.nature.length,
+            ),
+            science: sanitizeSeedUrlTitlesList(settings.seedUrlTitlesBySourceType.science).slice(
+              0,
+              seedUrlsBySourceType.science.length,
+            ),
+          }
+        : { nature: [], science: [] };
+      while (seedUrlTitlesBySourceType.nature.length < seedUrlsBySourceType.nature.length) {
+        seedUrlTitlesBySourceType.nature.push("");
+      }
+      while (seedUrlTitlesBySourceType.science.length < seedUrlsBySourceType.science.length) {
+        seedUrlTitlesBySourceType.science.push("");
+      }
+
       const sourceType =
         settings?.sourceType === "science" || settings?.sourceType === "nature"
           ? settings.sourceType
@@ -240,6 +287,7 @@ export default function createLiteratureRoutes() {
 
       res.json({
         seedUrlsBySourceType,
+        seedUrlTitlesBySourceType,
         sourceType,
         seedUrls: Array.isArray(settings.seedUrls) ? settings.seedUrls : [],
         startDate: settings.startDate || null,
@@ -645,4 +693,3 @@ export default function createLiteratureRoutes() {
 
   return router;
 }
-
