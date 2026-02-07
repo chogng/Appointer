@@ -192,8 +192,6 @@ const ResultsCard = ({
               if (id && selectedIdSet.has(id)) groupSelectedCount += 1;
             }
 
-            const groupExportDisabled = isExportingDocx || groupSelectedCount === 0;
-
             return (
               <Card key={group.key} className="mt-4">
                 <div className="flex items-start justify-between gap-4">
@@ -222,32 +220,6 @@ const ResultsCard = ({
                       {group.visibleItems.length}/{group.allItems.length} • {groupSelectedCount} selected
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    data-icon="with"
-                    data-cta="Literature research"
-                    data-cta-position="result-group"
-                    data-cta-copy="export docx group"
-                    className={`action-btn action-btn--md ${
-                      groupExportDisabled ? "action-btn--disabled" : "action-btn--primary"
-                    }`}
-                    aria-label={exportDocxLabel}
-                    title={exportDocxLabel}
-                    onClick={() => onExportDocx({ seedKey: group.key })}
-                    disabled={groupExportDisabled}
-                    data-ui="literature-group-export-docx-btn"
-                    data-group-key={group.key}
-                  >
-                    <span className="action-btn__content">
-                      {isExportingDocx ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <FileDown size={16} />
-                      )}
-                      {exportDocxLabel}
-                    </span>
-                  </button>
                 </div>
 
                 <div className="mt-4">{renderResultCards(group.visibleItems)}</div>
