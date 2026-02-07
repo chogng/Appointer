@@ -636,14 +636,8 @@ const LiteratureResearch = () => {
               return normalizeSeedUrlTitlesList(null, committedSeedUrlsUnified.length);
             })();
 
-        const resolvedStartDate =
-          typeof data?.startDate === "string" && data.startDate
-            ? data.startDate
-            : currentDefaultStart;
-        const resolvedEndDate =
-          typeof data?.endDate === "string" && data.endDate
-            ? data.endDate
-            : currentToday;
+        const resolvedStartDate = currentDefaultStart;
+        const resolvedEndDate = currentToday;
 
         const resolvedMaxResults =
           typeof data?.maxResults === "number" &&
@@ -671,14 +665,8 @@ const LiteratureResearch = () => {
               ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, nextSeedUrls.length)
               : normalizeSeedUrlSelectedList(null, nextSeedUrls.length),
           );
-          startDateAutoRef.current =
-            typeof resolvedStartDate === "string" &&
-            resolvedStartDate &&
-            resolvedStartDate === currentDefaultStart;
-          endDateAutoRef.current =
-            typeof resolvedEndDate === "string" &&
-            resolvedEndDate &&
-            resolvedEndDate === currentToday;
+          startDateAutoRef.current = true;
+          endDateAutoRef.current = true;
           setStartDate(resolvedStartDate);
           setEndDate(resolvedEndDate);
           setMaxResults(

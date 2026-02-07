@@ -60,6 +60,7 @@
 - [`server/DOCKER_MYSQL.md`](../server/DOCKER_MYSQL.md)：MySQL（Docker）启动与配置
 - [`server/MYSQL_MIGRATION.md`](../server/MYSQL_MIGRATION.md)：SQLite → MySQL 迁移说明
 - [`server/docker-compose.yml`](../server/docker-compose.yml)：本地/容器化 MySQL 示例
+- [`deployment_runbook.md`](./deployment_runbook.md)：部署指南（学习版）：一体部署、Nginx 反代、Cloudflare Tunnel + Access
 
 ---
 
