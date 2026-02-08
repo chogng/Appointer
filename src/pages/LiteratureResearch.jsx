@@ -335,6 +335,7 @@ const LiteratureResearch = () => {
   const [keywordInput, setKeywordInput] = useState("");
   const [keywordMode, setKeywordMode] = useState("any"); // any | all
   const [resultView, setResultView] = useState("all"); // all | matched | unmatched
+  const [sortMode, setSortMode] = useState("source"); // source | date
 
   const [toast, setToast] = useState({
     isVisible: false,
@@ -356,6 +357,7 @@ const LiteratureResearch = () => {
     setKeywordInput("");
     setKeywordMode("any");
     setResultView("all");
+    setSortMode("source");
     setDocxExport({ state: "idle", current: 0, total: 0 });
     setTranslations({});
 
@@ -514,6 +516,9 @@ const LiteratureResearch = () => {
     if (parsed?.resultView === "matched") setResultView("matched");
     else if (parsed?.resultView === "unmatched") setResultView("unmatched");
     else if (parsed?.resultView === "all") setResultView("all");
+
+    if (parsed?.sortMode === "date") setSortMode("date");
+    else if (parsed?.sortMode === "source") setSortMode("source");
 
     if (Array.isArray(parsed?.results)) setResults(parsed.results);
     if (parsed?.status?.state) {
@@ -1015,6 +1020,7 @@ const LiteratureResearch = () => {
       keywordInput,
       keywordMode,
       resultView,
+      sortMode,
       status,
       results,
       selectedIds,
@@ -1025,6 +1031,7 @@ const LiteratureResearch = () => {
     keywordInput,
     keywordMode,
     resultView,
+    sortMode,
       results,
       selectedIds,
       startDate,
@@ -1035,7 +1042,7 @@ const LiteratureResearch = () => {
     user?.id,
   ]);
 
-  const sortedResults = useMemo(() => {
+  const dateSortedResults = useMemo(() => {
     const list = Array.isArray(results) ? results : [];
     return [...list].sort((a, b) => {
       const da = a?.publishedDate || "";
@@ -1047,6 +1054,11 @@ const LiteratureResearch = () => {
       return db.localeCompare(da);
     });
   }, [results]);
+
+  const orderedResults = useMemo(() => {
+    if (sortMode === "date") return dateSortedResults;
+    return Array.isArray(results) ? results : [];
+  }, [dateSortedResults, results, sortMode]);
 
   const keywords = useMemo(() => {
     const raw = String(keywordInput || "").trim();
@@ -1095,18 +1107,18 @@ const LiteratureResearch = () => {
   const { matchedResults, unmatchedResults } = useMemo(() => {
     const matched = [];
     const unmatched = [];
-    for (const item of sortedResults) {
+    for (const item of orderedResults) {
       if (isItemMatched(item)) matched.push(item);
       else unmatched.push(item);
     }
     return { matchedResults: matched, unmatchedResults: unmatched };
-  }, [sortedResults, isItemMatched]);
+  }, [orderedResults, isItemMatched]);
 
   const visibleResults = useMemo(() => {
     if (resultView === "matched") return matchedResults;
     if (resultView === "unmatched") return unmatchedResults;
-    return sortedResults;
-  }, [resultView, matchedResults, unmatchedResults, sortedResults]);
+    return orderedResults;
+  }, [resultView, matchedResults, unmatchedResults, orderedResults]);
 
   const seedUrlTitleBySeedUrl = useMemo(() => {
     const out = new Map();
@@ -1121,7 +1133,7 @@ const LiteratureResearch = () => {
   }, [seedUrlTitles, seedUrls]);
 
   const groupedResults = useMemo(() => {
-    const list = Array.isArray(sortedResults) ? sortedResults : [];
+    const list = Array.isArray(orderedResults) ? orderedResults : [];
     if (list.length === 0) return [];
 
     const map = new Map();
@@ -1179,7 +1191,7 @@ const LiteratureResearch = () => {
         visibleItems,
       };
     });
-  }, [sortedResults, fetchSeedUrls, isItemMatched, resultView, seedUrlTitleBySeedUrl]);
+  }, [orderedResults, fetchSeedUrls, isItemMatched, resultView, seedUrlTitleBySeedUrl]);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -1361,11 +1373,11 @@ const LiteratureResearch = () => {
   const selectedItems = useMemo(() => {
     if (!Array.isArray(selectedIds) || selectedIds.length === 0) return [];
     const idSet = new Set(selectedIds);
-    return sortedResults.filter((item) => {
+    return orderedResults.filter((item) => {
       const id = getLiteratureItemId(item);
       return id && idSet.has(id);
     });
-  }, [selectedIds, sortedResults]);
+  }, [orderedResults, selectedIds]);
 
   const selectedCount = selectedItems.length;
 
@@ -2122,29 +2134,31 @@ const LiteratureResearch = () => {
           keywordsCount={keywords.length}
         />
 
-        <ResultsCard
-          resultView={resultView}
-          onResultViewChange={setResultView}
-          sortedResults={sortedResults}
-          matchedResults={matchedResults}
-          unmatchedResults={unmatchedResults}
-          groupedResults={groupedResults}
-          selectedCount={selectedCount}
-          selectionToggleAction={selectionToggleAction}
-          onToggleSelectAllVisible={handleSelectAllVisible}
-          isExportingDocx={isExportingDocx}
-          statusState={status.state}
-          visibleResultsLength={visibleResults.length}
-          exportDocxLabel={exportDocxLabel}
-          onExportDocx={handleExportDocx}
-          onExportJson={handleExportJson}
-          onClearPageSession={handleClearPageSession}
-          isAnyTranslationInFlight={isAnyTranslationInFlight}
-          selectedIdSet={selectedIdSet}
-          getLiteratureItemId={getLiteratureItemId}
-          renderResultCards={renderResultCards}
-          groupCollapseEpoch={groupCollapseEpoch}
-        />
+          <ResultsCard
+            resultView={resultView}
+            onResultViewChange={setResultView}
+            sortedResults={orderedResults}
+            matchedResults={matchedResults}
+            unmatchedResults={unmatchedResults}
+            groupedResults={groupedResults}
+            selectedCount={selectedCount}
+            selectionToggleAction={selectionToggleAction}
+            onToggleSelectAllVisible={handleSelectAllVisible}
+            isExportingDocx={isExportingDocx}
+            statusState={status.state}
+            visibleResultsLength={visibleResults.length}
+            exportDocxLabel={exportDocxLabel}
+            onExportDocx={handleExportDocx}
+            onExportJson={handleExportJson}
+            onClearPageSession={handleClearPageSession}
+            isAnyTranslationInFlight={isAnyTranslationInFlight}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            selectedIdSet={selectedIdSet}
+            getLiteratureItemId={getLiteratureItemId}
+            renderResultCards={renderResultCards}
+            groupCollapseEpoch={groupCollapseEpoch}
+          />
       </div>
 
       <Toast

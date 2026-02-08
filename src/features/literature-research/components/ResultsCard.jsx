@@ -4,6 +4,7 @@ import { useLanguage } from "../../../hooks/useLanguage";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
 import CollapsiblePanel from "../../../components/ui/CollapsiblePanel";
+import Dropdown from "../../../components/ui/Dropdown";
 
 const ResultsCard = ({
   resultView,
@@ -22,10 +23,13 @@ const ResultsCard = ({
   onExportDocx,
   onClearPageSession,
   isAnyTranslationInFlight,
+  sortMode,
+  onSortModeChange,
   renderResultCards,
   groupCollapseEpoch = 0,
 }) => {
   const { t } = useLanguage();
+  const resolvedSortMode = sortMode === "date" ? "date" : "source";
 
   return (
     <section aria-label={t("literature_results_title")}>
@@ -69,6 +73,25 @@ const ResultsCard = ({
           />
 
           <div className="flex items-center gap-2">
+            <div className="min-w-[140px]">
+              <Dropdown
+                id="literature-results-sort"
+                options={[
+                  { value: "source", label: t("literature_sort_source") },
+                  { value: "date", label: t("literature_sort_date") },
+                ]}
+                value={resolvedSortMode}
+                onChange={(next) => {
+                  if (typeof onSortModeChange !== "function") return;
+                  const resolved = next === "date" ? "date" : "source";
+                  onSortModeChange(resolved);
+                }}
+                placeholder={t("literature_sort")}
+                title={t("literature_sort")}
+                size="sm"
+                dataUi="literature-results-sort"
+              />
+            </div>
             <div className="text-xs text-text-tertiary px-2">
               <span>{t("literature_selected_count")}：</span>
               <span className="">{selectedCount}</span>

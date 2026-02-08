@@ -608,20 +608,23 @@ function acsSeedToRssUrl(seedUrl) {
 function wileySeedToRssUrl(seedUrl) {
   try {
     const url = new URL(seedUrl);
-    if (
-      url.hostname !== "onlinelibrary.wiley.com" &&
-      url.hostname !== "www.onlinelibrary.wiley.com"
-    ) {
-      return null;
-    }
+    const host = String(url.hostname || "").toLowerCase();
+    if (!host.endsWith("onlinelibrary.wiley.com")) return null;
 
-    if (url.pathname.startsWith("/action/showFeed")) return url.toString();
+    if (url.pathname.startsWith("/action/showFeed")) {
+      // Canonicalize to the primary host (some Wiley subdomains are UI-only).
+      url.hostname = "onlinelibrary.wiley.com";
+      url.protocol = "https:";
+      url.hash = "";
+      return url.toString();
+    }
 
     const tocMatch = url.pathname.match(/^\/toc\/([^/]+)(?:\/|$)/i);
     if (!tocMatch) return null;
     const jc = String(tocMatch[1] || "").trim();
     if (!jc) return null;
 
+    // Canonicalize to the primary host (some Wiley subdomains are UI-only).
     return `https://onlinelibrary.wiley.com/action/showFeed?type=etoc&feed=rss&jc=${encodeURIComponent(jc)}`;
   } catch {
     // ignore
@@ -629,7 +632,423 @@ function wileySeedToRssUrl(seedUrl) {
   return null;
 }
 
-function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = {}) {
+function canonicalizeWileyArticleUrl(rawUrl) {
+  const normalized = normalizeUrlString(rawUrl);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    const host = String(url.hostname || "").toLowerCase();
+    if (!host.endsWith("onlinelibrary.wiley.com")) return normalized;
+
+    const doi = extractDoiFromUrlString(normalized);
+    if (doi) return `https://onlinelibrary.wiley.com/doi/${doi}`;
+
+    // Canonicalize to primary host and strip query/hash for stable keys.
+    url.hostname = "onlinelibrary.wiley.com";
+    url.protocol = "https:";
+    url.hash = "";
+    url.search = "";
+    return url.toString();
+  } catch {
+    return normalized;
+  }
+}
+
+function isLikelyWileyListingTitle(title) {
+  const raw = typeof title === "string" ? title.trim() : "";
+  if (!raw) return false;
+  const lower = raw.toLowerCase();
+  const stop = new Set([
+    "abstract",
+    "full text",
+    "html",
+    "pdf",
+    "epdf",
+    "figures",
+    "references",
+    "permissions",
+    "request permissions",
+    "metrics",
+    "get access",
+    "sign in",
+    "share",
+    "export citation",
+  ]);
+  if (stop.has(lower)) return false;
+  if (lower.startsWith("download")) return false;
+  if (lower.startsWith("view")) return false;
+  if (lower.startsWith("read")) return false;
+  if (raw.length <= 2) return false;
+  return true;
+}
+
+function parseWileyListingCandidates(html, seedUrl, { includeDoiTextFallback = true } = {}) {
+  if (typeof html !== "string" || !html) return [];
+  const results = [];
+  const seen = new Set();
+  const hrefRe = /<a\b[^>]*href=(?:"([^"]+)"|'([^']+)')[^>]*>/gi;
+
+  let match;
+  while ((match = hrefRe.exec(html))) {
+    const rawHref = decodeHtmlEntities(match[1] || match[2] || "").trim();
+    if (!rawHref) continue;
+
+    const hrefLower = rawHref.toLowerCase();
+    if (!hrefLower.includes("/doi/") && !hrefLower.includes("doi.org/10.")) continue;
+    if (hrefLower.includes("action/download")) continue;
+
+    let absolute;
+    try {
+      absolute = new URL(rawHref, seedUrl);
+    } catch {
+      continue;
+    }
+    absolute.hash = "";
+
+    const host = String(absolute.hostname || "").toLowerCase();
+    if (!host.endsWith("onlinelibrary.wiley.com") && host !== "doi.org" && !host.endsWith(".doi.org")) {
+      continue;
+    }
+
+    const hrefUrl = absolute.toString();
+    const doi = extractDoiFromUrlString(hrefUrl);
+    const articleUrl = host.endsWith("onlinelibrary.wiley.com")
+      ? canonicalizeWileyArticleUrl(hrefUrl)
+      : normalizeUrlString(hrefUrl);
+    if (!articleUrl) continue;
+    const key = doi ? `doi:${doi}` : `url:${articleUrl}`;
+    if (seen.has(key)) continue;
+
+    const tag = match[0] || "";
+    const titleAttrMatch =
+      tag.match(/\btitle=("|')([^"']+)\1/i) || tag.match(/\baria-label=("|')([^"']+)\1/i);
+    const titleFromAttr = titleAttrMatch ? normalizeText(titleAttrMatch[2]) : "";
+
+    const windowStart = match.index;
+    const windowEnd = Math.min(html.length, windowStart + 8000);
+    const window = html.slice(windowStart, windowEnd);
+    const anchorTitleMatch = window.match(/>\s*([\s\S]*?)\s*<\/a>/i);
+    const titleFromAnchor = anchorTitleMatch ? normalizeText(anchorTitleMatch[1]) : "";
+
+    const title = isLikelyWileyListingTitle(titleFromAnchor)
+      ? titleFromAnchor
+      : isLikelyWileyListingTitle(titleFromAttr)
+        ? titleFromAttr
+        : "";
+
+    let publishedDate = null;
+    const dateMatch =
+      window.match(/datetime="(\d{4}-\d{2}-\d{2})"/i) ||
+      window.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+    if (dateMatch) {
+      publishedDate = normalizeDateInput(dateMatch[1]);
+    }
+
+    if (!publishedDate) {
+      const textDateMatch =
+        window.match(/\b(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\b/) ||
+        window.match(/\b([A-Za-z]{3,9}\s+\d{1,2},\s+\d{4})\b/);
+      if (textDateMatch) {
+        publishedDate = normalizeDateInput(textDateMatch[1]);
+      }
+    }
+
+    results.push({
+      articleUrl,
+      doi,
+      title: title || articleUrl,
+      publishedDate: publishedDate || null,
+    });
+    seen.add(key);
+  }
+
+  if (includeDoiTextFallback) {
+    const pushDoiUrlCandidate = (raw) => {
+      const href = decodeHtmlEntities(String(raw || "")).trim();
+      if (!href) return;
+      let absolute;
+      try {
+        absolute = new URL(href, seedUrl);
+      } catch {
+        return;
+      }
+      absolute.hash = "";
+      const hrefUrl = absolute.toString();
+      const doi = extractDoiFromUrlString(hrefUrl);
+      const articleUrl = canonicalizeWileyArticleUrl(hrefUrl);
+      if (!articleUrl) return;
+      const key = doi ? `doi:${doi}` : `url:${articleUrl}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      results.push({
+        articleUrl,
+        doi,
+        title: articleUrl,
+        publishedDate: null,
+      });
+    };
+
+    const doiAbsoluteRe =
+      /https?:\/\/[^"'\\s>]*onlinelibrary\.wiley\.com\/doi\/(?:abs\/|full\/|pdf\/|epdf\/)?10\.\d{4,9}\/[^\s"'<>]+/gi;
+    let doiMatch;
+    while ((doiMatch = doiAbsoluteRe.exec(html))) {
+      pushDoiUrlCandidate(doiMatch[0]);
+    }
+
+    const doiRelativeRe =
+      /\/doi\/(?:abs\/|full\/|pdf\/|epdf\/)?10\.\d{4,9}\/[^\s"'<>]+/gi;
+    while ((doiMatch = doiRelativeRe.exec(html))) {
+      pushDoiUrlCandidate(doiMatch[0]);
+    }
+  }
+
+  return results;
+}
+
+function stripHtmlScriptsStyles(html) {
+  if (typeof html !== "string" || !html) return "";
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ");
+}
+
+function extractMainContentHtml(html) {
+  if (typeof html !== "string" || !html) return "";
+  const start = html.search(/<main\b/i);
+  if (start < 0) return html;
+  const tail = html.slice(start);
+  const end = tail.search(/<\/main>/i);
+  if (end < 0) return tail;
+  return tail.slice(0, end + "</main>".length);
+}
+
+function extractWileyJournalCodeFromSeedUrl(seedUrl) {
+  try {
+    const url = new URL(seedUrl);
+    const tocMatch = url.pathname.match(/^\/toc\/([^/]+)(?:\/|$)/i);
+    if (!tocMatch) return null;
+    const code = String(tocMatch[1] || "").trim();
+    return code || null;
+  } catch {
+    return null;
+  }
+}
+
+function isWileyIssueLikeTocPath(pathname, journalCode) {
+  const path = typeof pathname === "string" ? pathname : "";
+  const jc = typeof journalCode === "string" ? journalCode.trim() : "";
+  if (!path || !jc) return false;
+  const prefix = `/toc/${jc}/`;
+  if (!path.toLowerCase().startsWith(prefix.toLowerCase())) return false;
+  const rest = path.slice(prefix.length);
+  if (!rest) return false;
+  const lower = rest.toLowerCase();
+  if (lower.startsWith("current")) return true;
+  if (lower.startsWith("earlyview")) return true;
+  if (/^\d{4}\/\d+\/\d+(?:\/|$)/.test(rest)) return true;
+  if (/^\d+\/\d+(?:\/|$)/.test(rest)) return true;
+  return false;
+}
+
+function parseWileyIssueTocUrls(html, seedUrl) {
+  if (typeof html !== "string" || !html) return [];
+  const journalCode = extractWileyJournalCodeFromSeedUrl(seedUrl);
+  if (!journalCode) return [];
+
+  const results = [];
+  const seen = new Set();
+
+  const hrefRe = /<a\b[^>]*href=(?:"([^"]+)"|'([^']+)')[^>]*>/gi;
+  let match;
+  while ((match = hrefRe.exec(html))) {
+    const rawHref = decodeHtmlEntities(match[1] || match[2] || "").trim();
+    if (!rawHref) continue;
+    if (!rawHref.toLowerCase().includes(`/toc/${journalCode.toLowerCase()}/`)) continue;
+
+    let absolute;
+    try {
+      absolute = new URL(rawHref, seedUrl);
+    } catch {
+      continue;
+    }
+    absolute.hash = "";
+
+    const host = String(absolute.hostname || "").toLowerCase();
+    if (!host.endsWith("onlinelibrary.wiley.com")) continue;
+
+    if (!isWileyIssueLikeTocPath(absolute.pathname, journalCode)) continue;
+
+    const hrefUrl = absolute.toString();
+    if (seen.has(hrefUrl)) continue;
+    seen.add(hrefUrl);
+    results.push(hrefUrl);
+
+    if (results.length >= 100) break;
+  }
+
+  return results;
+}
+
+function parseWileyNextPageUrl(html, currentUrl) {
+  if (typeof html !== "string" || !html) return null;
+  const base = typeof currentUrl === "string" ? currentUrl : "";
+  if (!base) return null;
+
+  const extractHref = (tag) => {
+    if (!tag) return null;
+    const hrefMatch = tag.match(/\bhref=("|')([^"']+)\1/i);
+    return hrefMatch ? decodeHtmlEntities(hrefMatch[2] || "").trim() : null;
+  };
+
+  const linkMatch = html.match(/<link\b[^>]*\brel=("|')next\1[^>]*>/i);
+  if (linkMatch) {
+    const href = extractHref(linkMatch[0]);
+    if (href) {
+      try {
+        const u = new URL(href, base);
+        u.hash = "";
+        return u.toString();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const aRelNextMatch = html.match(/<a\b[^>]*\brel=("|')next\1[^>]*>/i);
+  if (aRelNextMatch) {
+    const href = extractHref(aRelNextMatch[0]);
+    if (href) {
+      try {
+        const u = new URL(href, base);
+        u.hash = "";
+        return u.toString();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const aAriaNextMatch = html.match(
+    /<a\b[^>]*(?:aria-label|title)=("|')[^"']*next[^"']*\1[^>]*>/i,
+  );
+  if (aAriaNextMatch) {
+    const href = extractHref(aAriaNextMatch[0]);
+    if (href) {
+      try {
+        const u = new URL(href, base);
+        u.hash = "";
+        return u.toString();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return null;
+}
+
+function discoverRssUrlFromHtmlText(baseUrl, html) {
+  const candidates = [];
+  const seen = new Set();
+
+  const pushCandidate = (href) => {
+    const raw = typeof href === "string" ? href.trim() : "";
+    if (!raw) return;
+    if (seen.has(raw)) return;
+    seen.add(raw);
+    candidates.push(raw);
+  };
+
+  const linkTagRe = /<link\b[^>]*>/gi;
+  let match;
+  while ((match = linkTagRe.exec(html))) {
+    const tag = match[0] || "";
+    if (!/\brel=("|')alternate\1/i.test(tag)) continue;
+    const typeMatch = tag.match(/\btype=("|')([^"']+)\1/i);
+    const type = typeMatch ? String(typeMatch[2] || "").toLowerCase() : "";
+    if (!type.includes("rss")) continue;
+    const hrefMatch = tag.match(/\bhref=("|')([^"']+)\1/i);
+    const href = hrefMatch ? decodeHtmlEntities(hrefMatch[2] || "").trim() : "";
+    pushCandidate(href);
+  }
+
+  const showFeedRe = /https?:\/\/[^"'\\s>]+action\/showFeed[^"'\\s>]*/gi;
+  while ((match = showFeedRe.exec(html))) {
+    pushCandidate(decodeHtmlEntities(match[0] || ""));
+  }
+
+  const rssRe = /https?:\/\/[^"'\\s>]+\.rss[^"'\\s>]*/gi;
+  while ((match = rssRe.exec(html))) {
+    pushCandidate(decodeHtmlEntities(match[0] || ""));
+  }
+
+  for (const href of candidates) {
+    try {
+      const u = new URL(href, baseUrl);
+      u.hash = "";
+      return u.toString();
+    } catch {
+      // ignore invalid candidates
+    }
+  }
+
+  return null;
+}
+
+async function discoverRssUrlFromHtml(seedUrl) {
+  const baseUrl = typeof seedUrl === "string" ? seedUrl.trim() : "";
+  if (!baseUrl) return null;
+
+  let html = "";
+  try {
+    html = await fetchText(baseUrl);
+  } catch {
+    return null;
+  }
+
+  return discoverRssUrlFromHtmlText(baseUrl, html);
+}
+
+function normalizeDoiCandidate(raw) {
+  const candidate = typeof raw === "string" ? raw.trim() : "";
+  if (!candidate) return null;
+  const cleaned = candidate
+    .replace(/^doi:\s*/i, "")
+    .replace(/[)\].,;]+$/, "")
+    .trim();
+  if (!cleaned) return null;
+  return /^10\.\d{4,9}\/\S+$/i.test(cleaned) ? cleaned : null;
+}
+
+function extractDoiFromUrlString(rawUrl) {
+  const urlString = typeof rawUrl === "string" ? rawUrl.trim() : "";
+  if (!urlString) return null;
+  try {
+    const url = new URL(urlString);
+    const host = String(url.hostname || "").toLowerCase();
+    if (host === "doi.org" || host.endsWith(".doi.org")) {
+      return normalizeDoiCandidate(url.pathname.replace(/^\/+/, ""));
+    }
+
+    const path = String(url.pathname || "");
+    const doiMatch = path.match(/\/doi\/(?:abs\/|full\/|pdf\/|epdf\/)?(10\.\d{4,9}\/[^?#]+)$/i);
+    if (doiMatch) return normalizeDoiCandidate(doiMatch[1]);
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function extractFirstDoiFromText(text) {
+  const src = typeof text === "string" ? text : "";
+  if (!src) return null;
+  const m = src.match(/10\.\d{4,9}\/[^\s"'<>()]+/i);
+  return m ? normalizeDoiCandidate(m[0]) : null;
+}
+
+function parseRssItems(xml, { deriveCoverDateFromDescription = false } = {}) {
   const items = [];
   const itemRe =
     /<item\b([^>]*)>([\s\S]*?)<\/item>/gi;
@@ -659,9 +1078,11 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
     if (prismCoverDateMatch) {
       coverDate = normalizeDateInput(prismCoverDateMatch[1]);
     }
+
+    const descMatch = body.match(/<description>([\s\S]*?)<\/description>/i);
+    const descText = descMatch ? normalizeText(descMatch[1]) : "";
+
     if (deriveCoverDateFromDescription) {
-      const descMatch = body.match(/<description>([\s\S]*?)<\/description>/i);
-      const descText = descMatch ? normalizeText(descMatch[1]) : "";
       const dateTextMatch = descText.match(/([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})/);
       if (dateTextMatch) {
         coverDate = normalizeDateInput(
@@ -674,13 +1095,8 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
     const prismDoiMatch = body.match(/<prism:doi>([\s\S]*?)<\/prism:doi>/i);
     const rawIdentifier = identifierMatch ? normalizeText(identifierMatch[1]) : "";
     const rawPrismDoi = prismDoiMatch ? normalizeText(prismDoiMatch[1]) : "";
-    const doiCandidate = (rawIdentifier || rawPrismDoi || "")
-      .replace(/^doi:\s*/i, "")
-      .trim();
-    const doi =
-      doiCandidate && /^10\.\d{4,9}\/\S+$/i.test(doiCandidate)
-        ? doiCandidate
-        : null;
+    const doiFromIdentifier =
+      normalizeDoiCandidate(rawIdentifier) || normalizeDoiCandidate(rawPrismDoi);
 
     const journalMatch = body.match(/<dc:source>([\s\S]*?)<\/dc:source>/i);
     const journalTitle = journalMatch ? normalizeText(journalMatch[1]) : "";
@@ -688,11 +1104,19 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
     const typeMatch = body.match(/<dc:type>([\s\S]*?)<\/dc:type>/i);
     const itemType = typeMatch ? normalizeText(typeMatch[1]) : "";
 
-    if (!doi || !title) continue;
-    const articleUrl = normalizeUrlString(link || about) || (link || about);
+    const articleUrl = normalizeUrlString(link || about);
+    if (!articleUrl) continue;
+
+    const doiFromUrl = extractDoiFromUrlString(articleUrl);
+    const doiFromDesc = extractFirstDoiFromText(descText);
+
+    const doi = doiFromIdentifier || doiFromUrl || doiFromDesc || null;
+    const id = doi ? `doi:${doi}` : `url:${articleUrl}`;
+
     items.push({
+      id,
       doi,
-      title,
+      title: title || articleUrl,
       publishedDate,
       articleUrl,
       journalTitle: journalTitle || null,
@@ -705,7 +1129,7 @@ function parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription = false } = 
 }
 
 function parseScienceRssItems(xml) {
-  return parseRssItemsWithDoi(xml);
+  return parseRssItems(xml);
 }
 
 function stripAcsTrackingParams(articleUrl) {
@@ -1144,38 +1568,52 @@ export async function searchLiterature({
 
     if (url.hostname.endsWith("science.org")) {
       const rssConfig = scienceSeedToRssConfig(seedUrl);
-      if (!rssConfig?.rssUrl) continue;
+      const rssMode = rssConfig?.mode || "etoc";
+      const rssUrl = rssConfig?.rssUrl || (await discoverRssUrlFromHtml(seedUrl));
+      if (!rssUrl) {
+        const err = new Error(
+          `Science feed not found for seed URL (${seedUrl}). Please provide a Science TOC/issue/section page that exposes an RSS feed, or paste a direct RSS feed URL.`,
+        );
+        err.status = 400;
+        throw err;
+      }
 
-      const xml = await fetchText(rssConfig.rssUrl);
-      const feedItems = parseScienceRssItems(xml)
+      const xml = await fetchText(rssUrl);
+      const filteredItems = parseScienceRssItems(xml)
         .filter((i) => {
           const date = i.coverDate || i.publishedDate || null;
           return !date || isDateInRange(date, start, end);
         })
         .filter((i) => {
-          if (rssConfig.mode !== "commentary") return true;
+          if (rssMode !== "commentary") return true;
           const type = typeof i?.itemType === "string" ? i.itemType.trim() : "";
           if (!type) return true;
           if (type === "Research Article") return false;
           if (type === "Retraction") return false;
           return true;
-        })
-        .slice(0, 300);
+        });
+
+      const remaining = cap - results.length;
+      const candidateCap = Math.min(2000, Math.max(200, remaining * 6));
+      const feedItems = filteredItems.slice(0, candidateCap);
 
       const enriched = await mapWithConcurrency(feedItems, 4, async (i) => {
         let meta = null;
-        try {
-          meta = await fetchCrossrefWork(i.doi);
-        } catch {
-          meta = null;
+        if (i?.doi) {
+          try {
+            meta = await fetchCrossrefWork(i.doi);
+          } catch {
+            meta = null;
+          }
         }
         const publishedDate = meta?.publishedDate || i.coverDate || i.publishedDate || null;
         if (publishedDate && !isDateInRange(publishedDate, start, end)) {
           return null;
         }
 
-        const articleUrl = i.articleUrl || `https://doi.org/${i.doi}`;
-        const id = `doi:${i.doi}`;
+        const articleUrl = i.articleUrl || (i.doi ? `https://doi.org/${i.doi}` : null);
+        if (!articleUrl) return null;
+        const id = i.id || (i.doi ? `doi:${i.doi}` : `url:${articleUrl}`);
 
         return {
           id,
@@ -1186,7 +1624,7 @@ export async function searchLiterature({
           publishedDate,
           abstract: meta?.abstract ?? null,
           pdfUrl: meta?.pdfUrl ?? null,
-          doi: i.doi,
+          doi: i.doi || null,
           itemType: i.itemType || null,
         };
       });
@@ -1201,50 +1639,67 @@ export async function searchLiterature({
       continue;
     }
 
-    if (url.hostname === "pubs.acs.org" || url.hostname === "www.pubs.acs.org") {
-      const rssUrl = acsSeedToRssUrl(seedUrl);
-      if (!rssUrl) continue;
+    if (url.hostname.endsWith("pubs.acs.org")) {
+      const rssUrl = acsSeedToRssUrl(seedUrl) || (await discoverRssUrlFromHtml(seedUrl));
+      if (!rssUrl) {
+        const err = new Error(
+          `ACS feed not found for seed URL (${seedUrl}). Please provide a /toc/{journalCode} or /journal/{journalCode} page, or paste a direct RSS feed URL (action/showFeed or .rss).`,
+        );
+        err.status = 400;
+        throw err;
+      }
 
       const xml = await fetchText(rssUrl);
-      const allFeedItems = parseRssItemsWithDoi(xml, { deriveCoverDateFromDescription: true });
+      const allFeedItems = parseRssItems(xml, { deriveCoverDateFromDescription: true });
       const seedJournalTitle =
         (Array.isArray(allFeedItems) && allFeedItems.length && allFeedItems[0]?.journalTitle) ||
         null;
 
-      const feedItems = allFeedItems
+      const filteredItems = allFeedItems
         .filter((i) => {
           const date = i.coverDate || i.publishedDate || null;
           return !date || isDateInRange(date, start, end);
-        })
-        .slice(0, 300);
+        });
+
+      const remaining = cap - results.length;
+      const candidateCap = Math.min(2000, Math.max(200, remaining * 6));
+      const feedItems = filteredItems.slice(0, candidateCap);
 
       const enriched = await mapWithConcurrency(feedItems, 4, async (i) => {
-        const meta = await fetchCrossrefWork(i.doi);
+        let meta = null;
+        if (i?.doi) {
+          try {
+            meta = await fetchCrossrefWork(i.doi);
+          } catch {
+            meta = null;
+          }
+        }
         const publishedDate =
-          meta.publishedPrintDate ||
+          meta?.publishedPrintDate ||
           i.coverDate ||
-          meta.publishedDate ||
+          meta?.publishedDate ||
           i.publishedDate ||
           null;
         if (publishedDate && !isDateInRange(publishedDate, start, end)) {
           return null;
         }
 
-        const rawArticleUrl = i.articleUrl || `https://doi.org/${i.doi}`;
+        const rawArticleUrl = i.articleUrl || (i.doi ? `https://doi.org/${i.doi}` : null);
+        if (!rawArticleUrl) return null;
         const articleUrl = stripAcsTrackingParams(rawArticleUrl);
-        const id = `doi:${i.doi}`;
+        const id = i.id || (i.doi ? `doi:${i.doi}` : `url:${articleUrl}`);
 
         return {
           id,
           source: "acs",
           seedUrl,
           journalTitle: i.journalTitle || null,
-          title: meta.title || i.title || id,
+          title: meta?.title || i.title || id,
           articleUrl,
           publishedDate,
-          abstract: meta.abstract,
-          pdfUrl: meta.pdfUrl,
-          doi: i.doi,
+          abstract: meta?.abstract ?? null,
+          pdfUrl: meta?.pdfUrl ?? null,
+          doi: i.doi || null,
         };
       });
 
@@ -1261,13 +1716,18 @@ export async function searchLiterature({
       if (results.length < cap && seedJournalTitle) {
         const remaining = cap - results.length;
         const queryRows = Math.min(300, Math.max(50, remaining * 4));
-        const crossrefItems = await fetchCrossrefWorksByContainerTitle({
-          containerTitle: seedJournalTitle,
-          startDate: start,
-          endDate: end,
-          prefix: "10.1021",
-          rows: queryRows,
-        });
+        let crossrefItems = [];
+        try {
+          crossrefItems = await fetchCrossrefWorksByContainerTitle({
+            containerTitle: seedJournalTitle,
+            startDate: start,
+            endDate: end,
+            prefix: "10.1021",
+            rows: queryRows,
+          });
+        } catch {
+          crossrefItems = [];
+        }
 
         for (const cr of crossrefItems) {
           if (!cr?.doi) continue;
@@ -1311,53 +1771,270 @@ export async function searchLiterature({
       continue;
     }
 
-    if (
-      url.hostname === "onlinelibrary.wiley.com" ||
-      url.hostname === "www.onlinelibrary.wiley.com"
-    ) {
-      const rssUrl =
-        wileySeedToRssUrl(seedUrl) ||
-        (url.pathname.startsWith("/feed/") || url.pathname.endsWith(".rss") || url.searchParams.get("rss") === "1"
-          ? url.toString()
-          : null);
+    if (url.hostname.endsWith("onlinelibrary.wiley.com")) {
+      const isDirectFeed =
+        url.pathname.startsWith("/action/showFeed") ||
+        url.pathname.startsWith("/feed/") ||
+        url.pathname.endsWith(".rss") ||
+        url.searchParams.get("rss") === "1";
 
-      if (!rssUrl) {
-        const err = new Error("Wiley feed not found for seed URL.");
+      let seedHtml = null;
+      let discoveredRssUrl = null;
+      const listingCandidates = [];
+      const listingByKey = new Map();
+
+      if (!isDirectFeed) {
+        try {
+          seedHtml = await fetchText(seedUrl);
+        } catch {
+          seedHtml = null;
+        }
+
+        if (seedHtml) {
+          discoveredRssUrl = discoverRssUrlFromHtmlText(seedUrl, seedHtml);
+
+          const journalCode = extractWileyJournalCodeFromSeedUrl(seedUrl);
+          const seedIsIssueLike =
+            journalCode && isWileyIssueLikeTocPath(url.pathname, journalCode);
+          const issueTocUrls = parseWileyIssueTocUrls(seedHtml, seedUrl);
+
+          const tocUrls = issueTocUrls.length ? issueTocUrls : [seedUrl];
+          if (seedIsIssueLike && !tocUrls.includes(seedUrl)) {
+            tocUrls.unshift(seedUrl);
+          }
+
+          const seenTocPages = new Set();
+          const maxTocPages = Math.min(30, tocUrls.length);
+
+          const addCandidate = (candidate) => {
+            if (!candidate || typeof candidate !== "object") return;
+            const doi = candidate?.doi || null;
+            const key = doi
+              ? `doi:${doi}`
+              : (() => {
+                  const normalized = canonicalizeWileyArticleUrl(candidate?.articleUrl);
+                  return normalized ? `url:${normalized}` : null;
+                })();
+            if (!key) return;
+
+            const normalizedArticleUrl = canonicalizeWileyArticleUrl(candidate?.articleUrl);
+            const normalizedCandidate = {
+              ...candidate,
+              articleUrl: normalizedArticleUrl || candidate?.articleUrl || null,
+            };
+
+            const idx = listingByKey.get(key);
+            if (idx === undefined) {
+              listingByKey.set(key, listingCandidates.length);
+              listingCandidates.push(normalizedCandidate);
+              return;
+            }
+
+            // Keep the earliest occurrence order, but patch in better metadata when available.
+            const prev = listingCandidates[idx];
+            const prevTitle = typeof prev?.title === "string" ? prev.title.trim() : "";
+            const nextTitle = typeof normalizedCandidate?.title === "string"
+              ? normalizedCandidate.title.trim()
+              : "";
+            const prevArticleUrl = typeof prev?.articleUrl === "string"
+              ? prev.articleUrl.trim()
+              : "";
+            const nextArticleUrl = typeof normalizedCandidate?.articleUrl === "string"
+              ? normalizedCandidate.articleUrl.trim()
+              : "";
+            const nextDate = normalizedCandidate?.publishedDate || null;
+
+            if (prev && !prev?.doi && doi) prev.doi = doi;
+            if (prev && !prev?.articleUrl && nextArticleUrl) prev.articleUrl = nextArticleUrl;
+
+            const prevHasUsefulTitle =
+              Boolean(prevTitle) && (!prevArticleUrl || prevTitle !== prevArticleUrl);
+            const nextHasUsefulTitle =
+              Boolean(nextTitle) && (!nextArticleUrl || nextTitle !== nextArticleUrl);
+            if (prev && !prevHasUsefulTitle && nextHasUsefulTitle) prev.title = nextTitle;
+
+            if (prev && !prev?.publishedDate && nextDate) prev.publishedDate = nextDate;
+          };
+
+          for (let tocIndex = 0; tocIndex < maxTocPages; tocIndex += 1) {
+            const tocUrl = tocUrls[tocIndex];
+            if (!tocUrl || seenTocPages.has(tocUrl)) continue;
+            seenTocPages.add(tocUrl);
+
+            let pageUrl = tocUrl;
+            let pageHtml = tocUrl === seedUrl ? seedHtml : null;
+            if (!pageHtml) {
+              try {
+                pageHtml = await fetchText(tocUrl);
+              } catch {
+                continue;
+              }
+            }
+
+            let pageCount = 0;
+            while (pageHtml && pageCount < 10) {
+              const contentHtml = extractMainContentHtml(stripHtmlScriptsStyles(pageHtml)) || pageHtml;
+              let pageCandidates = parseWileyListingCandidates(contentHtml, pageUrl, {
+                includeDoiTextFallback: false,
+              });
+              if (pageCandidates.length === 0) {
+                pageCandidates = parseWileyListingCandidates(contentHtml, pageUrl, {
+                  includeDoiTextFallback: true,
+                });
+              }
+
+              for (const c of pageCandidates) addCandidate(c);
+
+              const nextUrl = parseWileyNextPageUrl(pageHtml, pageUrl);
+              if (!nextUrl || seenTocPages.has(nextUrl)) break;
+              seenTocPages.add(nextUrl);
+
+              try {
+                pageHtml = await fetchText(nextUrl);
+                pageUrl = nextUrl;
+                pageCount += 1;
+              } catch {
+                break;
+              }
+            }
+
+            // Stop once we have enough items and issues are older than start date.
+            if (listingCandidates.length >= Math.min(2000, cap * 8)) {
+              const dated = listingCandidates
+                .map((c) => c?.publishedDate || null)
+                .filter(Boolean)
+                .sort();
+              const oldest = dated.length ? dated[0] : null;
+              if (oldest && oldest < start) break;
+            }
+          }
+        }
+      }
+
+      let rssUrl = null;
+      if (isDirectFeed) {
+        rssUrl = wileySeedToRssUrl(seedUrl) || url.toString();
+      } else {
+        rssUrl = discoveredRssUrl || wileySeedToRssUrl(seedUrl);
+        if (!rssUrl && !seedHtml) {
+          rssUrl = await discoverRssUrlFromHtml(seedUrl);
+        }
+      }
+
+      if (!rssUrl && listingCandidates.length === 0) {
+        const err = new Error(
+          `Wiley feed not found for seed URL (${seedUrl}). Please provide a Wiley /toc/{journalCode} page, or paste a direct RSS feed URL (action/showFeed, /feed/, or .rss).`,
+        );
         err.status = 400;
         throw err;
       }
 
-      const xml = await fetchText(rssUrl);
+      let feedItems = [];
+      if (rssUrl) {
+        try {
+          const xml = await fetchText(rssUrl);
+          feedItems = parseScienceRssItems(xml);
+        } catch (err) {
+          if (listingCandidates.length === 0) throw err;
+          feedItems = [];
+        }
+      }
 
-      const feedItems = parseScienceRssItems(xml)
-        .filter((i) => !i.publishedDate || isDateInRange(i.publishedDate, start, end))
-        .slice(0, 300);
+      const feedByKey = new Map();
+      for (const item of feedItems) {
+        if (!item || typeof item !== "object") continue;
+        const doi = item?.doi || null;
+        const key = doi
+          ? `doi:${doi}`
+          : (() => {
+              const normalized = canonicalizeWileyArticleUrl(item?.articleUrl);
+              return normalized ? `url:${normalized}` : null;
+            })();
+        if (!key || feedByKey.has(key)) continue;
+        feedByKey.set(key, item);
+      }
 
-      const enriched = await mapWithConcurrency(feedItems, 4, async (i) => {
-        const meta = await fetchCrossrefWork(i.doi);
-        const publishedDate =
-          meta.publishedPrintDate ||
-          meta.publishedDate ||
-          i.publishedDate ||
-          null;
-        if (publishedDate && !isDateInRange(publishedDate, start, end)) {
+      const orderedCandidates = [];
+
+      if (listingCandidates.length > 0) {
+        for (const c of listingCandidates) {
+          const doi = c?.doi || null;
+          const key = doi
+            ? `doi:${doi}`
+            : (() => {
+                 const normalized = canonicalizeWileyArticleUrl(c?.articleUrl);
+                 return normalized ? `url:${normalized}` : null;
+               })();
+          if (!key) continue;
+
+          const fromFeed = feedByKey.get(key);
+          if (fromFeed) {
+            const merged = { ...fromFeed };
+            if (c?.articleUrl) merged.articleUrl = c.articleUrl;
+            if (c?.doi) merged.doi = c.doi;
+            if (c?.title && c.title !== c.articleUrl) merged.title = c.title;
+             if (c?.publishedDate) merged.publishedDate = c.publishedDate;
+            orderedCandidates.push(merged);
+          } else {
+            orderedCandidates.push(c);
+          }
+        }
+      } else {
+        orderedCandidates.push(...feedItems);
+      }
+
+      const remaining = cap - results.length;
+      const candidateCap = Math.min(2000, Math.max(200, remaining * 6));
+      const filteredCandidates = orderedCandidates.filter((i) => {
+        const date = i?.coverDate || i?.publishedDate || null;
+        return !date || isDateInRange(date, start, end);
+      });
+      const candidates = filteredCandidates.slice(0, candidateCap);
+
+      const enriched = await mapWithConcurrency(candidates, 4, async (i) => {
+        const doi = i?.doi || null;
+
+        const listingDate = i?.coverDate || i?.publishedDate || null;
+        if (listingDate && !isDateInRange(listingDate, start, end)) {
           return null;
         }
 
-        const articleUrl = i.articleUrl || `https://doi.org/${i.doi}`;
-        const id = `doi:${i.doi}`;
+        const baseArticleUrl =
+          typeof i?.articleUrl === "string" ? i.articleUrl.trim() : "";
+        const baseTitle = typeof i?.title === "string" ? i.title.trim() : "";
+        const titleIsPlaceholder = !baseTitle || (baseArticleUrl && baseTitle === baseArticleUrl);
+
+        let meta = null;
+        const shouldFetchMeta = Boolean(doi) && (titleIsPlaceholder || !listingDate);
+        if (shouldFetchMeta) {
+          try {
+            meta = await fetchCrossrefWork(doi);
+          } catch {
+            meta = null;
+          }
+        }
+
+        const rssDate = listingDate;
+
+        const rawArticleUrl = i?.articleUrl || (doi ? `https://doi.org/${doi}` : null);
+        if (!rawArticleUrl) return null;
+        const articleUrl = canonicalizeWileyArticleUrl(rawArticleUrl) || rawArticleUrl;
+        const id = doi ? `doi:${doi}` : `url:${articleUrl}`;
+
+        const publishedDate =
+          listingDate || meta?.publishedDate || meta?.publishedPrintDate || null;
 
         return {
           id,
           source: "wiley",
           seedUrl,
-          journalTitle: i.journalTitle || null,
-          title: meta.title || i.title || id,
+          journalTitle: i?.journalTitle || null,
+          title: (titleIsPlaceholder ? (meta?.title || i?.title) : i?.title) || id,
           articleUrl,
           publishedDate,
-          abstract: meta.abstract,
-          pdfUrl: meta.pdfUrl,
-          doi: i.doi,
+          abstract: meta?.abstract ?? null,
+          pdfUrl: meta?.pdfUrl ?? null,
+          doi,
         };
       });
 
