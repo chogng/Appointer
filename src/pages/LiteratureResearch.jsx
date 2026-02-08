@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Languages, Loader2 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { apiService } from "../services/apiService";
@@ -154,6 +154,7 @@ const LiteratureResearch = () => {
   const [endDate, setEndDate] = useState(today);
   const [maxResults, setMaxResults] = useState("");
   const [groupCollapseEpoch, setGroupCollapseEpoch] = useState(0);
+  const [isSavingSeedSettings, setIsSavingSeedSettings] = useState(false);
 
   const seedUrlsRef = useRef(seedUrls);
   const seedUrlTitlesRef = useRef(seedUrlTitles);
@@ -239,8 +240,6 @@ const LiteratureResearch = () => {
   const seedUrlSelectedDirtyRef = useRef(false);
   const maxResultsDirtyRef = useRef(false);
   const settingsSyncQueueRef = useRef(Promise.resolve());
-  const settingsAutosaveTimerRef = useRef(null);
-  const settingsFocusCountRef = useRef(0);
   const isMountedRef = useRef(true);
   const userIdRef = useRef(user?.id ?? null);
 
@@ -262,8 +261,6 @@ const LiteratureResearch = () => {
     seedUrlsDirtyRef.current = true;
     seedUrlsRef.current = resolvedNextSeedUrls;
     setSeedUrls(resolvedNextSeedUrls);
-
-    scheduleSettingsAutosave();
   };
 
   const setSeedUrlTitlesList = (nextSeedUrlTitles) => {
@@ -275,8 +272,6 @@ const LiteratureResearch = () => {
     seedUrlTitlesDirtyRef.current = true;
     seedUrlTitlesRef.current = resolvedNextSeedUrlTitles;
     setSeedUrlTitles(resolvedNextSeedUrlTitles);
-
-    scheduleSettingsAutosave();
   };
 
   const setSeedUrlSelectedList = (nextSeedUrlSelected) => {
@@ -288,15 +283,12 @@ const LiteratureResearch = () => {
     seedUrlSelectedDirtyRef.current = true;
     seedUrlSelectedRef.current = resolvedNextSeedUrlSelected;
     setSeedUrlSelected(resolvedNextSeedUrlSelected);
-
-    scheduleSettingsAutosave();
   };
 
   const handleMaxResultsInputChange = (nextValue) => {
     maxResultsDirtyRef.current = true;
     maxResultsRef.current = nextValue;
     setMaxResults(nextValue);
-    scheduleSettingsAutosave();
   };
 
   const [status, setStatus] = useState({
@@ -378,7 +370,25 @@ const LiteratureResearch = () => {
   const isRestoringSessionRef = useRef(false);
   const restoredUserIdRef = useRef(null);
 
-  useEffect(() => {
+  const patchLiteratureSessionSnapshot = useCallback((patch) => {
+    const userId = userIdRef.current;
+    if (!userId) return;
+    if (!literatureSession?.getSession) return;
+    if (!literatureSession?.setSession) return;
+    if (!patch || typeof patch !== "object") return;
+
+    const current = literatureSession.getSession(userId);
+    const base = current && typeof current === "object" ? current : {};
+
+    literatureSession.setSession(userId, {
+      ...base,
+      ...patch,
+      v: LITERATURE_SESSION_STATE_VERSION,
+      savedAt: Date.now(),
+    });
+  }, [literatureSession]);
+
+  React.useLayoutEffect(() => {
     const userId = user?.id ?? null;
     if (!userId) return;
     if (!literatureSession?.getSession) return;
@@ -397,55 +407,68 @@ const LiteratureResearch = () => {
     hasRestoredSessionRef.current = true;
     isRestoringSessionRef.current = true;
 
-    const restoredSeedUrls =
-      parsed?.v === LITERATURE_SESSION_STATE_VERSION && Array.isArray(parsed?.seedUrls)
-        ? parsed.seedUrls
-        : parsed?.v === 3 && parsed?.seedUrlsBySourceType && typeof parsed.seedUrlsBySourceType === "object"
-          ? [
-              ...(Array.isArray(parsed.seedUrlsBySourceType.nature) ? parsed.seedUrlsBySourceType.nature : []),
-              ...(Array.isArray(parsed.seedUrlsBySourceType.science) ? parsed.seedUrlsBySourceType.science : []),
-            ]
-          : null;
+    const restoredSavedSeedSettings =
+      parsed?.v === LITERATURE_SESSION_STATE_VERSION &&
+      parsed?.savedSeedSettings &&
+      typeof parsed.savedSeedSettings === "object"
+        ? parsed.savedSeedSettings
+        : null;
 
-    const restoredSeedUrlTitles =
-      parsed?.v === LITERATURE_SESSION_STATE_VERSION && Array.isArray(parsed?.seedUrlTitles)
-        ? parsed.seedUrlTitles
-        : parsed?.v === 3 && parsed?.seedUrlTitlesBySourceType && typeof parsed.seedUrlTitlesBySourceType === "object"
-          ? [
-              ...(Array.isArray(parsed.seedUrlTitlesBySourceType.nature) ? parsed.seedUrlTitlesBySourceType.nature : []),
-              ...(Array.isArray(parsed.seedUrlTitlesBySourceType.science) ? parsed.seedUrlTitlesBySourceType.science : []),
-            ]
-          : null;
-
-    const restoredSeedUrlSelected =
-      parsed?.v === LITERATURE_SESSION_STATE_VERSION && Array.isArray(parsed?.seedUrlSelected)
-        ? parsed.seedUrlSelected
-        : parsed?.v === 3 && parsed?.seedUrlSelectedBySourceType && typeof parsed.seedUrlSelectedBySourceType === "object"
-          ? [
-              ...(Array.isArray(parsed.seedUrlSelectedBySourceType.nature) ? parsed.seedUrlSelectedBySourceType.nature : []),
-              ...(Array.isArray(parsed.seedUrlSelectedBySourceType.science) ? parsed.seedUrlSelectedBySourceType.science : []),
-            ]
-          : null;
+    const restoredSeedUrlsUnified = Array.isArray(restoredSavedSeedSettings?.seedUrlsUnified)
+      ? normalizeSeedUrlsList(restoredSavedSeedSettings.seedUrlsUnified)
+      : null;
 
     const restoredStartDate =
       typeof parsed?.startDate === "string" ? parsed.startDate : null;
     const restoredEndDate =
       typeof parsed?.endDate === "string" ? parsed.endDate : null;
 
-    const restoredMaxResults =
-      typeof parsed?.maxResults === "string" ? parsed.maxResults : null;
-
-    if (restoredSeedUrls) {
-      const nextSeedUrls = Array.isArray(restoredSeedUrls) && restoredSeedUrls.length
-        ? restoredSeedUrls
+    if (restoredSeedUrlsUnified != null) {
+      const resolvedSeedUrls = restoredSeedUrlsUnified.length
+        ? [...restoredSeedUrlsUnified]
         : [""];
-      setSeedUrls(nextSeedUrls);
-      setSeedUrlTitles(
-        normalizeSeedUrlTitlesList(restoredSeedUrlTitles, nextSeedUrls.length),
-      );
-      setSeedUrlSelected(
-        normalizeSeedUrlSelectedList(restoredSeedUrlSelected, nextSeedUrls.length),
-      );
+      const resolvedSeedUrlTitles = normalizeSeedUrlTitlesList(
+        restoredSavedSeedSettings?.seedUrlTitlesUnified,
+        resolvedSeedUrls.length,
+      ).slice();
+      const resolvedSeedUrlSelected = normalizeSeedUrlSelectedList(
+        restoredSavedSeedSettings?.seedUrlSelectedUnified,
+        resolvedSeedUrls.length,
+      ).slice();
+
+      seedUrlsRef.current = resolvedSeedUrls;
+      seedUrlTitlesRef.current = resolvedSeedUrlTitles;
+      seedUrlSelectedRef.current = resolvedSeedUrlSelected;
+
+      setSeedUrls(resolvedSeedUrls);
+      setSeedUrlTitles(resolvedSeedUrlTitles);
+      setSeedUrlSelected(resolvedSeedUrlSelected);
+
+      const restoredMaxResultsValue = (() => {
+        const raw = restoredSavedSeedSettings?.maxResults;
+        if (raw == null) return null;
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return null;
+        return Math.max(1, Math.trunc(n));
+      })();
+
+      committedSettingsRef.current = {
+        seedUrlsUnified: restoredSeedUrlsUnified,
+        seedUrlTitlesUnified: normalizeSeedUrlTitlesList(
+          restoredSavedSeedSettings?.seedUrlTitlesUnified,
+          restoredSeedUrlsUnified.length,
+        ),
+        seedUrlSelectedUnified: normalizeSeedUrlSelectedList(
+          restoredSavedSeedSettings?.seedUrlSelectedUnified,
+          restoredSeedUrlsUnified.length,
+        ),
+        maxResults: restoredMaxResultsValue,
+      };
+
+      const restoredMaxResultsText =
+        restoredMaxResultsValue == null ? "" : String(restoredMaxResultsValue);
+      maxResultsRef.current = restoredMaxResultsText;
+      setMaxResults(restoredMaxResultsText);
     }
     const savedAtRaw = Number(parsed?.savedAt);
     const savedAt = Number.isFinite(savedAtRaw) ? savedAtRaw : null;
@@ -483,8 +506,6 @@ const LiteratureResearch = () => {
         }
       }
     }
-    if (typeof restoredMaxResults === "string")
-      setMaxResults(restoredMaxResults);
 
     if (typeof parsed?.keywordInput === "string")
       setKeywordInput(parsed.keywordInput);
@@ -521,7 +542,12 @@ const LiteratureResearch = () => {
         .filter(Boolean);
       setSelectedIds([...new Set(cleaned)]);
     }
-    queueMicrotask(() => {
+    const defer =
+      typeof queueMicrotask === "function"
+        ? queueMicrotask
+        : (cb) => Promise.resolve().then(cb);
+
+    defer(() => {
       isRestoringSessionRef.current = false;
     });
   }, [literatureSession, user?.id]);
@@ -645,33 +671,63 @@ const LiteratureResearch = () => {
             ? data.maxResults
             : null;
 
+        const committedSeedUrlSelectedUnified = Array.isArray(data?.seedUrlSelectedUnified)
+          ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, committedSeedUrlsUnified.length)
+          : normalizeSeedUrlSelectedList(null, committedSeedUrlsUnified.length);
+
         committedSettingsRef.current = {
           seedUrlsUnified: committedSeedUrlsUnified,
           seedUrlTitlesUnified: committedSeedUrlTitlesUnified,
-          seedUrlSelectedUnified: Array.isArray(data?.seedUrlSelectedUnified)
-            ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, committedSeedUrlsUnified.length)
-            : normalizeSeedUrlSelectedList(null, committedSeedUrlsUnified.length),
+          seedUrlSelectedUnified: committedSeedUrlSelectedUnified,
           maxResults: resolvedMaxResults,
         };
 
-        if (!hasRestoredSessionRef.current) {
+        patchLiteratureSessionSnapshot({
+          savedSeedSettings: {
+            updatedAt: data?.updatedAt ?? null,
+            seedUrlsUnified: committedSeedUrlsUnified,
+            seedUrlTitlesUnified: committedSeedUrlTitlesUnified,
+            seedUrlSelectedUnified: committedSeedUrlSelectedUnified,
+            maxResults: resolvedMaxResults,
+          },
+        });
+
+        const shouldHydrateSeedSettings =
+          !seedUrlsDirtyRef.current &&
+          !seedUrlTitlesDirtyRef.current &&
+          !seedUrlSelectedDirtyRef.current &&
+          !maxResultsDirtyRef.current;
+
+        if (shouldHydrateSeedSettings) {
           const nextSeedUrls = committedSeedUrlsUnified.length ? committedSeedUrlsUnified : [""];
-          setSeedUrls(nextSeedUrls);
-          setSeedUrlTitles(
-            normalizeSeedUrlTitlesList(committedSeedUrlTitlesUnified, nextSeedUrls.length),
+          const resolvedSeedUrls = [...nextSeedUrls];
+          const resolvedSeedUrlTitles = normalizeSeedUrlTitlesList(
+            committedSeedUrlTitlesUnified,
+            resolvedSeedUrls.length,
           );
-          setSeedUrlSelected(
-            Array.isArray(data?.seedUrlSelectedUnified)
-              ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, nextSeedUrls.length)
-              : normalizeSeedUrlSelectedList(null, nextSeedUrls.length),
+          const resolvedSeedUrlSelected = normalizeSeedUrlSelectedList(
+            committedSeedUrlSelectedUnified,
+            resolvedSeedUrls.length,
           );
+
+          seedUrlsRef.current = resolvedSeedUrls;
+          seedUrlTitlesRef.current = resolvedSeedUrlTitles;
+          seedUrlSelectedRef.current = resolvedSeedUrlSelected;
+
+          setSeedUrls(resolvedSeedUrls);
+          setSeedUrlTitles(resolvedSeedUrlTitles);
+          setSeedUrlSelected(resolvedSeedUrlSelected);
+          const resolvedMaxResultsText =
+            resolvedMaxResults == null ? "" : String(resolvedMaxResults);
+          maxResultsRef.current = resolvedMaxResultsText;
+          setMaxResults(resolvedMaxResultsText);
+        }
+
+        if (!hasRestoredSessionRef.current) {
           startDateAutoRef.current = true;
           endDateAutoRef.current = true;
           setStartDate(resolvedStartDate);
           setEndDate(resolvedEndDate);
-          setMaxResults(
-            resolvedMaxResults == null ? "" : String(resolvedMaxResults)
-          );
         }
 
         setHasTranslationApiKey(Boolean(data?.hasTranslationApiKey));
@@ -685,7 +741,7 @@ const LiteratureResearch = () => {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [patchLiteratureSessionSnapshot, user?.id]);
 
   const handleStartDateChange = (value) => {
     const next = typeof value === "string" ? value : "";
@@ -704,44 +760,6 @@ const LiteratureResearch = () => {
     const next = settingsSyncQueueRef.current.then(run, run);
     settingsSyncQueueRef.current = next.catch(() => { });
     return next;
-  };
-
-  const cancelSettingsAutosave = () => {
-    if (!settingsAutosaveTimerRef.current) return;
-    clearTimeout(settingsAutosaveTimerRef.current);
-    settingsAutosaveTimerRef.current = null;
-  };
-
-  const scheduleSettingsAutosave = () => {
-    cancelSettingsAutosave();
-
-    const hasSeedDirty = Boolean(seedUrlsDirtyRef.current);
-    const hasSeedTitleDirty = Boolean(seedUrlTitlesDirtyRef.current);
-    const hasSeedSelectedDirty = Boolean(seedUrlSelectedDirtyRef.current);
-    const hasMaxDirty = Boolean(maxResultsDirtyRef.current);
-    if (!hasSeedDirty && !hasSeedTitleDirty && !hasSeedSelectedDirty && !hasMaxDirty) return;
-
-    if (settingsFocusCountRef.current > 0) return;
-    settingsAutosaveTimerRef.current = setTimeout(() => {
-      syncSettingsForFetch({
-        seedUrlsToPersist: seedUrlsRef.current || [],
-        seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
-        seedUrlSelectedToPersist: seedUrlSelectedRef.current || [],
-      }).catch(() => { });
-    }, 1500);
-  };
-
-  const handleSettingsInputFocus = () => {
-    settingsFocusCountRef.current += 1;
-    cancelSettingsAutosave();
-  };
-
-  const handleSettingsInputBlur = () => {
-    settingsFocusCountRef.current = Math.max(
-      0,
-      settingsFocusCountRef.current - 1
-    );
-    scheduleSettingsAutosave();
   };
 
   const syncSettingsForFetch = ({ seedUrlsToPersist, seedUrlTitlesToPersist, seedUrlSelectedToPersist }) => {
@@ -868,20 +886,73 @@ const LiteratureResearch = () => {
               : null,
       };
 
-      if (Object.prototype.hasOwnProperty.call(updates, "seedUrlsUnified")) {
-        seedUrlsDirtyRef.current = false;
-      }
-      if (Object.prototype.hasOwnProperty.call(updates, "seedUrlTitlesUnified")) {
-        seedUrlTitlesDirtyRef.current = false;
-      }
-      if (Object.prototype.hasOwnProperty.call(updates, "seedUrlSelectedUnified")) {
-        seedUrlSelectedDirtyRef.current = false;
-      }
-      if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
-        maxResultsDirtyRef.current = false;
-      }
+      const committedSeedUrlsUnified = committedSettingsRef.current.seedUrlsUnified || [];
+      const committedSeedUrlTitlesUnified = committedSettingsRef.current.seedUrlTitlesUnified || [];
+      const committedSeedUrlSelectedUnified =
+        committedSettingsRef.current.seedUrlSelectedUnified || [];
 
-      if (isMountedRef.current) {
+      const paired = pairSeedUrlsAndTitles(seedUrlsRef.current, seedUrlTitlesRef.current);
+      const currentSeedUrlsUnified = paired.seedUrls;
+      const currentSeedUrlTitlesUnified = paired.seedUrlTitles;
+      const currentSeedUrlSelectedUnified = (() => {
+        const srcUrls = Array.isArray(seedUrlsRef.current) ? seedUrlsRef.current : [];
+        const srcSelected = Array.isArray(seedUrlSelectedRef.current) ? seedUrlSelectedRef.current : [];
+        const out = [];
+        for (let i = 0; i < srcUrls.length; i += 1) {
+          const url = typeof srcUrls[i] === "string" ? srcUrls[i].trim() : "";
+          if (!url) continue;
+          out.push(typeof srcSelected[i] === "boolean" ? srcSelected[i] : true);
+        }
+        return normalizeSeedUrlSelectedList(out, currentSeedUrlsUnified.length);
+      })();
+
+      seedUrlsDirtyRef.current = !areStringArraysEqual(
+        currentSeedUrlsUnified,
+        committedSeedUrlsUnified,
+      );
+      seedUrlTitlesDirtyRef.current = !areStringArraysEqual(
+        currentSeedUrlTitlesUnified,
+        committedSeedUrlTitlesUnified,
+      );
+      seedUrlSelectedDirtyRef.current = !areBooleanArraysEqual(
+        currentSeedUrlSelectedUnified,
+        committedSeedUrlSelectedUnified,
+      );
+
+      const currentMaxResultsValue = (() => {
+        const raw = String(maxResultsRef.current || "").trim();
+        if (raw === "") return null;
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return "invalid";
+        return Math.max(1, Math.trunc(n));
+      })();
+
+      const committedMaxResultsValue =
+        committedSettingsRef.current.maxResults == null
+          ? null
+          : Number(committedSettingsRef.current.maxResults);
+
+      maxResultsDirtyRef.current =
+        currentMaxResultsValue === "invalid" ||
+        currentMaxResultsValue !== committedMaxResultsValue;
+
+      patchLiteratureSessionSnapshot({
+        savedSeedSettings: {
+          updatedAt: data?.updatedAt ?? null,
+          seedUrlsUnified: nextCommittedSeedUrlsUnified,
+          seedUrlTitlesUnified: nextCommittedSeedUrlTitlesUnified,
+          seedUrlSelectedUnified: nextCommittedSeedUrlSelectedUnified,
+          maxResults: committedSettingsRef.current.maxResults,
+        },
+      });
+
+      const isAllSynced =
+        !seedUrlsDirtyRef.current &&
+        !seedUrlTitlesDirtyRef.current &&
+        !seedUrlSelectedDirtyRef.current &&
+        !maxResultsDirtyRef.current;
+
+      if (isMountedRef.current && isAllSynced) {
         setToast({
           isVisible: true,
           message: t("literature_settings_saved"),
@@ -902,165 +973,45 @@ const LiteratureResearch = () => {
     });
   };
 
-  const syncAllDirtySettingsForFetch = async () => {
-    await syncSettingsForFetch({
-      seedUrlsToPersist: seedUrlsRef.current || [],
-      seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
-      seedUrlSelectedToPersist: seedUrlSelectedRef.current || [],
-    });
+  const isSeedSettingsDirty = Boolean(
+    seedUrlsDirtyRef.current ||
+      seedUrlTitlesDirtyRef.current ||
+      seedUrlSelectedDirtyRef.current ||
+      maxResultsDirtyRef.current,
+  );
+
+  const handleSaveSeedSettings = async () => {
+    if (isSavingSeedSettings) return;
+    const dirtyNow = Boolean(
+      seedUrlsDirtyRef.current ||
+        seedUrlTitlesDirtyRef.current ||
+        seedUrlSelectedDirtyRef.current ||
+        maxResultsDirtyRef.current,
+    );
+    if (!dirtyNow) return;
+
+    setIsSavingSeedSettings(true);
+    try {
+      await syncSettingsForFetch({
+        seedUrlsToPersist: seedUrlsRef.current || [],
+        seedUrlTitlesToPersist: seedUrlTitlesRef.current || [],
+        seedUrlSelectedToPersist: seedUrlSelectedRef.current || [],
+      });
+    } catch {
+      // toast handled in syncSettingsForFetch
+    } finally {
+      if (isMountedRef.current) setIsSavingSeedSettings(false);
+    }
   };
-
-  useEffect(() => {
-    return () => {
-      cancelSettingsAutosave();
-
-      const updates = {};
-
-      if (seedUrlsDirtyRef.current || seedUrlTitlesDirtyRef.current) {
-        const paired = pairSeedUrlsAndTitles(
-          seedUrlsRef.current,
-          seedUrlTitlesRef.current,
-        );
-
-        const committedSeedUrlsUnified = committedSettingsRef.current.seedUrlsUnified || [];
-        const committedSeedUrlTitlesUnified = committedSettingsRef.current.seedUrlTitlesUnified || [];
-
-        if (
-          seedUrlsDirtyRef.current &&
-          !areStringArraysEqual(paired.seedUrls, committedSeedUrlsUnified)
-        ) {
-          updates.seedUrlsUnified = paired.seedUrls;
-        } else {
-          seedUrlsDirtyRef.current = false;
-        }
-
-        if (
-          (seedUrlTitlesDirtyRef.current || seedUrlsDirtyRef.current) &&
-          !areStringArraysEqual(paired.seedUrlTitles, committedSeedUrlTitlesUnified)
-        ) {
-          updates.seedUrlTitlesUnified = paired.seedUrlTitles;
-        } else {
-          seedUrlTitlesDirtyRef.current = false;
-        }
-      }
-
-      if (seedUrlSelectedDirtyRef.current || seedUrlsDirtyRef.current) {
-        const srcUrls = Array.isArray(seedUrlsRef.current) ? seedUrlsRef.current : [];
-        const srcSelected = Array.isArray(seedUrlSelectedRef.current) ? seedUrlSelectedRef.current : [];
-        const out = [];
-        for (let i = 0; i < srcUrls.length; i += 1) {
-          const url = typeof srcUrls[i] === "string" ? srcUrls[i].trim() : "";
-          if (!url) continue;
-          out.push(typeof srcSelected[i] === "boolean" ? srcSelected[i] : true);
-        }
-
-        const paired = pairSeedUrlsAndTitles(seedUrlsRef.current, seedUrlTitlesRef.current);
-        const nextSelected = normalizeSeedUrlSelectedList(out, paired.seedUrls.length);
-        const committedSelected = committedSettingsRef.current.seedUrlSelectedUnified || [];
-
-        if (!areBooleanArraysEqual(nextSelected, committedSelected)) {
-          updates.seedUrlSelectedUnified = nextSelected;
-        } else {
-          seedUrlSelectedDirtyRef.current = false;
-        }
-      }
-
-      if (maxResultsDirtyRef.current) {
-        const raw = String(maxResultsRef.current || "").trim();
-        const parsed =
-          raw === ""
-            ? null
-            : (() => {
-              const n = Number(raw);
-              if (!Number.isFinite(n)) return null;
-              return Math.max(1, Math.trunc(n));
-            })();
-
-        const committedMaxResults =
-          committedSettingsRef.current.maxResults == null
-            ? null
-            : Number(committedSettingsRef.current.maxResults);
-
-        if (
-          (parsed == null && committedMaxResults != null) ||
-          (parsed != null && committedMaxResults == null) ||
-          (parsed != null &&
-            committedMaxResults != null &&
-            parsed !== committedMaxResults)
-        ) {
-          updates.maxResults = parsed;
-        } else {
-          maxResultsDirtyRef.current = false;
-        }
-      }
-
-      if (Object.keys(updates).length === 0) return;
-
-      apiService
-        .updateLiteratureSettings(updates)
-        .then((data) => {
-          const nextCommittedSeedUrlsUnified = Array.isArray(data?.seedUrlsUnified)
-            ? normalizeSeedUrlsList(data.seedUrlsUnified)
-            : committedSettingsRef.current.seedUrlsUnified || [];
-          const nextCommittedSeedUrlTitlesUnified = Array.isArray(data?.seedUrlTitlesUnified)
-            ? normalizeSeedUrlTitlesList(data.seedUrlTitlesUnified, nextCommittedSeedUrlsUnified.length)
-            : normalizeSeedUrlTitlesList(
-                committedSettingsRef.current.seedUrlTitlesUnified,
-                nextCommittedSeedUrlsUnified.length,
-              );
-          const nextCommittedSeedUrlSelectedUnified = Array.isArray(data?.seedUrlSelectedUnified)
-            ? normalizeSeedUrlSelectedList(data.seedUrlSelectedUnified, nextCommittedSeedUrlsUnified.length)
-            : normalizeSeedUrlSelectedList(
-                committedSettingsRef.current.seedUrlSelectedUnified,
-                nextCommittedSeedUrlsUnified.length,
-              );
-
-          committedSettingsRef.current = {
-            seedUrlsUnified: nextCommittedSeedUrlsUnified,
-            seedUrlTitlesUnified: nextCommittedSeedUrlTitlesUnified,
-            seedUrlSelectedUnified: nextCommittedSeedUrlSelectedUnified,
-            maxResults:
-              data?.maxResults == null
-                ? null
-                : Number.isFinite(Number(data.maxResults))
-                  ? Number(data.maxResults)
-                  : null,
-          };
-
-          if (Object.prototype.hasOwnProperty.call(updates, "seedUrlsUnified")) {
-            seedUrlsDirtyRef.current = false;
-          }
-          if (Object.prototype.hasOwnProperty.call(updates, "seedUrlTitlesUnified")) {
-            seedUrlTitlesDirtyRef.current = false;
-          }
-          if (Object.prototype.hasOwnProperty.call(updates, "seedUrlSelectedUnified")) {
-            seedUrlSelectedDirtyRef.current = false;
-          }
-          if (Object.prototype.hasOwnProperty.call(updates, "maxResults")) {
-            maxResultsDirtyRef.current = false;
-          }
-        })
-        .catch(() => {
-          // ignore on unmount
-        });
-    };
-  }, []);
 
   useEffect(() => {
     const userId = user?.id ?? null;
     if (!userId) return;
     if (isRestoringSessionRef.current) return;
-    if (!literatureSession?.setSession) return;
 
-    const snapshot = {
-      v: LITERATURE_SESSION_STATE_VERSION,
-      savedAt: Date.now(),
-      seedUrls,
-      seedUrlSelected,
-      seedUrlTitles,
+    patchLiteratureSessionSnapshot({
       startDate,
       endDate,
-      maxResults,
       keywordInput,
       keywordMode,
       resultView,
@@ -1068,26 +1019,21 @@ const LiteratureResearch = () => {
       results,
       selectedIds,
       translations: pruneTranslationsForSession(translations),
-    };
-
-    literatureSession.setSession(userId, snapshot);
+    });
   }, [
     endDate,
-    maxResults,
     keywordInput,
     keywordMode,
     resultView,
       results,
       selectedIds,
-      seedUrls,
-      seedUrlSelected,
-      seedUrlTitles,
       startDate,
-      status,
-      translations,
-      literatureSession,
-      user?.id,
-    ]);
+    status,
+    translations,
+    patchLiteratureSessionSnapshot,
+    literatureSession,
+    user?.id,
+  ]);
 
   const sortedResults = useMemo(() => {
     const list = Array.isArray(results) ? results : [];
@@ -1604,20 +1550,6 @@ const LiteratureResearch = () => {
         errors: [],
       });
       return;
-    }
-
-    cancelSettingsAutosave();
-
-    try {
-      await syncAllDirtySettingsForFetch();
-    } catch (error) {
-      setToast({
-        isVisible: true,
-        message:
-          t("literature_settings_save_failed_fetch_continues") +
-          (error?.message ? ` (${error.message})` : ""),
-        type: "warning",
-      });
     }
 
     setStatus({ state: "loading", message: "" });
@@ -2163,8 +2095,9 @@ const LiteratureResearch = () => {
           onEndDateChange={handleEndDateChange}
           maxResults={maxResults}
           onMaxResultsInputChange={handleMaxResultsInputChange}
-          onSettingsInputFocus={handleSettingsInputFocus}
-          onSettingsInputBlur={handleSettingsInputBlur}
+          onSaveSeedSettings={handleSaveSeedSettings}
+          isSeedSettingsDirty={isSeedSettingsDirty}
+          isSavingSeedSettings={isSavingSeedSettings}
           onAddSeedUrl={addSeedUrl}
           onSearch={handleSearch}
           status={status}

@@ -2,7 +2,9 @@ import React from "react";
 import {
   Check,
   Link as LinkIcon,
+  Loader2,
   Plus,
+  Save,
   Search,
   Trash2,
 } from "lucide-react";
@@ -21,6 +23,9 @@ const JournalLinksCard = ({
   onMaxResultsInputChange,
   onSettingsInputFocus,
   onSettingsInputBlur,
+  onSaveSeedSettings,
+  isSeedSettingsDirty,
+  isSavingSeedSettings,
   onAddSeedUrl,
   onSearch,
   status,
@@ -180,6 +185,30 @@ const JournalLinksCard = ({
               <span className="text-xs text-text-secondary whitespace-nowrap">
                 ({seedCountsText})
               </span>
+              {typeof onSaveSeedSettings === "function" ? (
+                <Button
+                  id="literature-seed-settings-save"
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  dataIcon="with"
+                  className="ml-auto"
+                  disabled={!isSeedSettingsDirty || isSavingSeedSettings}
+                  onClick={onSaveSeedSettings}
+                  title={t("literature_save")}
+                  aria-label={t("literature_save")}
+                  cta="Literature research"
+                  ctaPosition="seed-urls"
+                  ctaCopy="save settings"
+                >
+                  {isSavingSeedSettings ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  {isSavingSeedSettings ? t("literature_saving") : t("literature_save")}
+                </Button>
+              ) : null}
             </div>
             {seedUrlStats?.unsupported ? (
               <div className="mt-1 text-xs text-text-secondary truncate" title={unsupportedText}>
