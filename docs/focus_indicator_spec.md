@@ -22,7 +22,21 @@ This lets CSS gate focus indicators to keyboard usage:
 
 - Only render the outer focus indicator under `html[data-nav="keyboard"]`
 
-## 3. Why Not Browser Default Outline
+## 3. Buttons (action-btn)
+
+Buttons use the same "outer ring" pattern as `Input`, implemented via a pseudo-element on `.action-btn`.
+
+- Default state: the halo exists but is invisible (`opacity: 0`)
+- Keyboard focus state: `html[data-nav="keyboard"] .action-btn:focus-visible::after` shows the halo
+- Pointer interactions (mouse/touch): no halo, because `html[data-nav="pointer"]` will be active
+
+## 4. Date Picker Trigger (date_btn)
+
+The DatePicker trigger uses the same outer halo pattern on `.date_btn` and is also gated to keyboard navigation:
+
+- `html[data-nav="keyboard"] .date_btn:focus-visible::after`
+
+## 5. Why Not Browser Default Outline
 
 The project disables native outlines globally for form controls:
 
@@ -67,4 +81,3 @@ Avoid animating:
 
 - `outline-offset` (can be repaint-heavy, especially with `transition-all`)
 - layout-affecting properties
-

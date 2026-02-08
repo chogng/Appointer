@@ -435,7 +435,30 @@ body {
   }
 
   .date_btn {
-    @apply flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer bg-bg-page select-none h-[38px] overflow-hidden shrink min-w-0;
+    @apply relative flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer bg-bg-page select-none h-[38px] shrink min-w-0;
+  }
+
+  /* Keyboard focus ring (component-level outer ring).
+     Mirrors the Input/Button focus halo and is gated to keyboard navigation only. */
+  .date_btn::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: calc(0.5rem + 6px); /* rounded-lg + offset */
+    @apply border-2 border-transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, border-color 120ms ease;
+  }
+
+  html[data-nav="keyboard"] .date_btn:focus-visible::after {
+    @apply border-accent-terracotta;
+    opacity: 0.5;
+  }
+
+  .date_btn:focus,
+  .date_btn:focus-visible {
+    outline: none;
   }
 
   .date_btn--open {
@@ -486,6 +509,29 @@ body {
       box-shadow 0.2s ease-in-out,
       transform 0.08s ease-out;
     transform-origin: center;
+  }
+
+  /* Keyboard focus ring (component-level outer ring).
+     Mirrors the Input shell focus halo and is gated to keyboard navigation only. */
+  .action-btn::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: calc(0.5rem + 6px); /* rounded-lg + offset */
+    @apply border-2 border-transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, border-color 120ms ease;
+  }
+
+  html[data-nav="keyboard"] .action-btn:focus-visible::after {
+    @apply border-accent-terracotta;
+    opacity: 0.5;
+  }
+
+  .action-btn:focus,
+  .action-btn:focus-visible {
+    outline: none;
   }
 
   /* Sizes */
