@@ -35,6 +35,7 @@ test("normalizeSeedUrls keeps only allowed, unique urls", () => {
 
 test("Wiley subdomain seed fetches via RSS even if Crossref fails", async () => {
   const originalFetch = globalThis.fetch;
+  const seedUrl = "https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0";
   const feedUrl =
     "https://onlinelibrary.wiley.com/action/showFeed?type=etoc&feed=rss&jc=15214095";
   const crossrefUrl =
@@ -44,7 +45,7 @@ test("Wiley subdomain seed fetches via RSS even if Crossref fails", async () => 
 <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <item>
-      <title>First Article</title>
+      <title>https://onlinelibrary.wiley.com/doi/10.1002/example.1</title>
       <link>https://onlinelibrary.wiley.com/doi/10.1002/example.1</link>
       <dc:identifier>doi:10.1002/example.1</dc:identifier>
       <pubDate>2026-01-20</pubDate>
@@ -61,6 +62,14 @@ test("Wiley subdomain seed fetches via RSS even if Crossref fails", async () => 
 
   globalThis.fetch = async (url) => {
     const href = String(url);
+    if (href === seedUrl) {
+      return {
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        text: async () => "",
+      };
+    }
     if (href === feedUrl) {
       return {
         ok: true,
@@ -82,15 +91,20 @@ test("Wiley subdomain seed fetches via RSS even if Crossref fails", async () => 
 
   try {
     const items = await searchLiterature({
-      seedUrls: ["https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0"],
+      seedUrls: [seedUrl],
       startDate: "2026-01-15",
       endDate: "2026-01-21",
       maxResults: 10,
     });
 
     assert.equal(items.length, 2);
-    assert.equal(items[0]?.title, "First Article");
+    assert.equal(items[0]?.orderSource, "rss");
+    assert.equal(items[0]?.orderWarning, "wiley_rss_fallback_html_blocked");
+    assert.equal(items[0]?.sourceRank, 0);
     assert.equal(items[0]?.doi, "10.1002/example.1");
+    assert.equal(items[1]?.orderSource, "rss");
+    assert.equal(items[1]?.orderWarning, "wiley_rss_fallback_html_blocked");
+    assert.equal(items[1]?.sourceRank, 1);
     assert.equal(items[1]?.title, "Second Article No DOI");
     assert.equal(items[1]?.doi, null);
   } finally {
@@ -103,8 +117,6 @@ test("Wiley supplements missing items from HTML listing order", async () => {
   const seedUrl = "https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0";
   const feedUrl =
     "https://onlinelibrary.wiley.com/action/showFeed?type=etoc&feed=rss&jc=15214095";
-  const crossrefUrl1 = "https://api.crossref.org/works/10.1002%2Fexample.1";
-  const crossrefUrl3 = "https://api.crossref.org/works/10.1002%2Fexample.3";
 
   const seedHtml = `<!doctype html>
 <html>
@@ -154,14 +166,6 @@ test("Wiley supplements missing items from HTML listing order", async () => {
         text: async () => xml,
       };
     }
-    if (href === crossrefUrl1 || href === crossrefUrl3) {
-      return {
-        ok: false,
-        status: 503,
-        statusText: "Service Unavailable",
-        json: async () => ({}),
-      };
-    }
     throw new Error(`Unexpected fetch: ${href}`);
   };
 
@@ -176,8 +180,106 @@ test("Wiley supplements missing items from HTML listing order", async () => {
     assert.equal(items.length, 2);
     assert.equal(items[0]?.doi, "10.1002/example.1");
     assert.equal(items[0]?.title, "First Article Listing");
+    assert.equal(items[0]?.orderSource, "html");
+    assert.equal(items[0]?.orderWarning, null);
+    assert.equal(items[0]?.sourceRank, 0);
     assert.equal(items[1]?.doi, "10.1002/example.3");
     assert.equal(items[1]?.title, "Third Article Listing Only");
+    assert.equal(items[1]?.orderSource, "html");
+    assert.equal(items[1]?.orderWarning, null);
+    assert.equal(items[1]?.sourceRank, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Wiley HTML listing order wins over RSS order (no RSS-only append)", async () => {
+  const originalFetch = globalThis.fetch;
+  const seedUrl = "https://advanced.onlinelibrary.wiley.com/toc/15214095/0/0";
+  const feedUrl =
+    "https://onlinelibrary.wiley.com/action/showFeed?type=etoc&feed=rss&jc=15214095";
+
+  const seedHtml = `<!doctype html>
+<html>
+  <head>
+    <link rel="alternate" type="application/rss+xml" href="${feedUrl}" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <a href="https://onlinelibrary.wiley.com/doi/10.1002/example.b">B Listing</a>
+        <time datetime="2026-01-20">2026-01-20</time>
+      </article>
+      <article>
+        <a href="https://onlinelibrary.wiley.com/doi/10.1002/example.a">A Listing</a>
+        <time datetime="2026-01-19">2026-01-19</time>
+      </article>
+    </main>
+  </body>
+</html>`;
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <item>
+      <title>A RSS</title>
+      <link>https://onlinelibrary.wiley.com/doi/10.1002/example.a</link>
+      <dc:identifier>doi:10.1002/example.a</dc:identifier>
+      <pubDate>2026-01-19</pubDate>
+    </item>
+    <item>
+      <title>B RSS</title>
+      <link>https://onlinelibrary.wiley.com/doi/10.1002/example.b</link>
+      <dc:identifier>doi:10.1002/example.b</dc:identifier>
+      <pubDate>2026-01-20</pubDate>
+    </item>
+    <item>
+      <title>C RSS Only</title>
+      <link>https://onlinelibrary.wiley.com/doi/10.1002/example.c</link>
+      <dc:identifier>doi:10.1002/example.c</dc:identifier>
+      <pubDate>2026-01-18</pubDate>
+    </item>
+  </channel>
+</rss>`;
+
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href === seedUrl) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => seedHtml,
+      };
+    }
+    if (href === feedUrl) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => xml,
+      };
+    }
+    throw new Error(`Unexpected fetch: ${href}`);
+  };
+
+  try {
+    const items = await searchLiterature({
+      seedUrls: [seedUrl],
+      startDate: "2026-01-15",
+      endDate: "2026-01-21",
+      maxResults: 10,
+    });
+
+    assert.equal(items.length, 2);
+    assert.equal(items[0]?.doi, "10.1002/example.b");
+    assert.equal(items[0]?.title, "B Listing");
+    assert.equal(items[0]?.orderSource, "html");
+    assert.equal(items[0]?.sourceRank, 0);
+    assert.equal(items[1]?.doi, "10.1002/example.a");
+    assert.equal(items[1]?.title, "A Listing");
+    assert.equal(items[1]?.orderSource, "html");
+    assert.equal(items[1]?.sourceRank, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

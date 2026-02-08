@@ -295,8 +295,12 @@ const translations = {
     literature_view_matched: 'Matched',
     literature_view_unmatched: 'Unmatched',
     literature_sort: 'Sort',
-    literature_sort_source: 'Web order',
+    literature_sort_source: 'Fetch order',
     literature_sort_date: 'By date',
+    literature_order_warning_rss_fallback:
+      "Using RSS order because Wiley page HTML couldn't be fetched. Results may be out of order or incomplete.",
+    literature_order_warning_rss_fallback_blocked:
+      "Wiley blocked our HTML request (Cloudflare). Showing RSS order; results may be out of order or incomplete.",
     chinese: 'Chinese',
     english: 'English',
     inventory: 'Inventory Entry',
@@ -862,8 +866,12 @@ const translations = {
     literature_view_matched: '匹配',
     literature_view_unmatched: '未匹配',
     literature_sort: '排序',
-    literature_sort_source: '网页顺序',
+    literature_sort_source: '抓取顺序',
     literature_sort_date: '按日期',
+    literature_order_warning_rss_fallback:
+      '当前使用 RSS 抓取顺序（Wiley 页面 HTML 无法抓取），结果可能顺序不一致或有遗漏。',
+    literature_order_warning_rss_fallback_blocked:
+      'Wiley 页面可能被 Cloudflare 拦截，当前显示 RSS 抓取顺序，结果可能顺序不一致或有遗漏。',
     chinese: '中文',
     english: '英文',
     inventory: '入库单',

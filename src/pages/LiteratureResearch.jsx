@@ -135,6 +135,7 @@ const LiteratureResearch = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const literatureSession = useLiteratureResearchSession();
+  const shownOrderWarningsRef = useRef(new Set());
 
   const [now, setNow] = useState(() => new Date());
   const today = useMemo(() => format(now, "yyyy-MM-dd"), [now]);
@@ -1638,6 +1639,34 @@ const LiteratureResearch = () => {
 
       setResults(merged);
       setResultView("all");
+
+      const orderWarnings = new Set();
+      for (const item of merged) {
+        const orderSource =
+          typeof item?.orderSource === "string" ? item.orderSource.trim() : "";
+        if (orderSource !== "rss") continue;
+        const warning =
+          typeof item?.orderWarning === "string" ? item.orderWarning.trim() : "";
+        if (!warning) continue;
+        orderWarnings.add(warning);
+      }
+
+      for (const warning of orderWarnings) {
+        if (shownOrderWarningsRef.current.has(warning)) continue;
+        shownOrderWarningsRef.current.add(warning);
+
+        const message =
+          warning === "wiley_rss_fallback_html_blocked"
+            ? t("literature_order_warning_rss_fallback_blocked")
+            : t("literature_order_warning_rss_fallback");
+
+        setToast({
+          isVisible: true,
+          message,
+          type: "warning",
+        });
+        break;
+      }
 
       if (merged.length > 0) {
         setStatus({ state: "done", message: "" });

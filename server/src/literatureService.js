@@ -823,6 +823,22 @@ function extractMainContentHtml(html) {
   return tail.slice(0, end + "</main>".length);
 }
 
+function isCloudflareChallengeHtml(html) {
+  if (typeof html !== "string" || !html) return false;
+  const lower = html.toLowerCase();
+  if (lower.includes("cf-mitigated")) return true;
+  if (lower.includes("cf-challenge")) return true;
+  if (lower.includes("cf-turnstile")) return true;
+  if (lower.includes("cf-chl-")) return true;
+  if (
+    lower.includes("cloudflare") &&
+    (lower.includes("attention required") || lower.includes("verify you are human"))
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function extractWileyJournalCodeFromSeedUrl(seedUrl) {
   try {
     const url = new URL(seedUrl);
@@ -1779,6 +1795,8 @@ export async function searchLiterature({
         url.searchParams.get("rss") === "1";
 
       let seedHtml = null;
+      let seedHtmlError = null;
+      let seedHtmlBlockedByChallenge = false;
       let discoveredRssUrl = null;
       const listingCandidates = [];
       const listingByKey = new Map();
@@ -1786,25 +1804,25 @@ export async function searchLiterature({
       if (!isDirectFeed) {
         try {
           seedHtml = await fetchText(seedUrl);
-        } catch {
+        } catch (err) {
+          seedHtml = null;
+          seedHtmlError = err;
+        }
+
+        if (seedHtml && isCloudflareChallengeHtml(seedHtml)) {
+          seedHtmlBlockedByChallenge = true;
+          seedHtmlError = Object.assign(
+            new Error(`Wiley HTML blocked by challenge (${seedUrl})`),
+            { status: 403 },
+          );
           seedHtml = null;
         }
 
         if (seedHtml) {
           discoveredRssUrl = discoverRssUrlFromHtmlText(seedUrl, seedHtml);
 
-          const journalCode = extractWileyJournalCodeFromSeedUrl(seedUrl);
-          const seedIsIssueLike =
-            journalCode && isWileyIssueLikeTocPath(url.pathname, journalCode);
-          const issueTocUrls = parseWileyIssueTocUrls(seedHtml, seedUrl);
-
-          const tocUrls = issueTocUrls.length ? issueTocUrls : [seedUrl];
-          if (seedIsIssueLike && !tocUrls.includes(seedUrl)) {
-            tocUrls.unshift(seedUrl);
-          }
-
-          const seenTocPages = new Set();
-          const maxTocPages = Math.min(30, tocUrls.length);
+          const seenListingPages = new Set([seedUrl]);
+          const maxListingPages = 30;
 
           const addCandidate = (candidate) => {
             if (!candidate || typeof candidate !== "object") return;
@@ -1856,56 +1874,31 @@ export async function searchLiterature({
             if (prev && !prev?.publishedDate && nextDate) prev.publishedDate = nextDate;
           };
 
-          for (let tocIndex = 0; tocIndex < maxTocPages; tocIndex += 1) {
-            const tocUrl = tocUrls[tocIndex];
-            if (!tocUrl || seenTocPages.has(tocUrl)) continue;
-            seenTocPages.add(tocUrl);
-
-            let pageUrl = tocUrl;
-            let pageHtml = tocUrl === seedUrl ? seedHtml : null;
-            if (!pageHtml) {
-              try {
-                pageHtml = await fetchText(tocUrl);
-              } catch {
-                continue;
-              }
-            }
-
-            let pageCount = 0;
-            while (pageHtml && pageCount < 10) {
-              const contentHtml = extractMainContentHtml(stripHtmlScriptsStyles(pageHtml)) || pageHtml;
-              let pageCandidates = parseWileyListingCandidates(contentHtml, pageUrl, {
-                includeDoiTextFallback: false,
+          let pageUrl = seedUrl;
+          let pageHtml = seedHtml;
+          for (let pageIndex = 0; pageIndex < maxListingPages && pageHtml; pageIndex += 1) {
+            const contentHtml =
+              extractMainContentHtml(stripHtmlScriptsStyles(pageHtml)) || pageHtml;
+            let pageCandidates = parseWileyListingCandidates(contentHtml, pageUrl, {
+              includeDoiTextFallback: false,
+            });
+            if (pageCandidates.length === 0) {
+              pageCandidates = parseWileyListingCandidates(contentHtml, pageUrl, {
+                includeDoiTextFallback: true,
               });
-              if (pageCandidates.length === 0) {
-                pageCandidates = parseWileyListingCandidates(contentHtml, pageUrl, {
-                  includeDoiTextFallback: true,
-                });
-              }
-
-              for (const c of pageCandidates) addCandidate(c);
-
-              const nextUrl = parseWileyNextPageUrl(pageHtml, pageUrl);
-              if (!nextUrl || seenTocPages.has(nextUrl)) break;
-              seenTocPages.add(nextUrl);
-
-              try {
-                pageHtml = await fetchText(nextUrl);
-                pageUrl = nextUrl;
-                pageCount += 1;
-              } catch {
-                break;
-              }
             }
 
-            // Stop once we have enough items and issues are older than start date.
-            if (listingCandidates.length >= Math.min(2000, cap * 8)) {
-              const dated = listingCandidates
-                .map((c) => c?.publishedDate || null)
-                .filter(Boolean)
-                .sort();
-              const oldest = dated.length ? dated[0] : null;
-              if (oldest && oldest < start) break;
+            for (const c of pageCandidates) addCandidate(c);
+
+            const nextUrl = parseWileyNextPageUrl(pageHtml, pageUrl);
+            if (!nextUrl || seenListingPages.has(nextUrl)) break;
+            seenListingPages.add(nextUrl);
+
+            try {
+              pageHtml = await fetchText(nextUrl);
+              pageUrl = nextUrl;
+            } catch {
+              break;
             }
           }
         }
@@ -1983,21 +1976,39 @@ export async function searchLiterature({
         orderedCandidates.push(...feedItems);
       }
 
+      const orderSource = listingCandidates.length > 0 ? "html" : "rss";
+      const orderWarning = (() => {
+        if (orderSource !== "rss") return null;
+        if (isDirectFeed) return null;
+
+        const status = Number(seedHtmlError?.status);
+        if (seedHtmlBlockedByChallenge || status === 403) {
+          return "wiley_rss_fallback_html_blocked";
+        }
+        if (seedHtmlError) {
+          return "wiley_rss_fallback_html_unavailable";
+        }
+        if (seedHtml) {
+          return "wiley_rss_fallback_html_empty";
+        }
+        return "wiley_rss_fallback_html_unavailable";
+      })();
+
       const remaining = cap - results.length;
       const candidateCap = Math.min(2000, Math.max(200, remaining * 6));
       const filteredCandidates = orderedCandidates.filter((i) => {
         const date = i?.coverDate || i?.publishedDate || null;
         return !date || isDateInRange(date, start, end);
       });
-      const candidates = filteredCandidates.slice(0, candidateCap);
+      const candidates = filteredCandidates.slice(0, candidateCap).map((candidate, idx) => ({
+        ...candidate,
+        sourceRank: idx,
+      }));
 
       const enriched = await mapWithConcurrency(candidates, 4, async (i) => {
         const doi = i?.doi || null;
 
         const listingDate = i?.coverDate || i?.publishedDate || null;
-        if (listingDate && !isDateInRange(listingDate, start, end)) {
-          return null;
-        }
 
         const baseArticleUrl =
           typeof i?.articleUrl === "string" ? i.articleUrl.trim() : "";
@@ -2027,6 +2038,9 @@ export async function searchLiterature({
         return {
           id,
           source: "wiley",
+          orderSource,
+          orderWarning,
+          sourceRank: Number.isFinite(Number(i?.sourceRank)) ? Number(i.sourceRank) : 0,
           seedUrl,
           journalTitle: i?.journalTitle || null,
           title: (titleIsPlaceholder ? (meta?.title || i?.title) : i?.title) || id,
