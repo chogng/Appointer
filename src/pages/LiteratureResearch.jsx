@@ -139,7 +139,7 @@ const LiteratureResearch = () => {
   const [now, setNow] = useState(() => new Date());
   const today = useMemo(() => format(now, "yyyy-MM-dd"), [now]);
   const defaultStart = useMemo(
-    () => format(subDays(now, 7), "yyyy-MM-dd"),
+    () => format(subDays(now, 6), "yyyy-MM-dd"),
     [now],
   );
 
@@ -399,7 +399,7 @@ const LiteratureResearch = () => {
 
     const currentNow = new Date();
     const currentToday = format(currentNow, "yyyy-MM-dd");
-    const currentDefaultStart = format(subDays(currentNow, 7), "yyyy-MM-dd");
+    const currentDefaultStart = format(subDays(currentNow, 6), "yyyy-MM-dd");
 
     const parsed = literatureSession.getSession(userId);
     if (!parsed || (parsed?.v !== 3 && parsed?.v !== LITERATURE_SESSION_STATE_VERSION)) return;
@@ -475,7 +475,7 @@ const LiteratureResearch = () => {
     const savedDate = savedAt != null ? new Date(savedAt) : null;
     const savedToday = savedDate ? format(savedDate, "yyyy-MM-dd") : null;
     const savedDefaultStart = savedDate
-      ? format(subDays(savedDate, 7), "yyyy-MM-dd")
+      ? format(subDays(savedDate, 6), "yyyy-MM-dd")
       : null;
 
     if (
@@ -627,7 +627,7 @@ const LiteratureResearch = () => {
         const currentNow = new Date();
         const currentToday = format(currentNow, "yyyy-MM-dd");
         const currentDefaultStart = format(
-          subDays(currentNow, 7),
+          subDays(currentNow, 6),
           "yyyy-MM-dd",
         );
 
