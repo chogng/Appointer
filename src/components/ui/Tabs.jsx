@@ -18,6 +18,7 @@ const Tabs = ({
   itemClassName = "",
   keyboardActivation = "auto", // "auto" | "manual"
   hoverPreview = true, // visual only: highlight on hover without changing selection
+  controlsPanels = false, // when true, Tabs links to external tabpanels via aria-controls
   groupLabel,
   dataUi,
   testId,
@@ -61,6 +62,8 @@ const Tabs = ({
 
   const sizeClass = size === "sm" ? "tab_btn--sm" : "tab_btn--md";
   const resolvedHoverPreview = !!hoverPreview;
+  const shouldLinkPanels =
+    typeof renderPanel === "function" || Boolean(controlsPanels);
 
   const normalizedOptions = useMemo(() => {
     const seenValues = new Set();
@@ -81,11 +84,12 @@ const Tabs = ({
       usedTokens.add(token);
 
       const tabId = option?.id ?? `${instanceId}-tab-${token}`;
-      const panelId =
-        panelIdMode === "short"
+      const panelId = shouldLinkPanels
+        ? panelIdMode === "short"
           ? option?.panelId ??
             (shortPanelPrefix ? `${shortPanelPrefix}-${token}` : token)
-          : option?.panelId ?? `${panelPrefix}-${token}`;
+          : option?.panelId ?? `${panelPrefix}-${token}`
+        : undefined;
 
       if (import.meta.env.DEV) {
         if (optionValue === undefined) {
@@ -101,7 +105,7 @@ const Tabs = ({
           );
         }
 
-        if (hasExplicitIdBase && option?.panelId) {
+        if (shouldLinkPanels && hasExplicitIdBase && option?.panelId) {
           console.warn(
             "[Tabs] option.panelId overrides the derived panel id; prefer panelIdBase/panelIdMode for consistency.",
             { idBase, option },
@@ -129,6 +133,7 @@ const Tabs = ({
     panelPrefix,
     safeOptions,
     shortPanelPrefix,
+    shouldLinkPanels,
   ]);
 
   const selectedIndex = useMemo(
@@ -373,4 +378,3 @@ const Tabs = ({
 };
 
 export default Tabs;
-

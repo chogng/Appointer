@@ -277,6 +277,7 @@ const TemplateManager = ({
   const isSelectMode = templateMode === "select";
   const leftPanelRef = useRef(null);
   const basePanelRef = useRef(null);
+  const selectPanelMeasureRef = useRef(null);
   const savePanelMeasureRef = useRef(null);
   const [panelMinHeightPx, setPanelMinHeightPx] = useState(null);
   const minHeightRafRef = useRef(0);
@@ -286,8 +287,9 @@ const TemplateManager = ({
   useLayoutEffect(() => {
     const panelEl = leftPanelRef.current;
     const baseEl = basePanelRef.current;
+    const selectEl = selectPanelMeasureRef.current;
     const saveEl = savePanelMeasureRef.current;
-    if (!panelEl || !baseEl || !saveEl) return;
+    if (!panelEl || !baseEl || !selectEl || !saveEl) return;
 
     const SAVE_PANEL_GAP_PX = 16; // matches `space-y-4`
 
@@ -305,9 +307,11 @@ const TemplateManager = ({
       const baseHeightRaw = baseEl.getBoundingClientRect().height;
       const baseHeight = Math.max(basePanelMaxHeightRef.current, baseHeightRaw);
       basePanelMaxHeightRef.current = baseHeight;
+      const selectHeight = selectEl.getBoundingClientRect().height;
       const saveHeight = saveEl.getBoundingClientRect().height;
+      const paneHeight = Math.max(selectHeight, saveHeight);
       const next = Math.ceil(
-        panelPaddingY + baseHeight + SAVE_PANEL_GAP_PX + saveHeight,
+        panelPaddingY + baseHeight + SAVE_PANEL_GAP_PX + paneHeight,
       );
       setPanelMinHeightPx((prev) => (prev === next ? prev : next));
     };
@@ -336,6 +340,7 @@ const TemplateManager = ({
     const ro = new ResizeObserver(() => scheduleMeasure());
     ro.observe(panelEl);
     ro.observe(baseEl);
+    ro.observe(selectEl);
     ro.observe(saveEl);
     return () => {
       ro.disconnect();
@@ -1916,6 +1921,279 @@ const TemplateManager = ({
     );
   };
 
+  const renderSavePane = ({
+    includeIds = true,
+    selectModeForDisabled = false,
+  } = {}) => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-2">
+          {t("da_general_template")}
+        </label>
+        <div className="relative flex-1 min-w-0">
+          <div
+            className="input_field input_field--xl relative flex-1 min-w-0 pr-1"
+            data-state="enable"
+          >
+            <div className="relative flex items-center w-full h-full">
+              <input
+                id={includeIds ? "device-analysis-template-name" : undefined}
+                type="text"
+                name="templateName"
+                autoComplete="off"
+                spellCheck={false}
+                value={config.name}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setConfig((prev) => ({ ...prev, name: next }));
+                  markFieldSource("name", "manual");
+                }}
+                placeholder={t("da_template_name")}
+                className="input_native no-focus-outline"
+              />
+              <Button
+                id={includeIds ? "device-analysis-template-save-btn" : undefined}
+                type="button"
+                onClick={handleSaveTemplate}
+                disabled={!config.name.trim()}
+                variant="primary"
+                size="md"
+                title={t("da_save_template")}
+              >
+                {t("da_template_mode_save")}
+                <ArrowUp size={16} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {renderSavePanel({ includeIds, selectModeForDisabled })}
+    </div>
+  );
+
+  const renderSelectPane = ({ includeIds = true, measureOnly = false } = {}) => {
+    const shouldAttachDropdownRef = includeIds && !measureOnly;
+    const shouldRenderDropdownMenu = includeIds && !measureOnly;
+    const resolvedInputId = includeIds
+      ? "device-analysis-template-dropdown-btn"
+      : undefined;
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            {t("da_general_template")}
+          </label>
+          <div
+            className="relative flex-1 min-w-0"
+            ref={shouldAttachDropdownRef ? dropdownRef : null}
+          >
+            <div
+              id={includeIds ? "device-analysis-template-input-field" : undefined}
+              className="input_field input_field--xl relative flex-1 min-w-0 pr-1"
+              data-state="enable"
+              {...(includeIds
+                ? {
+                    "data-cta": "Device Analysis",
+                    "data-cta-position": "template-dropdown",
+                    "data-cta-copy": "template name",
+                  }
+                : {})}
+            >
+              <input
+                id={resolvedInputId}
+                type="text"
+                role="combobox"
+                aria-haspopup="menu"
+                aria-expanded={includeIds ? isDropdownOpen : false}
+                aria-controls={
+                  includeIds ? "device-analysis-template-dropdown-menu" : undefined
+                }
+                aria-label={t("da_template_name")}
+                readOnly
+                value={config.name?.trim() ? config.name : ""}
+                placeholder={t("da_template_name")}
+                onMouseDown={
+                  measureOnly
+                    ? undefined
+                    : (e) => {
+                        if (e.detail > 1) e.preventDefault();
+                      }
+                }
+                onDoubleClick={measureOnly ? undefined : (e) => e.preventDefault()}
+                onClick={
+                  measureOnly
+                    ? undefined
+                    : () => setIsDropdownOpen((prev) => !prev)
+                }
+                onKeyDown={
+                  measureOnly
+                    ? undefined
+                    : (e) => {
+                        if (e.key === "Escape") {
+                          setIsDropdownOpen(false);
+                          return;
+                        }
+
+                        if (
+                          e.key === "Enter" ||
+                          e.key === " " ||
+                          e.key === "ArrowDown"
+                        ) {
+                          e.preventDefault();
+                          setIsDropdownOpen(true);
+                        }
+                      }
+                }
+                className="input_native no-focus-outline pr-8 text-left cursor-pointer select-none caret-transparent"
+              />
+
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary pointer-events-none">
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                />
+              </span>
+            </div>
+
+            {shouldRenderDropdownMenu && (
+              <DropdownMenu
+                isOpen={templateMode === "select" && isDropdownOpen}
+                onClose={() => setIsDropdownOpen(false)}
+                anchorRef={dropdownRef}
+                id="device-analysis-template-dropdown-menu"
+                role="menu"
+              >
+                <div
+                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-1 text-accent"
+                  onClick={() => {
+                    setTemplateMode("save");
+                    setIsDropdownOpen(false);
+                    setSelectedTemplateId(null);
+                    if (typeof onUpdateDeviceAnalysisSettings === "function") {
+                      void onUpdateDeviceAnalysisSettings({ lastTemplateId: null });
+                    }
+                    setInputSources({});
+                    setConfig({
+                      name: "",
+                      xDataStart: "",
+                      xDataEnd: "",
+                      xPoints: "",
+                      yDataStart: "",
+                      yDataEnd: "",
+                      yPoints: "",
+                      yCount: "",
+                      yStep: "",
+                      stopOnError: Boolean(deviceAnalysisSettings?.stopOnErrorDefault),
+                      bottomTitle: "",
+                      leftTitle: "",
+                      legendPrefix: "",
+                      selectedColumns: [],
+                    });
+                  }}
+                >
+                  <span className="flex-1 text-sm font-medium">
+                    {t("da_new_template")}
+                  </span>
+                  <div className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Plus size={14} />
+                  </div>
+                </div>
+                {templates.length > 0 ? (
+                  templates.map((t) => (
+                    <div
+                      key={t.id}
+                      data-template-id={t.id}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-0.5 last:mb-0"
+                      onClick={() => loadTemplate(t)}
+                    >
+                      <span className="flex-1 text-sm text-text-primary font-medium truncate">
+                        {t.name}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Delete template"
+                        data-template-id={t.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTemplate(t.id);
+                        }}
+                        className="p-1 text-text-primary hover:text-red-500 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
+                        title="Delete template"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-text-secondary italic text-center">
+                    No saved templates
+                  </div>
+                )}
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            id={includeIds ? "device-analysis-template-apply-to-all" : undefined}
+            variant="primary"
+            size="md"
+            className="flex-1"
+            onClick={measureOnly ? undefined : applyConfiguration}
+          >
+            {t("da_apply_to_all_files")}
+          </Button>
+          <Button
+            id={includeIds ? "device-analysis-template-apply-to-new" : undefined}
+            variant="secondary"
+            size="md"
+            className="flex-1"
+            onClick={measureOnly ? undefined : applyNewFilesConfiguration}
+            disabled={typeof onTemplateAppliedIncremental !== "function"}
+          >
+            {t("da_apply_to_new_files")}
+          </Button>
+        </div>
+
+        <div
+          id={
+            includeIds ? "device-analysis-stop-on-first-invalid-toggle" : undefined
+          }
+          onClick={
+            measureOnly
+              ? undefined
+              : () =>
+                  setConfig((prev) => {
+                    const nextStopOnError = !prev.stopOnError;
+                    if (typeof onUpdateDeviceAnalysisSettings === "function") {
+                      void onUpdateDeviceAnalysisSettings({
+                        stopOnErrorDefault: nextStopOnError,
+                      });
+                    }
+                    return {
+                      ...prev,
+                      stopOnError: nextStopOnError,
+                    };
+                  })
+          }
+          className="flex items-center gap-2 text-sm text-text-secondary select-none cursor-pointer group w-fit"
+        >
+          {config.stopOnError ? (
+            <div className="clickable-ckb" data-state="checked">
+              <Check size={14} className="text-white" strokeWidth={3} />
+            </div>
+          ) : (
+            <div className="clickable-ckb" data-state="unchecked" />
+          )}
+          <span>{t("da_stop_on_first_invalid_file")}</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section aria-label={t("da_data_extraction_template")}>
       <h2 className="section_title">{t("da_data_extraction_template")}</h2>
@@ -1940,290 +2218,96 @@ const TemplateManager = ({
               className="relative flex flex-col gap-4 flex-1 min-h-0"
               id="device-analysis-template-config-panel-content"
             >
-            <div ref={basePanelRef}>
-              <div className="flex items-center justify-start gap-3 mb-2">
-                <Tabs
-                  value={templateMode}
-                  onChange={(val) => {
-                    if (val === templateMode) return;
+              <div ref={basePanelRef} className="pb-2">
+                <div className="flex items-center justify-start gap-3">
+                  <Tabs
+                    value={templateMode}
+                    onChange={(val) => {
+                      if (val === templateMode) return;
 
-                    if (templateMode === "save" && val === "select") {
-                      if (saveDraftTouchedRef.current) {
-                        setPendingTemplateMode(val);
-                        setIsDiscardConfirmOpen(true);
-                        return;
-                      }
-                      saveDraftBaseConfigRef.current = null;
-                      setTemplateMode(val);
-                      return;
-                    }
-
-                    if (val === "save") {
-                      saveDraftTouchedRef.current = false;
-                      saveDraftBaseConfigRef.current = cloneTemplateConfig(config);
-                      setIsDropdownOpen(false);
-                    }
-
-                    setTemplateMode(val);
-                  }}
-                  idBase="device-analysis-template-mode"
-                  groupLabel={t("da_template_mode")}
-                  options={[
-                    {
-                      value: "select",
-                      label: t("da_template_mode_select"),
-                      icon: List,
-                      cta: "Device Analysis",
-                      ctaPosition: "template-mode",
-                      ctaCopy: "select",
-                    },
-                    {
-                      value: "save",
-                      label: t("da_template_mode_save"),
-                      icon: Save,
-                      cta: "Device Analysis",
-                      ctaPosition: "template-mode",
-                      ctaCopy: "save",
-                    },
-                  ]}
-                />
-              </div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">
-                {t("da_general_template")}
-              </label>
-                <div className="relative flex-1 min-w-0" ref={dropdownRef}>
-                  <div
-                  id="device-analysis-template-input-field"
-                  className="input_field input_field--xl relative flex-1 min-w-0 pr-1"
-                  data-state="enable"
-                  {...(templateMode === "select"
-                    ? {
-                      "data-cta": "Device Analysis",
-                      "data-cta-position": "template-dropdown",
-                      "data-cta-copy": "template name",
-                    }
-                    : {})}
-                >
-                  {templateMode === "select" ? (
-                    <input
-                      id="device-analysis-template-dropdown-btn"
-                      type="text"
-                      role="combobox"
-                      aria-haspopup="menu"
-                      aria-expanded={isDropdownOpen}
-                      aria-controls="device-analysis-template-dropdown-menu"
-                      aria-label={t("da_template_name")}
-                      readOnly
-                      value={config.name?.trim() ? config.name : ""}
-                      placeholder={t("da_template_name")}
-                      onMouseDown={(e) => {
-                        if (e.detail > 1) e.preventDefault();
-                      }}
-                      onDoubleClick={(e) => e.preventDefault()}
-                      onClick={() => setIsDropdownOpen((prev) => !prev)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape") {
-                          setIsDropdownOpen(false);
+                      if (templateMode === "save" && val === "select") {
+                        if (saveDraftTouchedRef.current) {
+                          setPendingTemplateMode(val);
+                          setIsDiscardConfirmOpen(true);
                           return;
                         }
+                        saveDraftBaseConfigRef.current = null;
+                        setTemplateMode(val);
+                        return;
+                      }
 
-                        if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
-                          e.preventDefault();
-                          setIsDropdownOpen(true);
-                        }
-                      }}
-                      className="input_native no-focus-outline pr-8 text-left cursor-pointer select-none caret-transparent"
-                    />
-                  ) : (
-                    <div className="relative flex items-center w-full h-full">
-                      <input
-                        id="device-analysis-template-name"
-                        type="text"
-                        name="templateName"
-                        autoComplete="off"
-                        spellCheck={false}
-                        value={config.name}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setConfig((prev) => ({ ...prev, name: next }));
-                          markFieldSource("name", "manual");
-                        }}
-                        placeholder={t("da_template_name")}
-                        className="input_native no-focus-outline"
-                      />
-                      <Button
-                        id="device-analysis-template-save-btn"
-                        type="button"
-                        onClick={handleSaveTemplate}
-                        disabled={!config.name.trim()}
-                        variant="primary"
-                        size="md"
-                        title={t("da_save_template")}
-                      >
-                        {t("da_template_mode_save")}
-                        <ArrowUp size={16} />
-                      </Button>
-                    </div>
-                  )}
-
-                  {templateMode === "select" && (
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary pointer-events-none">
-                      <ChevronDown
-                        size={16}
-                        className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
-                      />
-                    </span>
-                  )}
-                </div>
-
-                <DropdownMenu
-                  isOpen={templateMode === "select" && isDropdownOpen}
-                  onClose={() => setIsDropdownOpen(false)}
-                  anchorRef={dropdownRef}
-                  id="device-analysis-template-dropdown-menu"
-                  role="menu"
-                >
-                    <div
-                      className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-1 text-accent"
-                      onClick={() => {
-                        setTemplateMode("save");
+                      if (val === "save") {
+                        saveDraftTouchedRef.current = false;
+                        saveDraftBaseConfigRef.current = cloneTemplateConfig(config);
                         setIsDropdownOpen(false);
-                        setSelectedTemplateId(null);
-                        if (typeof onUpdateDeviceAnalysisSettings === "function") {
-                          void onUpdateDeviceAnalysisSettings({ lastTemplateId: null });
-                        }
-                        setInputSources({});
-                        setConfig({
-                          name: "",
-                          xDataStart: "",
-                          xDataEnd: "",
-                          xPoints: "",
-                          yDataStart: "",
-                          yDataEnd: "",
-                          yPoints: "",
-                          yCount: "",
-                          yStep: "",
-                          stopOnError: Boolean(deviceAnalysisSettings?.stopOnErrorDefault),
-                          bottomTitle: "",
-                          leftTitle: "",
-                          legendPrefix: "",
-                          selectedColumns: [],
-                        });
-                      }}
-                    >
-                      <span className="flex-1 text-sm font-medium">{t("da_new_template")}</span>
-                      <div className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus size={14} />
-                      </div>
-                    </div>
-                    {templates.length > 0 ? (
-                      templates.map((t) => (
-                        <div
-                          key={t.id}
-                          data-template-id={t.id}
-                          className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-0.5 last:mb-0"
-                          onClick={() => loadTemplate(t)}
-                        >
-                          <span className="flex-1 text-sm text-text-primary font-medium truncate">
-                            {t.name}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label="Delete template"
-                            data-template-id={t.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteTemplate(t.id);
-                            }}
-                            className="p-1 text-text-primary hover:text-red-500 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
-                            title="Delete template"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-text-secondary italic text-center">
-                        No saved templates
-                      </div>
-                    )}
-                </DropdownMenu>
+                      }
+
+                      setTemplateMode(val);
+                    }}
+                    controlsPanels
+                    idBase="device-analysis-template-mode"
+                    groupLabel={t("da_template_mode")}
+                    options={[
+                      {
+                        value: "select",
+                        label: t("da_template_mode_select"),
+                        icon: List,
+                        cta: "Device Analysis",
+                        ctaPosition: "template-mode",
+                        ctaCopy: "select",
+                      },
+                      {
+                        value: "save",
+                        label: t("da_template_mode_save"),
+                        icon: Save,
+                        cta: "Device Analysis",
+                        ctaPosition: "template-mode",
+                        ctaCopy: "save",
+                      },
+                    ]}
+                  />
+                </div>
               </div>
-            </div>
 
-            {templateMode === "save" &&
-              renderSavePanel({
-                includeIds: true,
-                selectModeForDisabled: isSelectMode,
-              })}
-
-            <div
-              ref={savePanelMeasureRef}
-              aria-hidden="true"
-              className="absolute left-0 top-0 w-full invisible pointer-events-none"
-            >
-              {renderSavePanel({ includeIds: false })}
-            </div>
-
-            {templateMode !== "save" && (
-              <div className="mt-4 flex items-center gap-3">
-                <Button
-                  id="device-analysis-template-apply-to-all"
-                  variant="primary"
-                  size="md"
-                  className="flex-1"
-                  onClick={applyConfiguration}
-                >
-                  {t("da_apply_to_all_files")}
-                </Button>
-                <Button
-                  id="device-analysis-template-apply-to-new"
-                  variant="secondary"
-                  size="md"
-                  className="flex-1"
-                  onClick={applyNewFilesConfiguration}
-                  disabled={typeof onTemplateAppliedIncremental !== "function"}
-                >
-                  {t("da_apply_to_new_files")}
-                </Button>
-              </div>
-            )}
-
-            {templateMode === "select" && (
               <div
-                id="device-analysis-stop-on-first-invalid-toggle"
-                onClick={() =>
-                  setConfig((prev) => {
-                    const nextStopOnError = !prev.stopOnError;
-                    if (typeof onUpdateDeviceAnalysisSettings === "function") {
-                      void onUpdateDeviceAnalysisSettings({
-                        stopOnErrorDefault: nextStopOnError,
-                      });
-                    }
-                    return {
-                      ...prev,
-                      stopOnError: nextStopOnError,
-                    };
-                  })
-                }
-                className="mt-3 flex items-center gap-2 text-sm text-text-secondary select-none cursor-pointer group w-fit"
+                id="device-analysis-template-mode-panel-select"
+                role="tabpanel"
+                aria-labelledby="device-analysis-template-mode-tab-select"
+                hidden={templateMode !== "select"}
               >
-                {config.stopOnError ? (
-                  <div className="clickable-ckb" data-state="checked">
-                    <Check size={14} className="text-white" strokeWidth={3} />
-                  </div>
-                ) : (
-                  <div className="clickable-ckb" data-state="unchecked" />
-                )}
-                <span>{t("da_stop_on_first_invalid_file")}</span>
+                {renderSelectPane({ includeIds: true, measureOnly: false })}
               </div>
-            )}
+
+              <div
+                id="device-analysis-template-mode-panel-save"
+                role="tabpanel"
+                aria-labelledby="device-analysis-template-mode-tab-save"
+                hidden={templateMode !== "save"}
+              >
+                {renderSavePane({ includeIds: true, selectModeForDisabled: isSelectMode })}
+              </div>
+
+              <div
+                ref={selectPanelMeasureRef}
+                aria-hidden="true"
+                className="absolute left-0 top-0 w-full invisible pointer-events-none"
+              >
+                {renderSelectPane({ includeIds: false, measureOnly: true })}
+              </div>
+
+              <div
+                ref={savePanelMeasureRef}
+                aria-hidden="true"
+                className="absolute left-0 top-0 w-full invisible pointer-events-none"
+              >
+                {renderSavePane({ includeIds: false })}
+              </div>
 
             </div>
           </div>
 
           {/* Preview Panel */}
-          <div className="lg:col-span-3 bg-bg-page rounded-lg p-4 overflow-hidden flex flex-col min-h-0 lg:h-[var(--da-template-panel-min-h)] lg:min-h-[var(--da-template-panel-min-h)]">
+          <div className="lg:col-span-3 bg-bg-page rounded-lg p-4 overflow-hidden flex flex-col min-h-0 lg:min-h-[var(--da-template-panel-min-h)]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-text-secondary">
                 {t("da_preview_filename_label")}:{" "}
