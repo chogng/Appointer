@@ -235,7 +235,7 @@ body {
   }
 
   .tab_btn {
-    @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3;
+    @apply flex items-center justify-center gap-2 rounded-md font-medium transition-all pt-2 pr-4 pb-2 pl-3 border border-transparent;
   }
 
   .tab_btn--sm {
@@ -251,7 +251,7 @@ body {
   }
 
   .tab_btn--active {
-    @apply bg-bg-surface text-text-primary shadow-sm border border-border-subtle;
+    @apply bg-bg-surface text-text-primary;
   }
 
   .tab_btn--inactive {
