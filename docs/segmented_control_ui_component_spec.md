@@ -3,7 +3,7 @@
 本文定义 [`src/components/ui/SegmentedControl.jsx`](../src/components/ui/SegmentedControl.jsx) 的 **DOM 输出、状态模型、稳定锚点（`data-ui`）、A11y 约束与键盘行为**。
 
 适用范围：同一页面内的少量模式/范围切换（2–5 项），例如 “我的/全部”、“列表/网格”。  
-不适用：页面导航（用 `Tabs`/路由），复杂筛选（用 `Dropdown`）。
+不适用：页面导航（用 `Tabs`/路由），复杂筛选（用 `Select` / `DropdownMenu`）。
 
 相关规范：
 - [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记约定

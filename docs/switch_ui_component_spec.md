@@ -3,7 +3,7 @@
 本文定义 [`src/components/ui/Switch.jsx`](../src/components/ui/Switch.jsx) 的 **DOM 输出、状态模型、稳定锚点（`data-ui`）、A11y 约束与扩展点**。
 
 适用范围：开关型布尔状态（启用/禁用、开/关）切换。  
-不适用：多选/单选组（用 `Tabs` / `Dropdown`）。
+不适用：多选/单选组（用 `Tabs` / `Select` / `SegmentedControl`）。
 
 相关规范：
 - [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记约定
