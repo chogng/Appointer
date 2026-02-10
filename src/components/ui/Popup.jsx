@@ -22,7 +22,6 @@ const Popup = ({
     children,
     triggerId,
     menuId,
-    menuDataUi,
     closeOnClickOutside = true,
     containerRef,
 }) => {
@@ -61,7 +60,6 @@ const Popup = ({
                 aria-orientation="vertical"
                 aria-labelledby={triggerId}
                 aria-hidden={isOpen ? undefined : true}
-                data-ui={menuDataUi}
                 data-style="popup"
                 data-state={isOpen ? 'open' : 'closed'}
                 data-side="bottom"

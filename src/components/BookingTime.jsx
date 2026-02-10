@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import Dropdown from "./ui/Dropdown";
+import Select from "./ui/Select";
 
 const TimeIcon = ({ size = 24, className }) => (
   <svg
@@ -144,7 +144,7 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
     <div className="flex items-center gap-2 flex-1 min-w-0">
       <TimeIcon size={18} className="text-text-tertiary shrink-0" />
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <Dropdown
+        <Select
           options={timeOptions}
           value={startTime}
           onChange={handleStartChange}
@@ -155,7 +155,7 @@ const BookingTime = ({ device, onUpdate, isAdmin }) => {
           popupClassName="min-w-[8.75rem]"
         />
         <span className="text-text-tertiary">-</span>
-        <Dropdown
+        <Select
           options={timeOptions}
           value={endTime}
           onChange={handleEndChange}

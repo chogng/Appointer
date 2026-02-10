@@ -16,7 +16,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import WeeklyCalendar from "../components/WeeklyCalendar";
 import Button from "../components/ui/Button";
 import Toast from "../components/ui/Toast";
-import Dropdown from "../components/ui/Dropdown";
+import Select from "../components/ui/Select";
 import { queryKeys } from "../hooks/queries/queryKeys";
 import { useReservationsRangeQuery } from "../hooks/queries/useReservationsRangeQuery";
 import { useReservationsRealtimeSync } from "../hooks/useReservationsRealtimeSync";
@@ -330,7 +330,7 @@ const DeviceBooking = () => {
               </span>
             </button>
           </div>
-          <Dropdown
+          <Select
             options={[
               { label: t("viewModeWeek"), value: "Weeks" },
               { label: t("viewModeDay"), value: "Days" },

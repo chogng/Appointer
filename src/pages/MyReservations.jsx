@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import Dropdown from "../components/ui/Dropdown";
+import Select from "../components/ui/Select";
 import Tabs from "../components/ui/Tabs";
 import {
   Calendar,
@@ -201,7 +201,7 @@ const MyReservations = () => {
 
           {/* Device Filter */}
           <div className="w-[180px]">
-            <Dropdown
+            <Select
               options={filterOptions}
               value={filterDeviceId}
               onChange={setFilterDeviceId}

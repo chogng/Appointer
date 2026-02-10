@@ -4,7 +4,7 @@ import { useLanguage } from "../../../hooks/useLanguage";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
 import CollapsiblePanel from "../../../components/ui/CollapsiblePanel";
-import Dropdown from "../../../components/ui/Dropdown";
+import Select from "../../../components/ui/Select";
 
 const ResultsCard = ({
   resultView,
@@ -74,7 +74,7 @@ const ResultsCard = ({
 
           <div className="flex items-center gap-2">
             <div className="min-w-[140px]">
-              <Dropdown
+              <Select
                 id="literature-results-sort"
                 options={[
                   { value: "source", label: t("literature_sort_source") },
@@ -89,7 +89,6 @@ const ResultsCard = ({
                 placeholder={t("literature_sort")}
                 title={t("literature_sort")}
                 size="sm"
-                dataUi="literature-results-sort"
               />
             </div>
             <div className="text-xs text-text-tertiary px-2">

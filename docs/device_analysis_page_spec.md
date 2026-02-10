@@ -98,10 +98,10 @@
 - Plot type 切换：
   - 容器：`#device-analysis-plot-type-toggle`
   - 按钮：`#device-analysis-plot-iv-btn` / `#device-analysis-plot-gm-btn` / `#device-analysis-plot-ss-btn` / `#device-analysis-plot-j-btn`
-- File dropdown：`#device-analysis-file-select`（Legacy：`[data-ui="device-analysis-file-select"]`）
-- Curve dropdown：`#device-analysis-curve-select`（Legacy：`[data-ui="device-analysis-curve-select"]`）
-- gm mode dropdown：`#device-analysis-gm-mode-select`（Legacy：`[data-ui="device-analysis-gm-mode-select"]`）
-- SS method dropdown：`#device-analysis-ss-method-select`（Legacy：`[data-ui="device-analysis-ss-method-select"]`）
+- File dropdown：`#device-analysis-file-select`
+- Curve dropdown：`#device-analysis-curve-select`
+- gm mode dropdown：`#device-analysis-gm-mode-select`
+- SS method dropdown：`#device-analysis-ss-method-select`
 - SS |Id| window：`#device-analysis-ss-id-low` / `#device-analysis-ss-id-high`
 - Axis settings toggle：`#device-analysis-axis-toggle-btn`
 - Area input：`#device-analysis-area-input`

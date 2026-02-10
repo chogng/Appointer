@@ -1,21 +1,20 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import Popup from "./Popup";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-const DropdownIcon = ({ className }) => (
-  <img
-    src="/dropdown.svg"
-    alt=""
-    className={cx("ui-dropdown_icon", className)}
-  />
-);
-
 const isSelectableOption = (opt) =>
   opt && Object.prototype.hasOwnProperty.call(opt, "value");
 
-const Dropdown = ({
+const slugify = (input) =>
+  String(input ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const Select = ({
   options = [], // [{ label, value, icon?, group? }]
   value,
   onChange,
@@ -31,8 +30,8 @@ const Dropdown = ({
   menuId,
   popupClassName = "min-w-full",
   triggerClassName = "",
-  dataUi,
   testId,
+  ...props
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -40,23 +39,16 @@ const Dropdown = ({
 
   const internalTriggerId = useId();
   const internalMenuId = useId();
-  const triggerId = id || `dropdown-${internalTriggerId}`;
-  const resolvedMenuId = menuId || `dropdown-menu-${internalMenuId}`;
-  const uiMarker =
-    typeof dataUi === "string" && dataUi.trim() ? dataUi.trim() : undefined;
+  const triggerId = id || `select-${slugify(internalTriggerId)}`;
+  const resolvedMenuId = menuId || `select-menu-${slugify(internalMenuId)}`;
   const devTestId = import.meta.env.DEV && testId ? testId : undefined;
+
   const sizeClass =
     size === "sm"
-      ? "ui-dropdown_trigger--sm"
+      ? "ui-select_field--sm"
       : size === "xl"
-        ? "ui-dropdown_trigger--xl"
-        : "ui-dropdown_trigger--md";
-  const textSizeClass =
-    size === "sm"
-      ? "ui-dropdown_text--sm"
-      : size === "xl"
-        ? "ui-dropdown_text--xl"
-        : "ui-dropdown_text--md";
+        ? "ui-select_field--xl"
+        : "ui-select_field--md";
 
   const selectableOptions = useMemo(
     () => (Array.isArray(options) ? options.filter(isSelectableOption) : []),
@@ -68,20 +60,17 @@ const Dropdown = ({
     [selectableOptions, value],
   );
 
-  const displayText = useMemo(() => {
+  const displayNode = useMemo(() => {
     if (typeof formatDisplay === "function") {
       const formatted = formatDisplay(selected);
-      if (formatted !== undefined && formatted !== null)
-        return String(formatted);
+      if (formatted !== undefined && formatted !== null) return formatted;
     }
     if (selected?.label !== undefined && selected?.label !== null) {
-      return String(selected.label);
+      return selected.label;
     }
-    if (placeholder !== undefined && placeholder !== null)
-      return String(placeholder);
     if (value !== undefined && value !== null) return String(value);
     return "";
-  }, [formatDisplay, placeholder, selected, value]);
+  }, [formatDisplay, selected, value]);
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -207,36 +196,61 @@ const Dropdown = ({
     );
   }, [flatOptions.length, isOpen]);
 
+  const hasDisplayValue = (() => {
+    if (displayNode === undefined || displayNode === null) return false;
+    if (typeof displayNode === "string") return displayNode.trim().length > 0;
+    return true;
+  })();
+
   return (
     <div
       ref={containerRef}
-      className={cx("ui-dropdown_warp", className)}
-      data-style="dropdown"
+      className={cx("ui-select_warp", className)}
+      data-style="select"
       data-disabled={disabled || undefined}
-      data-ui={uiMarker}
     >
-      <button
-        id={triggerId}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        aria-controls={resolvedMenuId}
-        disabled={disabled}
-        data-state={isOpen ? "open" : "closed"}
-        data-size={size}
-        data-ui={uiMarker ? `${uiMarker}-trigger` : undefined}
-        data-testid={devTestId}
-        onClick={handleTriggerClick}
-        onKeyDown={handleKeyDown}
-        className={cx("ui-dropdown_trigger", sizeClass, triggerClassName)}
+      <div
+        className={cx("input_field", sizeClass, "pr-1")}
+        data-state={disabled ? "disabled" : "enable"}
       >
-        <span className={cx("ui-dropdown_text", textSizeClass)}>
-          {displayText}
+        <button
+          {...props}
+          id={triggerId}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          aria-controls={resolvedMenuId}
+          disabled={disabled}
+          data-state={isOpen ? "open" : "closed"}
+          data-size={size}
+          data-testid={devTestId}
+          onClick={handleTriggerClick}
+          onKeyDown={handleKeyDown}
+          className={cx(
+            "input_native no-focus-outline p-0 pr-8 text-left cursor-pointer select-none",
+            triggerClassName,
+          )}
+        >
+          <span
+            className={cx(
+              "block truncate",
+              hasDisplayValue ? "text-text-primary" : "text-text-tertiary",
+            )}
+          >
+            {hasDisplayValue ? displayNode : placeholder ?? ""}
+          </span>
+        </button>
+
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary pointer-events-none">
+          <ChevronDown
+            size={16}
+            className={cx(
+              "transition-transform duration-200",
+              isOpen ? "rotate-180" : "",
+            )}
+          />
         </span>
-        <DropdownIcon
-          className={isOpen ? "rotate-180" : ""}
-        />
-      </button>
+      </div>
 
       <Popup
         isOpen={isOpen}
@@ -245,17 +259,14 @@ const Dropdown = ({
         zIndex={zIndex}
         triggerId={triggerId}
         menuId={resolvedMenuId}
-        menuDataUi={uiMarker ? `${uiMarker}-menu` : undefined}
         containerRef={containerRef}
         className={popupClassName}
       >
         {() => (
           <>
-            {title ? (
-              <div className="ui-dropdown_title">{title}</div>
-            ) : null}
+            {title ? <div className="ui-select_title">{title}</div> : null}
 
-            <div className="ui-dropdown_list">
+            <div className="ui-select_list">
               {indexedGroups.map(({ group, options }, groupIdx) => (
                 <div key={group || "default"} role={group ? "group" : undefined}>
                   {group ? (
@@ -264,10 +275,10 @@ const Dropdown = ({
                         <div
                           role="separator"
                           aria-orientation="horizontal"
-                          className="ui-dropdown_separator"
+                          className="ui-select_separator"
                         />
                       ) : null}
-                      <div className="ui-dropdown_group">{group}</div>
+                      <div className="ui-select_group">{group}</div>
                     </>
                   ) : null}
 
@@ -285,16 +296,13 @@ const Dropdown = ({
                         data-highlighted={isHighlighted || undefined}
                         data-selected={isSelected || undefined}
                         data-value={String(option.value)}
-                        data-ui={uiMarker ? `${uiMarker}-item` : undefined}
                         onClick={() => selectOption(option)}
                         onMouseEnter={() => setHighlightedIndex(currentIndex)}
-                        className="ui-dropdown_item"
+                        className="ui-select_item"
                       >
-                        <span className="ui-dropdown_item-left">
+                        <span className="ui-select_item-left">
                           {Icon ? (
-                            <Icon
-                              style={{ width: "0.9rem", height: "0.9rem" }}
-                            />
+                            <Icon style={{ width: "0.9rem", height: "0.9rem" }} />
                           ) : null}
                           <span className="truncate">
                             {option.label ?? String(option.value)}
@@ -313,7 +321,7 @@ const Dropdown = ({
               ))}
 
               {flatOptions.length === 0 ? (
-                <div className="ui-dropdown_empty">No options</div>
+                <div className="ui-select_empty">No options</div>
               ) : null}
             </div>
           </>
@@ -323,4 +331,4 @@ const Dropdown = ({
   );
 };
 
-export default Dropdown;
+export default Select;

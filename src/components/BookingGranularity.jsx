@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Dropdown from './ui/Dropdown';
+import Select from './ui/Select';
 
 const GranularityIcon = ({ size = 24, className }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -36,7 +36,7 @@ const BookingGranularity = ({ value, onChange, isAdmin }) => {
     return (
         <div className="flex items-center gap-1.5 min-w-0">
             <GranularityIcon size={18} className="text-text-tertiary shrink-0" />
-            <Dropdown
+            <Select
                 options={GRANULARITY_OPTIONS}
                 value={currentValue}
                 onChange={onChange}

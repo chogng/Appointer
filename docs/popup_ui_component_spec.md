@@ -2,12 +2,12 @@
 
 本文定义 [`src/components/ui/Popup.jsx`](../src/components/ui/Popup.jsx) 的 **DOM 输出、状态模型、稳定选择器锚点（`data-*`）、A11y 约束与扩展点**。
 
-适用范围：作为 Dropdown 等组件的通用弹出层容器（定位/层级/点击外部关闭/基础动画）。  
+适用范围：作为 Select 等组件的通用弹出层容器（定位/层级/点击外部关闭/基础动画）。  
 不适用：复杂 Popover（需要焦点管理/键盘导航/多方向碰撞检测）——这些应由更完整的 Popover 组件承担。
 
 相关规范：
 - [`stable_selectors_spec.md`](./stable_selectors_spec.md)：稳定选择器与 UI 标记约定
-- [`dropdown_ui_component_spec.md`](./dropdown_ui_component_spec.md)：Dropdown 对 Popup 的用法约束
+- [`select_ui_component_spec.md`](./select_ui_component_spec.md)：Select 对 Popup 的用法约束
 
 ---
 
@@ -15,7 +15,7 @@
 
 - **定位与层级**：支持相对触发器在底部弹出（`top-full`），并可配置对齐（left/center/right）与 `zIndex`。
 - **状态明确**：open/closed 必须有稳定标记，便于样式与自动化定位。
-- **职责边界清晰**：Popup 不负责“菜单项键盘交互/高亮/选择”，这些由调用方（如 Dropdown）管理。
+- **职责边界清晰**：Popup 不负责“菜单项键盘交互/高亮/选择”，这些由调用方（如 Select）管理。
 
 ---
 
@@ -31,7 +31,6 @@ type PopupProps = {
   children: React.ReactNode | (() => React.ReactNode);
   triggerId?: string; // aria-labelledby
   menuId?: string; // id for the menu container
-  menuDataUi?: string; // stable anchor for tests/scripts
   closeOnClickOutside?: boolean; // default true
   containerRef?: React.RefObject<HTMLElement>; // used for outside click detection
 };
@@ -58,8 +57,6 @@ type PopupProps = {
   - `data-state="open|closed"`
   - `data-side="bottom"`
   - `data-align="left|center|right"`
-- 可选稳定锚点：
-  - 当传入 `menuDataUi="xxx"` 时：输出 `data-ui="xxx"`
 - A11y（建议）：
   - 关闭时输出 `aria-hidden="true"`，避免读屏器在 closed 状态读取隐藏菜单内容
 
@@ -90,13 +87,12 @@ type PopupProps = {
 
 ---
 
-## 6. 使用建议（Dropdown 场景）
+## 6. 使用建议（Select 场景）
 
-- Dropdown trigger：
+- Select trigger：
   - `aria-haspopup="menu"`
   - `aria-expanded={isOpen}`
   - `aria-controls={menuId}`
 - Popup menu：
   - `menuId` 与 trigger `aria-controls` 必须一致
   - `triggerId` 与 menu `aria-labelledby` 必须一致
-  - `menuDataUi` 建议命名为 `<domain>-<name>-menu`（例如 `devices-sort-menu`）

@@ -1,81 +1,105 @@
-# DropdownMenu (UI) Component Spec v1
+# DropdownMenu (UI) Component Spec v2
 
 This doc defines `src/components/ui/DropdownMenu.jsx` behavior and the recommended DOM/a11y conventions.
 
 Related:
 - Stable selectors: `docs/stable_selectors_spec.md`
-- Dropdown (select): `docs/dropdown_ui_component_spec.md`
-- Modal (focus/portal patterns): `docs/modal_component_spec.md`
+- Modal patterns (focus/portal): `docs/modal_component_spec.md`
+- Select (standard single-select): `docs/select_ui_component_spec.md`
 - Implementation: `src/components/ui/DropdownMenu.jsx`
 
 ## 1. Responsibilities
 
-- Render a lightweight dropdown menu surface (a floating panel) anchored to an element.
+- Render a lightweight menu surface anchored to an element (no portal).
 - Provide consistent close behavior:
-  - Click outside of the anchor/menu closes
-  - Escape closes
-- Provide a stable styling baseline (default className) while still allowing customization.
+  - click outside closes
+  - `Escape` closes
+- Provide a stable styling baseline (default className) while allowing caller customization.
 
 Non-goals:
-- No portal rendering (menu stays in the DOM tree under the anchor container).
-- No automatic positioning (top/bottom flipping) or collision detection.
-- No focus trap or keyboard navigation management (ArrowUp/ArrowDown) — caller-owned.
+- No keyboard navigation model (ArrowUp/ArrowDown highlight, Enter select) — caller-owned.
+- No focus trap.
+- No collision detection or auto-flipping.
 
-## 2. Usage Requirements
+## 2. Props
 
-- The anchor container must be `position: relative` so the menu can use `absolute` positioning.
-- The caller controls open state (`isOpen`) and provides an `onClose()` callback.
-- The caller is responsible for:
-  - managing `aria-*` on the trigger element (`aria-expanded`, `aria-controls`, etc.)
-  - providing correct `role` for the menu contents (menu/listbox) and the items
-  - focusing behavior if needed (e.g. focusing the trigger on close)
-  - keyboard navigation / roving tab index (e.g. ArrowUp/ArrowDown highlight and Enter select). If you want these behaviors, prefer `Dropdown` (see `docs/dropdown_ui_component_spec.md`).
+```ts
+type DropdownMenuProps = {
+  isOpen: boolean; // when false, returns null
+  onClose?: () => void;
 
-Conventions:
-- Prefer `Dropdown` for standard single-select dropdowns (no custom row actions).
-- Use `DropdownMenu` when the menu content is custom (e.g. a “New …” entry, per-item Delete actions, richer layouts).
-- Prefer a `button` trigger (can be styled input-like) over a readonly `<input>` to reduce browser autofill/history suggestions.
-- When tests/automation need stable anchors, use stable `id`s for the trigger + menu, and link them via `aria-controls` / `aria-labelledby`.
+  anchorRef: React.RefObject<HTMLElement | null>; // used for outside-click detection
 
-## 3. Props
+  id?: string; // stable id for aria-controls / tests
+  role?: string; // default: "menu"
+  className?: string; // appended to default surface classes
+  children: React.ReactNode;
 
-- `isOpen`: boolean; when `false`, returns `null`
-- `onClose()`: function; called on outside click and `Escape`
-- `anchorRef`: React ref to the anchor container (used for outside-click detection)
-- `id`: optional string; stable id for automation and `aria-controls`
-- `role`: string (default: `"menu"`)
-- `className`: optional extra classes appended to default menu surface classes
-- `children`: menu content
+  // ...props are forwarded to the menu root element (including aria-*, data-*, tabIndex, etc.)
+};
+```
 
-Selectors rule:
-- Prefer stable `id` on the menu root when it needs to be targeted by tests.
-- Do not introduce new `data-ui` usage for this component.
+## 3. Attribute Order (JSX)
 
-## 4. Default Styling Contract
+For consistent diffs:
 
-The default menu surface style matches the existing dropdown pattern:
+`isOpen` → `onClose` → `anchorRef` → `id` → `role` → `className` → `aria-*` → other props → `children`
 
-- `absolute top-full left-0 right-0 mt-2`
-- `bg-white rounded-xl shadow-xl z-50`
-- `max-h-60 overflow-y-auto p-1.5`
+## 4. Output Markers (DOM)
 
-Callers may override or extend via `className`.
+When `isOpen === true`, DropdownMenu renders a single root element:
 
-## 5. Behavior
+- Root: `div`
+  - `id={id}` when provided
+  - `role={role}` (default `"menu"`)
+  - `className` includes a default surface baseline and appends `className`
+  - all extra props are forwarded to this root
 
-When `isOpen === true`:
+When `isOpen === false`, it returns `null` (no DOM output).
 
+Important:
+- DropdownMenu does **not** generate `aria-labelledby`, `aria-orientation`, or item roles. Callers must pass the correct `aria-*` and roles via props / children.
+- Do not introduce new `data-ui` markers for this component. Prefer stable `id` when automation needs anchors.
+
+## 5. Default Styling Contract
+
+The default surface className (from implementation) is:
+
+- Positioning: `absolute top-full left-0 right-0 mt-2`
+- Surface: `bg-bg-surface text-text-primary border border-border-subtle rounded-xl shadow-xl z-50`
+- Scrolling: `max-h-60 overflow-y-auto p-1.5`
+
+Callers may extend via `className` (e.g. width, max-height tweaks).
+
+## 6. Behavior
+
+When open:
 - Registers `document` listeners:
-  - `mousedown`: closes if click target is outside both `anchorRef.current` and the menu root
+  - `mousedown`: closes if the click target is outside **both** `anchorRef.current` and the menu root
   - `keydown`: closes on `Escape`
-- Cleans up listeners on close/unmount
+- Cleans up listeners on close/unmount.
 
-## 6. Recommended JSX Template
+## 7. Usage Requirements
+
+- The anchor container must be `position: relative` (or otherwise provide a positioning context) so the menu can use `absolute` positioning.
+- The caller controls open state and wires:
+  - trigger `aria-expanded`
+  - trigger `aria-controls` → menu `id`
+  - menu `aria-labelledby` → trigger `id` (recommended)
+- Keyboard navigation inside the menu (ArrowUp/ArrowDown/Enter) is caller-owned.
+  - If you want a fully-owned keyboard model, use `Select` instead of assembling it manually.
+
+## 8. Recommended JSX Template
 
 ```jsx
+const anchorRef = useRef(null);
+const [isOpen, setIsOpen] = useState(false);
+
 <div ref={anchorRef} className="relative">
   <button
+    id="my-trigger"
     type="button"
+    aria-haspopup="menu"
     aria-expanded={isOpen}
     aria-controls="my-menu"
     onClick={() => setIsOpen((v) => !v)}
@@ -89,14 +113,17 @@ When `isOpen === true`:
     anchorRef={anchorRef}
     id="my-menu"
     role="menu"
+    aria-labelledby="my-trigger"
+    aria-orientation="vertical"
   >
-    ...
+    <button type="button" role="menuitem">...</button>
   </DropdownMenu>
 </div>
 ```
 
-## 7. Checklist
+## 9. Checklist
 
-- Stable anchors: use `id` for the menu when needed by tests.
+- Stable anchors: use stable `id` for the menu when tests/automation need it.
+- A11y: wire `aria-controls` / `aria-labelledby`; use correct `role` for items.
+- Close behavior: outside click + Escape work as expected.
 - i18n: menu item copy uses `t("key")` where applicable.
-- Close behavior: outside click + Escape behave consistently across pages.

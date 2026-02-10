@@ -12,22 +12,21 @@
 - [`input_component_spec.md`](./input_component_spec.md)：Input（UI）规范
 - [`focus_indicator_spec.md`](./focus_indicator_spec.md)：Keyboard-only focus halo 规范
 - [`textarea_ui_component_spec.md`](./textarea_ui_component_spec.md)：Textarea（UI）规范（复用 Input 体系）
-- Dropdown Family（下拉家族）
-  - [`dropdown_ui_component_spec.md`](./dropdown_ui_component_spec.md)：Dropdown（Select）规范 v2
-  - [`dropdown_menu_component_spec.md`](./dropdown_menu_component_spec.md)：DropdownMenu（Menu Surface）规范 v1
+- Select Family（下拉家族）
+  - [`select_ui_component_spec.md`](./select_ui_component_spec.md)：Select（Input-like single-select）规范 v1
+  - [`dropdown_menu_component_spec.md`](./dropdown_menu_component_spec.md)：DropdownMenu（Menu Surface）规范 v2
   - 选择指南（如何选组件）：
-    - 标准单选（无自定义项动作）→ 用 `Dropdown`
+    - 标准单选（无自定义项动作）→ 用 `Select`
     - 菜单里有 New/Delete/复杂布局 → 用 `DropdownMenu`
-    - 想要键盘上下高亮/Enter 选中 → 用 `Dropdown`
+    - 想要键盘上下高亮/Enter 选中 → 用 `Select`
     - 只要浮层 + outside/Escape close → 用 `DropdownMenu`
-- [`popup_ui_component_spec.md`](./popup_ui_component_spec.md)：Popup（Dropdown menu 等弹层容器）
+- [`popup_ui_component_spec.md`](./popup_ui_component_spec.md)：Popup（Select menu 等弹层容器）
 - [`tabs_component_spec.md`](./tabs_component_spec.md)：Tabs（UI）规范
 - [`date_button_component_spec.md`](./date_button_component_spec.md)：DateButton（DatePicker 点击区域）规范
 - [`modal_component_spec.md`](./modal_component_spec.md)：Modal（对话框/弹窗）
 - [`toast_ui_component_spec.md`](./toast_ui_component_spec.md)：Toast（通知条）
 - [`switch_ui_component_spec.md`](./switch_ui_component_spec.md)：Switch（开关）
 - [`segmented_control_ui_component_spec.md`](./segmented_control_ui_component_spec.md)：SegmentedControl（分段选择器）
-- [`tabs_component_spec.md`](./tabs_component_spec.md)：Tabs（Legacy）规范（弃用/仅历史参考）
 
 ### 其它 UI 组件（当前无独立 spec）
 

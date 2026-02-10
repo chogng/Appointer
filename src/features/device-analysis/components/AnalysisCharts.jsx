@@ -31,7 +31,7 @@ import {
   formatNumber,
 } from "./analysisMath";
 import { apiService } from "../../../services/apiService";
-import Dropdown from "../../../components/ui/Dropdown";
+import Select from "../../../components/ui/Select";
 import Button from "../../../components/ui/Button";
 import Tabs from "../../../components/ui/Tabs";
 import Card from "../../../components/ui/Card";
@@ -3100,9 +3100,8 @@ How to use (manual fallback):
                     <span className="text-xs text-text-secondary whitespace-nowrap">
                       Curve:
                     </span>
-                    <Dropdown
+                    <Select
                       id="device-analysis-curve-select"
-                      dataUi="device-analysis-curve-select"
                       size="md"
                       value={focusedSeriesId ?? ""}
                       onChange={(next) => setFocusedSeriesId(next)}
@@ -3121,9 +3120,8 @@ How to use (manual fallback):
                     <span className="text-xs text-text-secondary whitespace-nowrap">
                       gm:
                     </span>
-                    <Dropdown
+                    <Select
                       id="device-analysis-gm-mode-select"
-                      dataUi="device-analysis-gm-mode-select"
                       size="md"
                       value={gmMode}
                       onChange={(next) =>
@@ -3141,9 +3139,8 @@ How to use (manual fallback):
                       <span className="text-xs text-text-secondary whitespace-nowrap">
                         SS:
                       </span>
-                      <Dropdown
+                      <Select
                         id="device-analysis-ss-method-select"
-                        dataUi="device-analysis-ss-method-select"
                         size="md"
                         value={ssMethod}
                         onChange={(next) => {
@@ -3281,9 +3278,8 @@ How to use (manual fallback):
                   </div>
                 ) : null}
 
-                <Dropdown
+                <Select
                   id="device-analysis-file-select"
-                  dataUi="device-analysis-file-select"
                   size="md"
                   value={effectiveActiveFileId ?? ""}
                   onChange={(val) => handleSelectFile(val)}
