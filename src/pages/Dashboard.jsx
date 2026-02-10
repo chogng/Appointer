@@ -116,6 +116,13 @@ const Dashboard = () => {
   const getMessageBehaviorLabel = inbox.getMessageBehaviorLabel;
   const getMessageTimestampLabel = inbox.getMessageTimestampLabel;
 
+  const renderDashboardEmptyState = ({ icon, message, className = "" }) => (
+    <div className={`empty_state_center h-full ${className}`.trim()}>
+      <Avatar icon={icon} size="lg" variant="empty" iconClassName="opacity-50" />
+      <p className="empty_state_hint">{message}</p>
+    </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -283,15 +290,10 @@ const Dashboard = () => {
                     })}
                   </ul>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2">
-                    <Avatar
-                      icon={Search}
-                      size="lg"
-                      variant="empty"
-                      iconClassName="opacity-50"
-                    />
-                    <p className="text-sm">{t("noActivity")}</p>
-                  </div>
+                  renderDashboardEmptyState({
+                    icon: Search,
+                    message: t("noActivity"),
+                  })
                 )}
               </div>
             </Card>
@@ -483,19 +485,14 @@ const Dashboard = () => {
                     ))}
                   </ul>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-text-tertiary gap-2 py-8">
-                    <Avatar
-                      icon={Inbox}
-                      size="lg"
-                      variant="empty"
-                      iconClassName="opacity-50"
-                    />
-                    <p className="text-sm">
-                      {messageTab === "reviewed"
+                  renderDashboardEmptyState({
+                    icon: Inbox,
+                    message:
+                      messageTab === "reviewed"
                         ? t("dashboard_no_reviewed_requests")
-                        : t("noPendingRequests")}
-                    </p>
-                  </div>
+                        : t("noPendingRequests"),
+                    className: "py-8",
+                  })
                 )}
               </div>
             </Card>

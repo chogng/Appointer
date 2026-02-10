@@ -2195,6 +2195,17 @@ const TemplateManager = ({
     );
   };
 
+  const renderPreviewPlaceholder = ({ title, hint }) => (
+    <div
+      id="device-analysis-preview-placeholder"
+      className="empty_state_panel flex-1 min-h-0"
+    >
+      <Avatar icon={FileSpreadsheet} size="lg" variant="empty" />
+      {title ? <p className="empty_state_title">{title}</p> : null}
+      {hint ? <p className="empty_state_hint">{hint}</p> : null}
+    </div>
+  );
+
   return (
     <section aria-label={t("da_data_extraction_template")}>
       <h2 className="section_title">{t("da_data_extraction_template")}</h2>
@@ -2213,7 +2224,7 @@ const TemplateManager = ({
           {/* Configuration Panel */}
           <div
             ref={leftPanelRef}
-            className="lg:col-span-1 rounded-lg flex flex-col min-h-0 lg:min-h-[var(--da-template-panel-min-h)]"
+            className="lg:col-span-1 rounded-lg flex flex-col min-h-[var(--da-template-panel-min-h)]"
           >
             <div
               className="relative flex flex-col gap-4 flex-1 min-h-0"
@@ -2340,41 +2351,15 @@ const TemplateManager = ({
             </div>
 
             {previewStatus?.state === "loading" ? (
-              <div
-                id="device-analysis-preview-placeholder"
-                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50"
-              >
-                <Avatar
-                  icon={FileSpreadsheet}
-                  size="lg"
-                  variant="empty"
-                  className="mb-4"
-                />
-                <p className="text-sm font-medium text-text-secondary mb-1">
-                  {previewStatus.message || t("da_preview_loading")}
-                </p>
-                <p className="text-sm text-text-tertiary">
-                  {t("da_preview_loading_hint")}
-                </p>
-              </div>
+              renderPreviewPlaceholder({
+                title: previewStatus.message || t("da_preview_loading"),
+                hint: t("da_preview_loading_hint"),
+              })
             ) : previewStatus?.state === "error" ? (
-              <div
-                id="device-analysis-preview-placeholder"
-                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50"
-              >
-                <Avatar
-                  icon={FileSpreadsheet}
-                  size="lg"
-                  variant="empty"
-                  className="mb-4"
-                />
-                <p className="text-sm font-medium text-text-secondary mb-1">
-                  {previewStatus.message || t("da_preview_error")}
-                </p>
-                <p className="text-sm text-text-tertiary">
-                  {t("da_preview_error_hint")}
-                </p>
-              </div>
+              renderPreviewPlaceholder({
+                title: previewStatus.message || t("da_preview_error"),
+                hint: t("da_preview_error_hint"),
+              })
             ) : previewFile ? (
               <div
                 ref={previewScrollRef}
@@ -2521,20 +2506,9 @@ const TemplateManager = ({
                 </div>
               </div>
             ) : (
-              <div
-                id="device-analysis-preview-placeholder"
-                className="flex-1 min-h-0 flex flex-col items-center justify-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50"
-              >
-                <Avatar
-                  icon={FileSpreadsheet}
-                  size="lg"
-                  variant="empty"
-                  className="mb-4"
-                />
-                <p className="text-sm text-text-tertiary">
-                  {t("da_preview_select_file_hint")}
-                </p>
-              </div>
+              renderPreviewPlaceholder({
+                hint: t("da_preview_select_file_hint"),
+              })
             )}
           </div>
         </div>

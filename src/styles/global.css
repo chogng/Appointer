@@ -266,6 +266,23 @@ body {
     @apply inline-flex;
   }
 
+  /* Empty state */
+  .empty_state_panel {
+    @apply flex flex-col items-center justify-center gap-2 p-8 text-center border border-dashed border-border-subtle rounded-xl bg-bg-surface/50;
+  }
+
+  .empty_state_center {
+    @apply flex flex-col items-center justify-center gap-2 text-center;
+  }
+
+  .empty_state_title {
+    @apply text-sm font-medium text-text-secondary;
+  }
+
+  .empty_state_hint {
+    @apply text-sm text-text-tertiary;
+  }
+
   .toolbar_group {
     @apply mb-4 flex items-center justify-between gap-4 flex-wrap;
   }
