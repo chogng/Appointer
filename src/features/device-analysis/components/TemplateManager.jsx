@@ -1966,6 +1966,8 @@ const TemplateManager = ({
     const resolvedInputId = includeIds
       ? "device-analysis-template-dropdown-btn"
       : undefined;
+    const displayName = String(config.name ?? "").trim();
+    const hasDisplayName = Boolean(displayName);
 
     return (
       <div className="space-y-4">
@@ -1989,19 +1991,15 @@ const TemplateManager = ({
                   }
                 : {})}
             >
-              <input
+              <button
                 id={resolvedInputId}
-                type="text"
-                role="combobox"
-                aria-haspopup="menu"
-                aria-expanded={includeIds ? isDropdownOpen : false}
+                type="button"
+                aria-haspopup={includeIds ? "menu" : undefined}
+                aria-expanded={includeIds ? isDropdownOpen : undefined}
                 aria-controls={
                   includeIds ? "device-analysis-template-dropdown-menu" : undefined
                 }
-                aria-label={t("da_template_name")}
-                readOnly
-                value={config.name?.trim() ? config.name : ""}
-                placeholder={t("da_template_name")}
+                aria-label={includeIds ? t("da_template_name") : undefined}
                 onMouseDown={
                   measureOnly
                     ? undefined
@@ -2034,8 +2032,14 @@ const TemplateManager = ({
                         }
                       }
                 }
-                className="input_native no-focus-outline pr-8 text-left cursor-pointer select-none caret-transparent"
-              />
+                className="input_native no-focus-outline p-0 pr-8 text-left cursor-pointer select-none"
+              >
+                <span
+                  className={`block truncate ${hasDisplayName ? "text-text-primary" : "text-text-tertiary"}`}
+                >
+                  {hasDisplayName ? displayName : t("da_template_name")}
+                </span>
+              </button>
 
               <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary pointer-events-none">
                 <ChevronDown
@@ -2053,8 +2057,10 @@ const TemplateManager = ({
                 id="device-analysis-template-dropdown-menu"
                 role="menu"
               >
-                <div
-                  className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-1 text-accent"
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-1 text-accent"
                   onClick={() => {
                     setTemplateMode("save");
                     setIsDropdownOpen(false);
@@ -2084,31 +2090,38 @@ const TemplateManager = ({
                   <span className="flex-1 text-sm font-medium">
                     {t("da_new_template")}
                   </span>
-                  <div className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Plus size={14} />
-                  </div>
-                </div>
+                  </span>
+                </button>
                 {templates.length > 0 ? (
-                  templates.map((t) => (
+                  templates.map((template) => (
                     <div
-                      key={t.id}
-                      data-template-id={t.id}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-page cursor-pointer group transition-colors mb-0.5 last:mb-0"
-                      onClick={() => loadTemplate(t)}
+                      key={template.id}
+                      data-template-id={template.id}
+                      className="relative group mb-0.5 last:mb-0"
                     >
-                      <span className="flex-1 text-sm text-text-primary font-medium truncate">
-                        {t.name}
-                      </span>
                       <button
                         type="button"
-                        aria-label="Delete template"
-                        data-template-id={t.id}
+                        role="menuitem"
+                        onClick={() => loadTemplate(template)}
+                        className="w-full flex items-center justify-between px-3 py-2 pr-9 rounded-lg transition-colors text-left hover:bg-bg-page group-hover:bg-bg-page"
+                      >
+                        <span className="flex-1 text-sm text-text-primary font-medium truncate">
+                          {template.name}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        aria-label={t("da_delete_template")}
+                        data-template-id={template.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteTemplate(t.id);
+                          handleDeleteTemplate(template.id);
                         }}
-                        className="p-1 text-text-primary hover:text-red-500 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
-                        title="Delete template"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-primary hover:text-red-500 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity"
+                        title={t("da_delete_template")}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -2116,7 +2129,7 @@ const TemplateManager = ({
                   ))
                 ) : (
                   <div className="px-3 py-2 text-sm text-text-secondary italic text-center">
-                    No saved templates
+                    {t("da_no_saved_templates")}
                   </div>
                 )}
               </DropdownMenu>
