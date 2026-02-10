@@ -4,6 +4,7 @@ This doc defines `src/components/ui/DropdownMenu.jsx` behavior and the recommend
 
 Related:
 - Stable selectors: `docs/stable_selectors_spec.md`
+- Dropdown (select): `docs/dropdown_ui_component_spec.md`
 - Modal (focus/portal patterns): `docs/modal_component_spec.md`
 - Implementation: `src/components/ui/DropdownMenu.jsx`
 
@@ -28,6 +29,13 @@ Non-goals:
   - managing `aria-*` on the trigger element (`aria-expanded`, `aria-controls`, etc.)
   - providing correct `role` for the menu contents (menu/listbox) and the items
   - focusing behavior if needed (e.g. focusing the trigger on close)
+  - keyboard navigation / roving tab index (e.g. ArrowUp/ArrowDown highlight and Enter select). If you want these behaviors, prefer `Dropdown` (see `docs/dropdown_ui_component_spec.md`).
+
+Conventions:
+- Prefer `Dropdown` for standard single-select dropdowns (no custom row actions).
+- Use `DropdownMenu` when the menu content is custom (e.g. a “New …” entry, per-item Delete actions, richer layouts).
+- Prefer a `button` trigger (can be styled input-like) over a readonly `<input>` to reduce browser autofill/history suggestions.
+- When tests/automation need stable anchors, use stable `id`s for the trigger + menu, and link them via `aria-controls` / `aria-labelledby`.
 
 ## 3. Props
 
@@ -92,4 +100,3 @@ When `isOpen === true`:
 - Stable anchors: use `id` for the menu when needed by tests.
 - i18n: menu item copy uses `t("key")` where applicable.
 - Close behavior: outside click + Escape behave consistently across pages.
-

@@ -1,16 +1,23 @@
-# Dropdown（UI）组件规范 v1
+# Dropdown（UI）组件规范 v2
+
+本规范以实现为准：`src/components/ui/Dropdown.jsx`。
 
 本文定义 [`src/components/ui/Dropdown.jsx`](../src/components/ui/Dropdown.jsx) 的 **DOM 输出、状态模型、尺寸变体、稳定选择器锚点与 A11y 约束**，用于避免页面里反复堆叠超长 Tailwind class（例如 `w-full h-[38px] flex items-center ...`）以及不稳定的测试/脚本定位。
 
 相关规范：
 - 稳定选择器与 UI 标记：[`stable_selectors_spec.md`](./stable_selectors_spec.md)
+- 菜单面板（轻量）：[`dropdown_menu_component_spec.md`](./dropdown_menu_component_spec.md)
+- 弹层容器（Dropdown 依赖）：[`popup_ui_component_spec.md`](./popup_ui_component_spec.md)
 
 ---
 
 ## 1. 适用范围
 
 - 适用：需要“下拉选择（单选）”的场景，并希望统一样式/行为、支持键盘操作、支持分组展示。
-- 不适用：原生 `<select>` 可满足且无需统一样式/交互的简单场景；复杂多选请另做组件（本组件是单选）。
+- 不适用：
+  - 原生 `<select>` 可满足且无需统一样式/交互的简单场景
+  - 复杂多选（本组件是单选）
+  - 需要自定义菜单内容/每项带额外动作（例如每项右侧 Delete、菜单头部有 “New …”）：请用 `DropdownMenu`（见 [`dropdown_menu_component_spec.md`](./dropdown_menu_component_spec.md)）
 
 ---
 
@@ -37,10 +44,10 @@
   - `aria-controls="<menuId>"`
   - `disabled={true|false}`
   - `data-state="open|closed"`
-  - `data-size="sm|md"`
+  - `data-size="sm|md|xl"`
   - class 必须包含：
     - `.ui-dropdown_trigger`
-    - `.ui-dropdown_trigger--sm | .ui-dropdown_trigger--md`
+    - `.ui-dropdown_trigger--sm | .ui-dropdown_trigger--md | .ui-dropdown_trigger--xl`
 - 内部结构（稳定）：
   - 文本：`span.ui-dropdown_text ui-dropdown_text--<size>`
   - 图标：`img.ui-dropdown_icon`（旋转由 `data-state` 或内部状态控制）
@@ -111,9 +118,10 @@ type DropdownProps = {
   title?: string;
   disabled?: boolean;
 
-  size?: "sm" | "md"; // 默认 md
+  size?: "sm" | "md" | "xl"; // 默认 md
 
   id?: string; // trigger id（用于 aria-labelledby/aria-controls）
+  menuId?: string; // menu id（用于 aria-controls，便于稳定锚点）
   align?: "left" | "center" | "right";
   zIndex?: number;
 
@@ -131,6 +139,7 @@ type DropdownProps = {
 约束：
 - `options` 中非 `{value: ...}` 的项会被忽略（不作为可选项渲染/参与键盘导航）。
 - `triggerClassName` 不应重复 `.ui-dropdown_trigger*` 的基础样式（如 `w-full / bg-* / border-* / justify-between` 等），只做页面级微调。
+- 若未传 `id` / `menuId`，组件会用 `useId()` 派生，**不保证稳定**（测试/自动化锚点请显式传稳定 `id` / `menuId`，或使用 `dataUi`）。
 
 ---
 
@@ -167,14 +176,16 @@ type DropdownProps = {
 
 ---
 
-## 6. 尺寸变体（sm / md）
+## 6. 尺寸变体（sm / md / xl）
 
 - `md`（默认）：用于页面主表单/筛选区
 - `sm`：用于紧凑工具条/图表 header
+- `xl`：用于更大尺寸的表单/选择区（与 `input_field--xl` 高度对齐）
 
 当前项目推荐值（在 [`src/styles/global.css`](../src/styles/global.css) 的 `@layer components` 中定义）：
 - `md`：`h-[38px] px-3` + `text-sm`
 - `sm`：`h-8 px-2` + `text-xs`
+- `xl`：`h-[47.6px] px-3` + `text-sm`
 
 约束：尺寸变体必须同时影响 Trigger 的高度/内边距与文本字号（不能只改高度，文字仍保持 md）。
 
