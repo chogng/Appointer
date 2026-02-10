@@ -192,14 +192,13 @@ const Dashboard = () => {
                     value={searchTerm}
                     onChange={activity.setSearchTerm}
                     placeholder={t("searchLogs")}
-                    leftIcon={Search}
-                    size="md"
-                    className="w-full"
-                    autoComplete="off"
-                    spellCheck={false}
-                    cta="Dashboard"
-                    ctaPosition="activity-notifications"
-                    ctaCopy="search-logs"
+	                    leftIcon={Search}
+	                    size="md"
+	                    className="w-full"
+	                    spellCheck={false}
+	                    cta="Dashboard"
+	                    ctaPosition="activity-notifications"
+	                    ctaCopy="search-logs"
                     aria-label={t("searchLogs")}
                   />
                 </div>

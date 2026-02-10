@@ -123,14 +123,13 @@ const JournalLinksCard = ({
               ctaPosition="date filter wrap"
               ctaCopy="max results"
               aria-label="max results input"
-              inputMode="numeric"
-              spellCheck={false}
-              autoCorrect="off"
-              autoCapitalize="off"
-              autoComplete="new-password"
-              aria-autocomplete="none"
-              data-form-type="other"
-              data-lpignore="true"
+	              inputMode="numeric"
+	              spellCheck={false}
+	              autoCorrect="off"
+	              autoCapitalize="off"
+	              aria-autocomplete="none"
+	              data-form-type="other"
+	              data-lpignore="true"
             />
           </div>
 
@@ -243,20 +242,20 @@ const JournalLinksCard = ({
                     </span>
                   </button>
 
-                  <Input
-                    id={`literature-seed-url-${index}`}
-                    size="md"
-                    value={value}
-                    onChange={(nextValue) => onSeedUrlChangeAt(index, nextValue)}
-                    onFocus={onSettingsInputFocus}
-                    onBlur={onSettingsInputBlur}
-                    spellCheck={false}
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    placeholder={t("literature_seed_url_placeholder")}
-                    leftIcon={LinkIcon}
-                    className="flex-1"
-                    aria-label={`Seed url ${index + 1}`}
+	                  <Input
+	                    id={`literature-seed-url-${index}`}
+	                    size="md"
+	                    value={value}
+	                    onChange={(nextValue) => onSeedUrlChangeAt(index, nextValue)}
+	                    onFocus={onSettingsInputFocus}
+	                    onBlur={onSettingsInputBlur}
+	                    spellCheck={false}
+	                    autoCorrect="off"
+	                    autoCapitalize="off"
+	                    placeholder={t("literature_seed_url_placeholder")}
+	                    leftIcon={LinkIcon}
+	                    className="flex-1"
+	                    aria-label={`Seed url ${index + 1}`}
                     cta="Literature research"
                     ctaPosition="seed-urls"
                     ctaCopy={`seed-url-${index}`}

@@ -42,6 +42,7 @@ const Input = forwardRef(
       disabled = false,
       placeholder,
       autoComplete,
+      allowAutoComplete = false,
       size = "md", // "sm" | "md" | "lg" | "xl"
       leftIcon: LeftIcon,
       rightSlot,
@@ -71,6 +72,7 @@ const Input = forwardRef(
       describedByFromStatus
     );
     const state = disabled ? "disabled" : error ? "error" : "enable";
+    const resolvedAutoComplete = allowAutoComplete ? autoComplete : "off";
     const sizeClass =
       size === "sm"
         ? "input_field--sm"
@@ -117,7 +119,7 @@ const Input = forwardRef(
           onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          autoComplete={autoComplete}
+          autoComplete={resolvedAutoComplete}
           aria-invalid={!!error}
           aria-describedby={ariaDescribedBy}
           className={cx("input_native", inputClassName)}

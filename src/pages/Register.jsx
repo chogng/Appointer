@@ -223,7 +223,6 @@ const Register = () => {
                         value={studentId}
                         onChange={setStudentId}
                         placeholder="Student ID"
-                        autoComplete="username"
                         aria-label="student id"
                         cta="Auth"
                         ctaPosition="register-form"
@@ -237,7 +236,6 @@ const Register = () => {
                         value={email}
                         onChange={setEmail}
                         placeholder="Email (Optional)"
-                        autoComplete="email"
                         aria-label="email"
                         cta="Auth"
                         ctaPosition="register-form"
@@ -251,7 +249,6 @@ const Register = () => {
                         value={password}
                         onChange={setPassword}
                         placeholder="Password"
-                        autoComplete="new-password"
                         aria-label="password"
                         cta="Auth"
                         ctaPosition="register-form"
@@ -265,7 +262,6 @@ const Register = () => {
                         value={repeatPassword}
                         onChange={setRepeatPassword}
                         placeholder="Repeat Password"
-                        autoComplete="new-password"
                         aria-label="repeat password"
                         cta="Auth"
                         ctaPosition="register-form"
@@ -281,7 +277,6 @@ const Register = () => {
                             value={verificationCode}
                             onChange={setVerificationCode}
                             placeholder="Enter CAPTCHA"
-                            autoComplete="off"
                             aria-label="captcha"
                             cta="Auth"
                             ctaPosition="register-form"

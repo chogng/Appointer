@@ -26,7 +26,6 @@ export default function InputExample() {
         value={email}
         onChange={setEmail}
         placeholder="name@lab.edu"
-        autoComplete="email"
         size="sm"
         error={email && !email.includes("@") ? "Email 格式不正确" : undefined}
         rightSlot={

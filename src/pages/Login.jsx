@@ -135,7 +135,6 @@ const Login = () => {
                           value={username}
                           onChange={setUsername}
                           placeholder="Enter your account"
-                          autoComplete="username"
                           aria-label="username"
                           cta="Auth"
                           ctaPosition="login-form"
@@ -153,7 +152,6 @@ const Login = () => {
                           value={password}
                           onChange={setPassword}
                           placeholder="Enter your password"
-                          autoComplete="current-password"
                           aria-label="password"
                           cta="Auth"
                           ctaPosition="login-form"
