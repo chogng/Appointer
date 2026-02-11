@@ -126,7 +126,7 @@ const Dashboard = () => {
   return (
     <div
       ref={containerRef}
-      className="dashboard_page w-full relative h-full min-h-0 flex flex-col"
+      className="dashboard_page w-full relative flex flex-col lg:h-full lg:min-h-0"
     >
       <header className="page_head">
         <h1 className="page_title">{t("dashboard")}</h1>
@@ -135,7 +135,7 @@ const Dashboard = () => {
         </p>
       </header>
 
-      <div className="page_content flex-1 min-h-0">
+      <div className="page_content lg:flex-1 lg:min-h-0">
         <section aria-labelledby="dashboard-overview-title">
           <h2 id="dashboard-overview-title" className="section_title">
             {t("overview")}
@@ -169,7 +169,7 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <div className="dashboard_fill_grid grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
+        <div className="dashboard_fill_grid grid grid-cols-1 lg:grid-cols-2 gap-8 lg:flex-1 lg:min-h-0">
           {/* Recent Activity Column */}
           <section
             data-cta="Dashboard"
